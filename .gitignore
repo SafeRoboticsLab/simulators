@@ -5,4 +5,4 @@
 *.code-workspace
 **/*.yaml
 .DS_Store
-**/tmp*.py
+**/tmp*

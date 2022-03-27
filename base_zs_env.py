@@ -1,10 +1,9 @@
 from abc import abstractmethod
-from typing import Dict, Tuple, Any
+from typing import Dict, Tuple
 import numpy as np
 from gym import spaces
 
 from base_env import BaseEnv
-# TODO: add other simulators.
 from utils import ActionZS, get_agent
 
 
@@ -20,16 +19,20 @@ class BaseZeroSumEnv(BaseEnv):
         "Zero-Sum Game currently only supports two agents!"
     )
     assert config.CTDE is False, ("Zero-Sum Game has only one physical agent!")
-    super().__init__(config)
-    self.observation_space = spaces.Box(
-        low=config.OBS_LOW, high=config.OBS_HIGH, shape=config.OBS_DIM
-    )
+    super().__init__()
 
+    # Action Space.
     ctrl_space = np.array(config.ACTION_RANGE['CTRL'])
     self.action_space_ctrl = spaces.Box(
         low=ctrl_space[:, 0], high=ctrl_space[:, 1]
     )
     self.action_dim_ctrl = ctrl_space.shape[0]
+    self.agent = get_agent(
+        dyn=config.DYNAMICS, config=config, action_space=ctrl_space
+    )
+    # Other keyword arguments for integrate_forward, such as step, noise,
+    # noise_type.
+    self.integrate_kwargs = config.INTEGRATE_KWARGS
 
     dstb_space = np.array(config.ACTION_RANGE['DSTB'])
     self.action_space_dstb = spaces.Box(
@@ -37,18 +40,13 @@ class BaseZeroSumEnv(BaseEnv):
     )
     self.action_dim_dstb = dstb_space.shape[0]
 
+    # Required attributes for gym env.
     self.action_space = spaces.Dict(
         dict(ctrl=self.action_space_ctrl, dstb=self.action_space_dstb)
     )
-
-    self.agent = get_agent(
-        dyn=config.DYNAMICS, config=config, action_space=self.action_space_ctrl
+    self.observation_space = spaces.Box(
+        low=config.OBS_LOW, high=config.OBS_HIGH, shape=config.OBS_DIM
     )
-
-    # Other keyword arguments for integrate_forward, such as step, noise,
-    # noise_type.
-    self.integrate_kwargs = config.INTEGRATE_KWARGS
-
     self.state = self.observation_space.sample()  # Overriden by reset later.
 
   def step(self, action: ActionZS) -> Tuple[np.ndarray, float, bool, Dict]:
