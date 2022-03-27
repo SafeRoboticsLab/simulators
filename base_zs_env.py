@@ -18,7 +18,6 @@ class BaseZeroSumEnv(BaseEnv):
     assert config.NUM_AGENTS == 2, (
         "Zero-Sum Game currently only supports two agents!"
     )
-    assert config.CTDE is False, ("Zero-Sum Game has only one physical agent!")
     super().__init__()
 
     # Action Space.
