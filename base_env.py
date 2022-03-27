@@ -14,9 +14,8 @@ class BaseEnv(gym.Env, ABC):
     super().__init__()
 
   @abstractmethod
-  def step(
-      self, action: GenericAction
-  ) -> Tuple[GenericState, float, bool, Dict[str, Any]]:
+  def step(self,
+           action: GenericAction) -> Tuple[GenericState, float, bool, Dict]:
     raise NotImplementedError
 
   @abstractmethod

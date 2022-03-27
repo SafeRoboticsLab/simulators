@@ -1,9 +1,20 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 import numpy as np
 
 
 class BaseDynamics(ABC):
+
+  def __init__(self, config: Any, action_space: np.ndarray) -> None:
+    """
+    Implements the bicycle dynamics (for Princeton race car). The state is the
+    center of the rear axis.
+
+    Args:
+        config (Any): an object specifies configuration.
+        action_space (np.ndarray): action space.
+    """
+    pass
 
   @abstractmethod
   def integrate_forward(

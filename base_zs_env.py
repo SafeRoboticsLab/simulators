@@ -5,8 +5,7 @@ from gym import spaces
 
 from base_env import BaseEnv
 # TODO: add other simulators.
-from race_car.bicycle_dynamics import BicycleDynamics
-from utils import ActionZS
+from utils import ActionZS, get_agent
 
 
 class BaseZeroSumEnv(BaseEnv):
@@ -42,9 +41,9 @@ class BaseZeroSumEnv(BaseEnv):
         dict(ctrl=self.action_space_ctrl, dstb=self.action_space_dstb)
     )
 
-    # TODO: add other simulators.
-    if config.DYNAMICS == "Bicycle":
-      self.agent = BicycleDynamics(config, self.action_space_ctrl)
+    self.agent = get_agent(
+        dyn=config.DYNAMICS, config=config, action_space=self.action_space_ctrl
+    )
 
     # Other keyword arguments for integrate_forward, such as step, noise,
     # noise_type.
@@ -52,8 +51,7 @@ class BaseZeroSumEnv(BaseEnv):
 
     self.state = self.observation_space.sample()  # Overriden by reset later.
 
-  def step(self,
-           action: ActionZS) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
+  def step(self, action: ActionZS) -> Tuple[np.ndarray, float, bool, Dict]:
     """Implements the step function in the environment.
 
     Args:
