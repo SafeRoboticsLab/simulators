@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Dict, List, Tuple, Any, TypedDict
+from typing import Dict, Tuple, Any
 import numpy as np
 from gym import spaces
 
@@ -144,7 +144,8 @@ class BaseZeroSumEnv(BaseEnv):
       cost: float, constraints: Dict
   ) -> Dict:
     """
-    _summary_
+    Gets a dictionary to provide additional information of the step function
+    given current state, current action, next state, cost, and constraints.
 
     Args:
         state (np.ndarray): current state.
