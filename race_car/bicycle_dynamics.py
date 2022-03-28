@@ -20,9 +20,7 @@ class BicycleDynamics(BaseDynamics):
 
     # load parameters
     self.dt = config.dt  # time step for each planning step
-    self.wheelbase = config.wheelbase  # vehicle chassis length
-    self.v_min = config.v_min  # min velocity
-    self.v_max = config.v_max  # max velocity
+    self.wheelbase = config.WHEELBASE  # vehicle chassis length
     self.a_min = action_space[0, 0]  # min longitudial accel
     self.a_max = action_space[0, 1]  # max longitudial accel
     self.delta_min = action_space[1, 0]  # min steering angle rad
@@ -89,12 +87,9 @@ class BicycleDynamics(BaseDynamics):
           rv = np.random.normal(size=(4))
         state_nxt = state_nxt + (transform_mtx@noise) * rv / step
 
-    # Clips the velocity.
-    state_nxt[2] = np.clip(state_nxt[2], 0, None)
-
     return state_nxt, control_clip
 
-  def get_AB_matrix(
+  def get_dyn_jacobian(
       self, nominal_states: np.ndarray, nominal_controls: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
     """
