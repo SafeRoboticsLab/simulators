@@ -4,7 +4,7 @@ import numpy as np
 from gym import spaces
 
 from base_env import BaseEnv
-from .utils import ActionZS, get_agent
+from .utils import ActionZS, get_agent, build_obs_space
 
 
 class BaseZeroSumEnv(BaseEnv):
@@ -39,13 +39,17 @@ class BaseZeroSumEnv(BaseEnv):
     )
     self.action_dim_dstb = dstb_space.shape[0]
 
+    # Observation Space.
+    obs_spec = np.array(config.OBS_RANGE)
+
     # Required attributes for gym env.
     self.action_space = spaces.Dict(
         dict(ctrl=self.action_space_ctrl, dstb=self.action_space_dstb)
     )
-    self.observation_space = spaces.Box(
-        low=config.OBS_LOW, high=config.OBS_HIGH, shape=config.OBS_DIM
+    self.observation_space = build_obs_space(
+        obs_spec=obs_spec, obs_dim=config.OBS_DIM
     )
+    self.observation_dim = self.observation_space.low.shape
     self.state = self.observation_space.sample()  # Overriden by reset later.
 
   def step(self, action: ActionZS) -> Tuple[np.ndarray, float, bool, Dict]:

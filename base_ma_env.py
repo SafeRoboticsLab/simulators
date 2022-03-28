@@ -4,7 +4,7 @@ import numpy as np
 from gym import spaces
 
 from base_env import BaseEnv
-from .utils import get_agent
+from .utils import get_agent, build_obs_space
 
 
 class BaseMultiAgentEnv(BaseEnv):
@@ -43,22 +43,10 @@ class BaseMultiAgentEnv(BaseEnv):
       self.integrate_kwargs[i] = config.INTEGRATE_KWARGS[agent_name]
 
       # Observation space.
-      tmp_observation_space = np.array(config.OBS_RANGE[agent_name])
-      if tmp_observation_space.ndim == 2:  # e.g., state.
-        _obs_space[agent_name] = spaces.Box(
-            low=tmp_observation_space[:, 0], high=tmp_observation_space[:, 1]
-        )
-      elif tmp_observation_space.ndim == 4:  # e.g., RGB-D.
-        _obs_space[agent_name] = spaces.Box(
-            low=tmp_observation_space[:, :, :, 0],
-            high=tmp_observation_space[:, :, :, 1]
-        )
-      else:  # Each dimension shares the same min and max.
-        assert tmp_observation_space.ndim == 1, "Unsupported obs space dim!"
-        _obs_space[agent_name] = spaces.Box(
-            low=tmp_observation_space[0], high=tmp_observation_space[1],
-            shape=(config.OBS_DIM[agent_name])
-        )
+      obs_spec = np.array(config.OBS_RANGE[agent_name])
+      _obs_space[agent_name] = build_obs_space(
+          obs_spec=obs_spec, obs_dim=config.OBS_DIM[agent_name]
+      )
       self.observation_dim[i] = _obs_space[agent_name].low.shape
 
     # Required attributes for gym env.
