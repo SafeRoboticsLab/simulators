@@ -5,7 +5,7 @@ import numpy as np
 import gym
 import torch
 
-from utils import GenericAction, GenericState
+from .utils import GenericAction, GenericState
 
 
 class BaseEnv(gym.Env, ABC):

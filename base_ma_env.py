@@ -4,7 +4,7 @@ import numpy as np
 from gym import spaces
 
 from base_env import BaseEnv
-from utils import get_agent
+from .utils import get_agent
 
 
 class BaseMultiAgentEnv(BaseEnv):
