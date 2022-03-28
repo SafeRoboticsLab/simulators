@@ -79,7 +79,7 @@ class BaseMultiAgentEnv(BaseEnv):
 
     Returns:
         List[np.ndarray]: a list consisting of the next state of each agent.
-        List[float]: a list consisting of the cost of each agent.
+        List[float]: a list consisting of the reward (cost*-1) of each agent.
         List[bool]: a list consisting of the done flag of each agent. True if
             the episode of that agent ends.
         List[Dict]]: a list consisting of additional information of each agent
@@ -99,7 +99,7 @@ class BaseMultiAgentEnv(BaseEnv):
     done = self.get_done_flag(self.state, action, state_nxt, constraints)
     info = self.get_info(self.state, action, state_nxt, cost, constraints)
 
-    return state_nxt, cost, done, info
+    return state_nxt, -cost, done, info
 
   @abstractmethod
   def get_cost(

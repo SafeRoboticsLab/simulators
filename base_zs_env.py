@@ -57,7 +57,8 @@ class BaseZeroSumEnv(BaseEnv):
 
     Returns:
         np.ndarray: next state.
-        float: the cost that ctrl wants to minimize and dstb wants to maximize.
+        float: the reward that ctrl wants to maximize and dstb wants to
+            minimize.
         bool: True if the episode ends.
         Dict[str, Any]]: additional information of the step, such as target
             margin and safety margin used in reachability analysis.
@@ -71,7 +72,7 @@ class BaseZeroSumEnv(BaseEnv):
     done = self.get_done_flag(self.state, action, state_nxt, constraints)
     info = self.get_info(self.state, action, state_nxt, cost, constraints)
 
-    return np.copy(state_nxt), cost, done, info
+    return np.copy(state_nxt), -cost, done, info
 
   @abstractmethod
   def get_cost(
