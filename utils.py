@@ -1,10 +1,11 @@
-from typing import TypeVar, TypedDict, List, Any, Optional
+from __future__ import annotations
+from typing import TypeVar, TypedDict, List, Any, Optional, Union, Tuple
 import numpy as np
 from gym import spaces
 
 from base_dynamics import BaseDynamics
 # TODO: add other simulators.
-from race_car.bicycle_dynamics import BicycleDynamics
+from race_car.bicycle_ellipsoid import BicycleEllipsoid
 
 
 # Type Hints
@@ -22,10 +23,11 @@ GenericState = TypeVar('GenericState', np.ndarray, List[np.ndarray])
 
 # TODO: add other simulators.
 def get_agent(dyn: str, config: Any, action_space: np.ndarray) -> BaseDynamics:
-  if dyn == "Bicycle":
-    return BicycleDynamics(config, action_space)
+  if dyn == "BicycleEllipsoid":
+    return BicycleEllipsoid(config, action_space)
 
 
+# Observation.
 def build_obs_space(
     obs_spec: np.ndarray, obs_dim: Optional[tuple] = None
 ) -> spaces.Box:
@@ -47,3 +49,33 @@ def concatenate_obs(observations: List[np.ndarray]) -> np.ndarray:
       "The obs. of each agent should be the same except the first dim!"
   )
   return np.concatenate(observations)
+
+
+# Math Operator.
+def barrier_function(
+    q1: float, q2: float, cons: np.ndarray | float, cons_dot: np.ndarray,
+    cons_min: Optional[float] = None, cons_max: Optional[float] = None
+) -> Tuple[Union[np.ndarray, float], Union[np.ndarray, float]]:
+  clip = not (cons_min is None and cons_max is None)
+  if clip:
+    tmp = np.clip(q2 * cons, cons_min, cons_max)
+  else:
+    tmp = q2 * cons
+  b = q1 * (np.exp(tmp))
+
+  if isinstance(cons, np.ndarray):
+    b = b.reshape(-1)
+    assert b.shape[0] == cons_dot.shape[1], (
+        "The shape of cons and cons_dot don't match!"
+    )
+    b_dot = np.einsum('n,an->an', q2 * b, cons_dot)
+    b_ddot = np.einsum(
+        'n,abn->abn', (q2**2) * b, np.einsum('an,bn->abn', cons_dot, cons_dot)
+    )
+  elif isinstance(cons, float):
+    cons_dot = cons_dot.reshape(-1, 1)  # Transforms to column vector.
+    b_dot = q2 * b * cons_dot
+    b_ddot = (q2**2) * b * np.einsum('ik,jk->ij', cons_dot, cons_dot)
+  else:
+    raise TypeError("The type of cons is not supported!")
+  return b_dot, b_ddot
