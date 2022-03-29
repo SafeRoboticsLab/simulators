@@ -121,7 +121,7 @@ class Constraints:
     else:
       return cons_dict
 
-  def get_cost(
+  def get_soft_cons_cost(
       self, footprint: Ellipse, states: np.ndarray, controls: np.ndarray,
       close_pts: np.ndarray, slopes: np.ndarray
   ) -> np.ndarray:
@@ -434,16 +434,20 @@ class Constraints:
   ) -> Tuple[np.ndarray, np.ndarray]:
     centers_with_wheelbase = footprint.center_local + self.wheelbase
     num_steps = states.shape[1]
+    num_obs = len(self.obs_list)
 
     c_x = np.zeros(shape=(4, num_steps))
     c_xx = np.zeros(shape=(4, 4, num_steps))
+
+    cons_flatten = cons_obs.reshape(-1, order='F')  # column first
+    cons_dot_concat = np.zeros(shape=(4, 4, num_steps * num_obs))
 
     for i in range(num_steps):
       state = states[:, i]
       cos_theta = np.cos(state[3])
       sin_theta = np.sin(state[3])
 
-      cons_dot = np.zeros(shape=(4, len(self.obs_list)))
+      # cons_dot = np.zeros(shape=(4, len(self.obs_list)))
       for j, obs_list_j in enumerate(self.obs_list):
         obs_j_i = obs_list_j[i]
 
@@ -455,18 +459,35 @@ class Constraints:
         obs_center = obs_j_i.center[:, obs_j_circ_idx]
         diff = self_center - obs_center
         dist = np.linalg.norm(diff)
-        cons_dot[:2, j] = -diff / dist
-        cons_dot[2, j] = pos_along_major_axis / dist * (
+        # cons_dot[:2, j] = -diff / dist
+        # cons_dot[2, j] = pos_along_major_axis / dist * (
+        #     diff[0] * sin_theta - diff[1] * cos_theta
+        # )
+        cons_dot_concat[:2, i*num_obs + j] = -diff / dist
+        cons_dot_concat[2, i*num_obs + j] = pos_along_major_axis / dist * (
             diff[0] * sin_theta - diff[1] * cos_theta
         )
 
-      _c_x, _c_xx = barrier_function(
-          q1=self.q1_obs,
-          q2=self.q2_obs,
-          cons=cons_obs[:, i],
-          cons_dot=cons_dot,
-          cons_min=-0.2 * self.q2_obs,
-          cons_max=self.barrier_thr,
-      )
-      c_x[:, i] = _c_x.sum(axis=-1)
-      c_xx[:, :, i] = _c_xx.sum(axis=-1)
+      # _c_x, _c_xx = barrier_function(
+      #     q1=self.q1_obs,
+      #     q2=self.q2_obs,
+      #     cons=cons_obs[:, i],
+      #     cons_dot=cons_dot,
+      #     cons_min=-0.2 * self.q2_obs,
+      #     cons_max=self.barrier_thr,
+      # )
+      # c_x[:, i] = _c_x.sum(axis=-1)
+      # c_xx[:, :, i] = _c_xx.sum(axis=-1)
+
+    _c_x, _c_xx = barrier_function(
+        q1=self.q1_obs, q2=self.q2_obs, cons=cons_flatten,
+        cons_dot=cons_dot_concat, cons_min=-0.2 * self.q2_obs,
+        cons_max=self.barrier_thr
+    )
+    for i in range(num_steps):
+      start = i * num_obs
+      end = (i+1) * num_obs
+      c_x[:, i] = np.sum(_c_x[:, start:end], axis=-1)
+      c_xx[:, :, i] = np.sum(_c_xx[:, :, start:end], axis=-1)
+
+    return c_x, c_xx
