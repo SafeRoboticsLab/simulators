@@ -38,14 +38,12 @@ class BaseZeroSumEnv(BaseEnv):
         low=dstb_space[:, 0], high=dstb_space[:, 1]
     )
     self.action_dim_dstb = dstb_space.shape[0]
-
-    # Observation Space.
-    obs_spec = np.array(config.OBS_RANGE)
-
-    # Required attributes for gym env.
     self.action_space = spaces.Dict(
         dict(ctrl=self.action_space_ctrl, dstb=self.action_space_dstb)
     )
+
+    # Observation Space.
+    obs_spec = np.array(config.OBS_RANGE)
     self.observation_space = build_obs_space(
         obs_spec=obs_spec, obs_dim=config.OBS_DIM
     )
