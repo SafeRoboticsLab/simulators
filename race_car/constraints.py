@@ -3,7 +3,7 @@ from turtle import shape
 from typing import List, Any, Optional, Tuple
 import numpy as np
 
-from ell_reach.ellipse import Ellipse
+from ..ell_reach.ellipse import Ellipse
 from ..utils import barrier_function
 
 # TODO: We currently support Ellipsod obstacles.
@@ -15,39 +15,37 @@ class Constraints:
   step. The obstacles and footprint are assumed to be ellipses (2D).
   """
 
-  def __init__(self, config: Any, obs_list: Optional[List[Ellipse]] = None):
-    self.wheelbase = config.WHEELBASE  # vehicle chassis length
+  def __init__(self, config_agent: Any, config_env: Any):
+    self.wheelbase = config_agent.WHEELBASE  # vehicle chassis length
 
     # State Constraint.
-    self.v_min = config.V_MIN  # min velocity
-    self.v_max = config.V_MAX  # max velocity
-    self.track_width_L = config.WIDTH_LEFT
-    self.track_width_R = config.WIDTH_RIGHT
+    self.v_min = config_agent.V_MIN  # min velocity
+    self.v_max = config_agent.V_MAX  # max velocity
+    self.track_width_L = config_env.TRACK_WIDTH_LEFT
+    self.track_width_R = config_env.TRACK_WIDTH_RIGHT
 
     # Dynamics Constraint
-    self.alat_max = config.ALAT_MAX  # max lateral accel
-    self.alat_min = -config.ALAT_MAX  # min lateral accel
+    self.alat_max = config_agent.ALAT_MAX  # max lateral accel
+    self.alat_min = -config_agent.ALAT_MAX  # min lateral accel
 
     # Obstacles
-    self.buffer = getattr(config, "BUFFER", 0.)
+    self.buffer = getattr(config_env, "BUFFER", 0.)
     self.obs_list = None
-    if obs_list is not None:
-      self.obs_list = self.update_obs(obs_list)
 
     # Parameter for barrier functions
     self.barrier_thr = 20
-    self.q1_v = config.Q1_V
-    self.q2_v = config.Q2_V
-    self.q1_road = config.Q1_ROAD
-    self.q2_road = config.Q2_ROAD
+    self.q1_v = config_env.Q1_V
+    self.q2_v = config_env.Q2_V
+    self.q1_road = config_env.Q1_ROAD
+    self.q2_road = config_env.Q2_ROAD
     self.road_thr = -0.025
 
-    self.q1_lat = config.Q1_LAT
-    self.q2_lat = config.Q2_LAT
+    self.q1_lat = config_env.Q1_LAT
+    self.q2_lat = config_env.Q2_LAT
 
-    self.q1_obs = config.Q1_OBS
-    self.q2_obs = config.Q2_OBS
-    self.gamma = getattr(config, "GAMMA", 1.)
+    self.q1_obs = config_env.Q1_OBS
+    self.q2_obs = config_env.Q2_OBS
+    self.gamma = getattr(config_env, "GAMMA", 1.)
 
   def update_obs(self, obs_list: List[List[Ellipse]]):
     dim = np.array([len(x) for x in obs_list])
@@ -60,14 +58,15 @@ class Constraints:
       get_obs_circ_index: Optional[bool] = False
   ) -> Tuple[dict, np.ndarray] | dict:
     # Transforms to column vector.
-    if states.ndim == 1:
+    if states.ndim == 1:  # (4, N)
       states = states[:, np.newaxis]
-    if controls.ndim == 1:
+    if controls.ndim == 1:  # (2, N)
       controls = controls[:, np.newaxis]
-    if close_pts.ndim == 1:
+    if close_pts.ndim == 1:  # (2, N)
       close_pts = close_pts[:, np.newaxis]
-    if slopes.ndim == 1:
-      slopes = slopes[:, np.newaxis]
+    # Makes it numpy array.
+    if isinstance(slopes, float):  # (1, N)
+      slopes = np.array([[slopes]])
 
     num_steps = states.shape[1]
 
@@ -93,14 +92,14 @@ class Constraints:
 
     # Obstacle constraint
     if self.obs_list is not None:
-      footprint_traj = footprint.move2state(states)
+      footprint_traj = footprint.move2state(states[[0, 1, 3], :])
       assert (len(
           self.obs_list[0]
       ) == num_steps), ("The length of obstacles and states do not match!")
 
       cons_obs = np.empty((len(self.obs_list), num_steps))
       if get_obs_circ_index:
-        obs_circ_idx = np.empty((2, len(self.obs_list), num_steps))
+        obs_circ_idx = np.empty((2, len(self.obs_list), num_steps), dtype=int)
       for i, footprint_i in enumerate(footprint_traj):
         # obs_list_j is a list of obstacles.
         for j, obs_list_j in enumerate(self.obs_list):
@@ -118,8 +117,8 @@ class Constraints:
 
       if get_obs_circ_index:
         return cons_dict, obs_circ_idx
-    else:
-      return cons_dict
+    # Returns anyway.
+    return cons_dict
 
   def get_soft_cons_cost(
       self, footprint: Ellipse, states: np.ndarray, controls: np.ndarray,
@@ -148,7 +147,9 @@ class Constraints:
     c_obs = 0.
     if self.obs_list is not None:
       barrier = self._obs_cost(cons_dict["cons_obs"])
+      discount = self.gamma**(np.arange(states.shape[1]))
       c_obs = np.sum(barrier, axis=0)
+      c_obs = c_obs * discount
 
     return c_road + c_vel + c_lat + c_obs
 
@@ -166,14 +167,15 @@ class Constraints:
         slopes: 1xN array of track's slopess (rad) at closest points
     '''
     # Transforms to column vector.
-    if states.ndim == 1:
+    if states.ndim == 1:  # (4, N)
       states = states[:, np.newaxis]
-    if controls.ndim == 1:
+    if controls.ndim == 1:  # (2, N)
       controls = controls[:, np.newaxis]
-    if close_pts.ndim == 1:
+    if close_pts.ndim == 1:  # (2, N)
       close_pts = close_pts[:, np.newaxis]
-    if slopes.ndim == 1:
-      slopes = slopes[:, np.newaxis]
+    # Makes it numpy array.
+    if isinstance(slopes, float):  # (1, N)
+      slopes = np.array([[slopes]])
 
     cons_dict, obs_circ_idx = self.get_constraint(
         footprint, states, controls, close_pts, slopes, get_obs_circ_index=True
@@ -218,6 +220,17 @@ class Constraints:
       self, footprint: Ellipse, states: np.ndarray, close_pts: np.ndarray,
       slopes: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
+    """Computes the road boundary constraint.
+
+    Args:
+        footprint (Ellipse): the footprint of the agent.
+        states (np.ndarray): (4, N) array.
+        close_pts (np.ndarray): (2, N) array.
+        slopes (np.ndarray): (1, N) array.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: _description_
+    """
     dx = states[0, :] - close_pts[0, :]
     dy = states[1, :] - close_pts[1, :]
 
@@ -270,9 +283,10 @@ class Constraints:
 
   def _obs_cost(self, cons_obs: np.ndarray) -> np.ndarray:
     # Ignores and sets to -0.2 when self is far away from the obstacle.
-    barrier = self.q1_obs * np.exp(
-        np.clip(self.q2_obs * cons_obs, -0.2 * self.q2_obs, self.barrier_thr)
+    cons_clip = np.clip(
+        self.q2_obs * cons_obs, -0.2 * self.q2_obs, self.barrier_thr
     )
+    barrier = self.q1_obs * np.exp(cons_clip)
     return barrier
 
   def _road_boundary_derivative(
@@ -441,7 +455,7 @@ class Constraints:
     c_xx = np.zeros(shape=(4, 4, num_steps))
 
     cons_flatten = cons_obs.reshape(-1, order='F')  # column first
-    cons_dot_concat = np.zeros(shape=(4, 4, num_steps * num_obs))
+    cons_dot_concat = np.zeros(shape=(4, num_steps * num_obs))
 
     for i in range(num_steps):
       state = states[:, i]
@@ -456,7 +470,7 @@ class Constraints:
         pos_along_major_axis = centers_with_wheelbase[self_circ_idx]
         self_center = (
             pos_along_major_axis * np.array([cos_theta, sin_theta]) + state[:2]
-        ).reshape(-1, 1)
+        )
         obs_center = obs_j_i.center[:, obs_j_circ_idx]
         diff = self_center - obs_center
         dist = np.linalg.norm(diff)
