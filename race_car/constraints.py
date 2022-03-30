@@ -122,12 +122,14 @@ class Constraints:
 
   def get_soft_cons_cost(
       self, footprint: Ellipse, states: np.ndarray, controls: np.ndarray,
-      close_pts: np.ndarray, slopes: np.ndarray
+      close_pts: Optional[np.ndarray] = None,
+      slopes: Optional[np.ndarray] = None, cons_dict: Optional[dict] = None
   ) -> np.ndarray:
 
-    cons_dict = self.get_constraint(
-        footprint, states, controls, close_pts, slopes
-    )
+    if cons_dict is None:
+      cons_dict = self.get_constraint(
+          footprint, states, controls, close_pts, slopes
+      )
 
     c_road_l, c_road_r = self._road_boundary_cost(
         cons_dict['cons_road_l'], cons_dict['cons_road_r']

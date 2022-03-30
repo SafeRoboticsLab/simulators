@@ -40,6 +40,11 @@ class RaceCarSingleEnv(BaseEnv):
     self.constraints = Constraints(
         config_env=config_env, config_agent=config_agent
     )
+    self.cnt = 0
+    self.timeoff = 150
+
+    # Cost.
+    self.use_soft_cons_cost = config_env.USE_SOFT_CONS_COST
 
     # Action Space.
     action_space = np.array(config_agent.ACTION_RANGE)
@@ -80,6 +85,7 @@ class RaceCarSingleEnv(BaseEnv):
         Dict[str, Any]]: additional information of the step, such as target
             margin and safety margin used in reachability analysis.
     """
+    self.cnt += 1
     state_nxt, _ = self.agent.integrate_forward(
         state=self.state, control=action, **self.integrate_kwargs
     )
@@ -91,6 +97,7 @@ class RaceCarSingleEnv(BaseEnv):
     return np.copy(state_nxt), -cost, done, info
 
   def reset(self) -> np.ndarray:
+    self.cnt = 0
     return super().reset()
 
   def render(self):
@@ -117,7 +124,23 @@ class RaceCarSingleEnv(BaseEnv):
     Returns:
         float: the cost that ctrl wants to minimize and dstb wants to maximize.
     """
-    pass
+    if state.ndim == 1:
+      state = state[:, np.newaxis]
+    if action.ndim == 1:
+      action = action[:, np.newaxis]
+    if self.use_soft_cons_cost:
+      if constraints is None:
+        close_pt, slope, _ = self.track.get_closest_pts(state[:2, :])
+        cost_soft_cons = self.constraints.get_soft_cons_cost(
+            footprint=self.agent.footprint, states=state, controls=action,
+            close_pts=close_pt, slopes=slope
+        )
+      else:
+        cost_soft_cons = self.constraints.get_soft_cons_cost(
+            footprint=self.agent.footprint, states=state, controls=action,
+            cons_dict=constraints
+        )
+    return cost_soft_cons
 
   def get_constraints(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray
@@ -136,7 +159,16 @@ class RaceCarSingleEnv(BaseEnv):
         Dict: each (key, value) pair is the name and value of a constraint
             function.
     """
-    pass
+    if state.ndim == 1:
+      state = state[:, np.newaxis]
+    if action.ndim == 1:
+      action = action[:, np.newaxis]
+    close_pt, slope, _ = self.track.get_closest_pts(state[:2, :])
+
+    return self.constraints.get_constraint(
+        footprint=self.agent.footprint, states=state, controls=action,
+        close_pts=close_pt, slopes=slope
+    )
 
   def get_done_flag(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray,
@@ -157,6 +189,8 @@ class RaceCarSingleEnv(BaseEnv):
     Returns:
         bool: True if the episode ends.
     """
+    if self.cnt >= self.timeoff:
+      return True
     pass
 
   def get_info(
