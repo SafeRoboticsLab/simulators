@@ -19,7 +19,7 @@ class BicycleDynamics(BaseDynamics):
     self.dim_u = 2
 
     # load parameters
-    self.dt = config.dt  # time step for each planning step
+    self.dt = config.DT  # time step for each planning step
     self.wheelbase = config.WHEELBASE  # vehicle chassis length
     self.a_min = action_space[0, 0]  # min longitudial accel
     self.a_max = action_space[0, 1]  # max longitudial accel

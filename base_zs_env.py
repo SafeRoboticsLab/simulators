@@ -3,7 +3,7 @@ from typing import Dict, Tuple
 import numpy as np
 from gym import spaces
 
-from base_env import BaseEnv
+from .base_env import BaseEnv
 from .utils import ActionZS, get_agent, build_obs_space
 
 
