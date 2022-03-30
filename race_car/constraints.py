@@ -198,6 +198,7 @@ class Constraints:
     )
 
     # Obstacle constraints.
+    c_x_obs, c_xx_obs = 0., 0.
     if self.obs_list is not None:
       c_x_obs, c_xx_obs = self._obs_derivative(
           footprint, states, cons_dict['cons_obs'], obs_circ_idx
