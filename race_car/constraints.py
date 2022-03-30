@@ -1,5 +1,5 @@
 from __future__ import annotations
-from turtle import shape
+import time
 from typing import List, Any, Optional, Tuple
 import numpy as np
 
@@ -453,6 +453,8 @@ class Constraints:
 
     c_x = np.zeros(shape=(4, num_steps))
     c_xx = np.zeros(shape=(4, 4, num_steps))
+    # c_x_tmp = np.zeros(shape=(4, num_steps))
+    # c_xx_tmp = np.zeros(shape=(4, 4, num_steps))
 
     cons_flatten = cons_obs.reshape(-1, order='F')  # column first
     cons_dot_concat = np.zeros(shape=(4, num_steps * num_obs))
@@ -479,7 +481,7 @@ class Constraints:
         #     diff[0] * sin_theta - diff[1] * cos_theta
         # )
         cons_dot_concat[:2, i*num_obs + j] = -diff / dist
-        cons_dot_concat[2, i*num_obs + j] = pos_along_major_axis / dist * (
+        cons_dot_concat[3, i*num_obs + j] = pos_along_major_axis / dist * (
             diff[0] * sin_theta - diff[1] * cos_theta
         )
 
@@ -491,8 +493,8 @@ class Constraints:
       #     cons_min=-0.2 * self.q2_obs,
       #     cons_max=self.barrier_thr,
       # )
-      # c_x[:, i] = _c_x.sum(axis=-1)
-      # c_xx[:, :, i] = _c_xx.sum(axis=-1)
+      # c_x_tmp[:, i] = _c_x.sum(axis=-1)
+      # c_xx_tmp[:, :, i] = _c_xx.sum(axis=-1)
 
     _c_x, _c_xx = barrier_function(
         q1=self.q1_obs, q2=self.q2_obs, cons=cons_flatten,
@@ -505,4 +507,5 @@ class Constraints:
       c_x[:, i] = np.sum(_c_x[:, start:end], axis=-1)
       c_xx[:, :, i] = np.sum(_c_xx[:, :, start:end], axis=-1)
 
+    # print(np.linalg.norm(c_x_tmp - c_x), np.linalg.norm(c_xx_tmp - c_xx))
     return c_x, c_xx
