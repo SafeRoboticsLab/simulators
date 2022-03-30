@@ -3,10 +3,6 @@ from typing import TypeVar, TypedDict, List, Any, Optional, Union, Tuple
 import numpy as np
 from gym import spaces
 
-from base_dynamics import BaseDynamics
-# TODO: add other simulators.
-from race_car.bicycle_ellipsoid import BicycleEllipsoid
-
 
 # Type Hints
 class ActionZS(TypedDict):
@@ -19,12 +15,6 @@ GenericAction = TypeVar(
 )
 
 GenericState = TypeVar('GenericState', np.ndarray, List[np.ndarray])
-
-
-# TODO: add other simulators.
-def get_agent(dyn: str, config: Any, action_space: np.ndarray) -> BaseDynamics:
-  if dyn == "BicycleEllipsoid":
-    return BicycleEllipsoid(config, action_space)
 
 
 # Observation.

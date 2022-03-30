@@ -1,11 +1,14 @@
 from abc import abstractmethod
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List, Any
 import numpy as np
 from gym import spaces
+import csv
 
-from base_env import BaseEnv
-from ..utils import get_agent
+from ..base_env import BaseEnv
+from ..ell_reach.ellipse import Ellipse
 from .track import Track
+from .constraints import Constraints
+from ..agent import Agent
 
 
 class RaceCarSingleEnv(BaseEnv):
@@ -13,33 +16,54 @@ class RaceCarSingleEnv(BaseEnv):
   Implements an environment of a single Princeton Race Car.
   """
 
-  def __init__(self, config) -> None:
-    assert config.NUM_AGENTS == 1, "This environment only has one agent!"
+  def __init__(self, config_env: Any, config_agent: Any) -> None:
+    assert config_env.NUM_AGENTS == 1, "This environment only has one agent!"
     super().__init__()
 
-    # Action Space.
-    action_space = np.array(config.ACTION_RANGE)
-    self.action_dim = action_space.shape[0]
-    self.agent = get_agent(  # Currently only supports 'Bicycle' model.
-        dyn='Bicycle', config=config, action_space=action_space
+    # Environment
+    x = []
+    y = []
+    filepath = config_env.TRACK_FILE
+    with open(filepath) as f:
+      spamreader = csv.reader(f, delimiter=',')
+      for i, row in enumerate(spamreader):
+        if i > 0:
+          x.append(float(row[0]))
+          y.append(float(row[1]))
+
+    center_line = np.array([x, y])
+    self.track = Track(
+        center_line=center_line, width_left=config_env.TRACK_WIDTH_LEFT,
+        width_right=config_env.TRACK_WIDTH_RIGHT,
+        loop=getattr(config_env, 'LOOP', True)
     )
+    self.constraints = Constraints(
+        config_env=config_env, config_agent=config_agent
+    )
+
+    # Action Space.
+    action_space = np.array(config_agent.ACTION_RANGE)
+    self.action_dim = action_space.shape[0]
+    self.agent = Agent(config_agent, action_space)
     self.action_space = spaces.Box(
         low=action_space[:, 0], high=action_space[:, 1]
     )
-    self.integrate_kwargs = config.INTEGRATE_KWARGS
+
+    self.integrate_kwargs = {}
+    if hasattr(config_agent, 'INTEGRATE_KWARGS'):
+      self.integrate_kwargs = config_agent.INTEGRATE_KWARGS
+      self.integrate_kwargs['noise'] = np.array(self.integrate_kwargs['noise'])
 
     # Observation Space.
-    self.observation_space = spaces.Box(
-        low=config.OBS_LOW, high=config.OBS_HIGH, shape=config.OBS_DIM
-    )
+    low = np.zeros((4,))
+    low[:2] = np.min(center_line, axis=1)
+    high = np.zeros((4,))
+    high[:2] = np.max(center_line, axis=1)
+    high[2] = config_agent.V_MAX
+    high[3] = 2 * np.pi
+    self.observation_space = spaces.Box(low=low, high=high)
     self.observation_dim = self.observation_space.low.shape
     self.state = self.observation_space.sample()  # Overriden by reset later.
-
-    # Environment
-    self.track = Track(
-        center_line=config.CENTER_LINE, width_left=config.WIDTH_LEFT,
-        width_right=config.WIDTH_RIGHT, loop=getattr(config, 'LOOP', True)
-    )
 
   def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, Dict]:
     """Implements the step function in the environment.
@@ -66,7 +90,15 @@ class RaceCarSingleEnv(BaseEnv):
 
     return np.copy(state_nxt), -cost, done, info
 
-  @abstractmethod
+  def reset(self) -> np.ndarray:
+    return super().reset()
+
+  def render(self):
+    pass
+
+  def update_obs(self, obs_list: List[List[Ellipse]]):
+    self.constraints.update_obs(obs_list)
+
   def get_cost(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray,
       constraints: dict
@@ -85,9 +117,8 @@ class RaceCarSingleEnv(BaseEnv):
     Returns:
         float: the cost that ctrl wants to minimize and dstb wants to maximize.
     """
-    raise NotImplementedError
+    pass
 
-  @abstractmethod
   def get_constraints(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray
   ) -> Dict:
@@ -105,9 +136,8 @@ class RaceCarSingleEnv(BaseEnv):
         Dict: each (key, value) pair is the name and value of a constraint
             function.
     """
-    raise NotImplementedError
+    pass
 
-  @abstractmethod
   def get_done_flag(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray,
       constraints: Dict
@@ -127,9 +157,8 @@ class RaceCarSingleEnv(BaseEnv):
     Returns:
         bool: True if the episode ends.
     """
-    raise NotImplementedError
+    pass
 
-  @abstractmethod
   def get_info(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray,
       cost: float, constraints: Dict
@@ -152,4 +181,4 @@ class RaceCarSingleEnv(BaseEnv):
         Dict: additional information of the step, such as target margin and
             safety margin used in reachability analysis.
     """
-    raise NotImplementedError
+    pass
