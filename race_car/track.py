@@ -31,8 +31,7 @@ class Track:
     self.length = self.center_line.getLength()
 
     # variables for plotting
-    self.track_bound = None
-    self.track_center = None
+    self.build_track()
 
   def _interp_s(self, s: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -71,6 +70,28 @@ class Track:
       s = np.array(theta_list) / self.length
       s[s > 1] = 1
     return self._interp_s(s)
+
+  def build_track(self):
+    N = 500
+    theta_sample = np.linspace(0, 1, N, endpoint=False) * self.length
+    interp_pt, slope = self.interp(theta_sample)
+    self.track_center = interp_pt
+
+    if self.loop:
+      self.track_bound = np.zeros((4, N + 1))
+    else:
+      self.track_bound = np.zeros((4, N))
+
+    self.track_bound[0, :N] = interp_pt[0, :] - np.sin(slope) * self.width_left
+    self.track_bound[1, :N] = interp_pt[1, :] + np.cos(slope) * self.width_left
+
+    self.track_bound[
+        2, :N] = interp_pt[0, :] + np.sin(slope) * self.width_right
+    self.track_bound[
+        3, :N] = interp_pt[1, :] - np.cos(slope) * self.width_right
+
+    if self.loop:
+      self.track_bound[:, -1] = self.track_bound[:, 0]
 
   def get_closest_pts(
       self, points: np.ndarray, normalize_progress: Optional[bool] = False
@@ -118,47 +139,6 @@ class Track:
   def get_track_width(self, theta):
     temp = np.ones_like(theta)
     return self.width_left * temp, self.width_right * temp
-
-  def plot_track(self, ax: Optional[matplotlib.axes.Axes] = None):
-    N = 500
-    if ax is None:
-      ax = plt.gca()
-    if self.track_bound is None:
-      theta_sample = np.linspace(0, 1, N, endpoint=False) * self.length
-      interp_pt, slope = self.interp(theta_sample)
-
-      if self.loop:
-        self.track_bound = np.zeros((4, N + 1))
-      else:
-        self.track_bound = np.zeros((4, N))
-
-      self.track_bound[
-          0, :N] = interp_pt[0, :] - np.sin(slope) * self.width_left
-      self.track_bound[
-          1, :N] = interp_pt[1, :] + np.cos(slope) * self.width_left
-
-      self.track_bound[
-          2, :N] = interp_pt[0, :] + np.sin(slope) * self.width_right
-      self.track_bound[
-          3, :N] = interp_pt[1, :] - np.cos(slope) * self.width_right
-
-      if self.loop:
-        self.track_bound[:, -1] = self.track_bound[:, 0]
-
-    ax.plot(self.track_bound[0, :], self.track_bound[1, :], 'k-')
-    ax.plot(self.track_bound[2, :], self.track_bound[3, :], 'k-')
-
-  def plot_track_center(self, ax: Optional[matplotlib.axes.Axes] = None):
-    if ax is None:
-      ax = plt.gca()
-    N = 500
-    if self.track_center is None:
-      theta_sample = np.linspace(0, 1, N, endpoint=False) * self.length
-      interp_pt, slope = self.interp(theta_sample)
-      self.track_center = interp_pt
-      print(len(slope))
-
-    ax.plot(self.track_center[0, :], self.track_center[1, :], 'r--')
 
   def local2global(self, local_states: np.ndarray) -> np.ndarray:
     """
@@ -208,24 +188,38 @@ class Track:
 
     return local_states
 
+  # region: plotting
+  def plot_track(self, ax: Optional[matplotlib.axes.Axes] = None):
+    if ax is None:
+      ax = plt.gca()
+    ax.plot(self.track_bound[0, :], self.track_bound[1, :], 'k-')
+    ax.plot(self.track_bound[2, :], self.track_bound[3, :], 'k-')
+
+  def plot_track_center(self, ax: Optional[matplotlib.axes.Axes] = None):
+    if ax is None:
+      ax = plt.gca()
+    ax.plot(self.track_center[0, :], self.track_center[1, :], 'r--')
+
+  # endregion
+
 
 if __name__ == '__main__':
-  import csv
-  track_file = 'outerloop_center_smooth.csv'
-  x = []
-  y = []
-  with open(track_file, newline='') as f:
-    spamreader = csv.reader(f, delimiter=',')
-    for i, row in enumerate(spamreader):
-      if i > 0:
-        x.append(float(row[0]))
-        y.append(float(row[1]))
-
-  center_line = np.array([x, y])
+  from utils import get_centerline_from_traj
+  center_line = get_centerline_from_traj("./outerloop_center_smooth.csv")
   track = Track(
-      center_line=center_line, width_left=0.3, width_right=0.3, loop=True
+      center_line=center_line, width_left=.3, width_right=.3, loop=True
   )
 
-  track.plot_track()
-  track.plot_track_center()
-  plt.show()
+  fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+  num_pts = 11
+  local_states = np.zeros((2, num_pts))
+  local_states[0, :] = np.linspace(0, 1., num_pts)
+  global_states = track.local2global(local_states)
+  for idx in range(num_pts):
+    pt = global_states[:, idx]
+    ax.scatter(pt[0], pt[1], c='b')
+
+  track.plot_track(ax)
+  # track.plot_track_center()
+  fig.savefig("tmp.png")
+  plt.close()
