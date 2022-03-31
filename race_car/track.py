@@ -140,7 +140,9 @@ class Track:
     temp = np.ones_like(theta)
     return self.width_left * temp, self.width_right * temp
 
-  def local2global(self, local_states: np.ndarray) -> np.ndarray:
+  def local2global(
+      self, local_states: np.ndarray, return_slope=False
+  ) -> np.ndarray:
     """
     Transforms states in the local frame to the global frame (x, y) position.
 
@@ -151,14 +153,19 @@ class Track:
     Returns:
         np.ndarray: states in the global frame.
     """
+    num_pts = local_states.shape[1]
     progress = local_states[0, :]
     assert np.min(progress) >= 0. and np.max(progress) <= 1., (
         "The progress should be within [0, 1]!"
     )
     lateral_dev = local_states[1, :]
     global_states, slope = self._interp_s(progress)
+    if num_pts == 1:
+      global_states = global_states.reshape(2, 1)
     global_states[0, :] = global_states[0, :] + np.sin(slope) * lateral_dev
     global_states[1, :] = global_states[1, :] - np.cos(slope) * lateral_dev
+    if return_slope:
+      return global_states, slope
     return global_states
 
   def global2local(self, global_states: np.ndarray) -> np.ndarray:
