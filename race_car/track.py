@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Optional, Tuple
 import numpy as np
 from matplotlib import pyplot as plt
+import matplotlib
 from pyspline.pyCurve import Curve
 
 # TODO: Use packages to load real-world road, such as
@@ -33,11 +34,21 @@ class Track:
     self.track_bound = None
     self.track_center = None
 
-  def _interp_s(self, s):
-    '''
-    Given a list of s (progress since start), return corresponing (x,y) points
-    on the track. In addition, return slope of trangent line on those points.
-    '''
+  def _interp_s(self, s: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Gets the closest points on the centerline and the slope of trangent line on
+    those points given the normalized progress.
+
+    Args:
+        s (np.ndarray): progress on the centerline. This is a vector of shape
+            (N,) and each entry should be within [0, 1].
+
+    Returns:
+        np.ndarray: the position of the closest points on the centerline. This
+            array is of the shape (2, N).
+        np.ndarray: the slope of of trangent line on those points. This vector
+            is of the shape (N, ).
+    """
     n = len(s)
 
     interp_pt = self.center_line.getValue(s)
@@ -61,25 +72,57 @@ class Track:
       s[s > 1] = 1
     return self._interp_s(s)
 
-  def get_closest_pts(self, points):
-    '''
-    Points have [2xn] shape
-    '''
+  def get_closest_pts(
+      self, points: np.ndarray, normalize_progress: Optional[bool] = False
+  ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Gets the closest points on the centerline, the slope of their tangent
+    lines, and the progress given the points in the global frame.
+
+    Args:
+        points (np.ndarray): the points in the global frame, of the shape
+            (2, N).
+
+    Returns:
+        np.ndarray: the position of the closest points on the centerline. This
+            array is of the shape (2, N).
+        np.ndarray: the slope of of trangent line on those points. This vector
+            is of the shape (N, ).
+        np.ndarray: the progress along the centerline.
+    """
     s, _ = self.center_line.projectPoint(points.T, eps=1e-3)
-
     closest_pt, slope = self._interp_s(s)
-    return closest_pt, slope, s * self.length
 
-  def project_point(self, point):
-    s, _ = self.center_line.projectPoint(point, eps=1e-3)
-    return s * self.length
+    if not normalize_progress:
+      s = s * self.length
+
+    return closest_pt, slope, s
+
+  def project_point(
+      self, points: np.ndarray, normalize_progress: Optional[bool] = False
+  ) -> np.ndarray:
+    """Gets the progress given the points in the global frame.
+
+    Args:
+        points (np.ndarray): the points in the global frame, of the shape
+            (2, N).
+
+    Returns:
+        np.ndarray: the progress along the centerline.
+    """
+    s, _ = self.center_line.projectPoint(points.T, eps=1e-3)
+    if not normalize_progress:
+      s = s * self.length
+    return s
 
   def get_track_width(self, theta):
     temp = np.ones_like(theta)
     return self.width_left * temp, self.width_right * temp
 
-  def plot_track(self):
+  def plot_track(self, ax: Optional[matplotlib.axes.Axes] = None):
     N = 500
+    if ax is None:
+      ax = plt.gca()
     if self.track_bound is None:
       theta_sample = np.linspace(0, 1, N, endpoint=False) * self.length
       interp_pt, slope = self.interp(theta_sample)
@@ -102,10 +145,12 @@ class Track:
       if self.loop:
         self.track_bound[:, -1] = self.track_bound[:, 0]
 
-    plt.plot(self.track_bound[0, :], self.track_bound[1, :], 'k-')
-    plt.plot(self.track_bound[2, :], self.track_bound[3, :], 'k-')
+    ax.plot(self.track_bound[0, :], self.track_bound[1, :], 'k-')
+    ax.plot(self.track_bound[2, :], self.track_bound[3, :], 'k-')
 
-  def plot_track_center(self):
+  def plot_track_center(self, ax: Optional[matplotlib.axes.Axes] = None):
+    if ax is None:
+      ax = plt.gca()
     N = 500
     if self.track_center is None:
       theta_sample = np.linspace(0, 1, N, endpoint=False) * self.length
@@ -113,10 +158,55 @@ class Track:
       self.track_center = interp_pt
       print(len(slope))
 
-    plt.plot(self.track_center[0, :], self.track_center[1, :], 'r--')
+    ax.plot(self.track_center[0, :], self.track_center[1, :], 'r--')
 
-  def load_from_file(self):
-    pass
+  def local2global(self, local_states: np.ndarray) -> np.ndarray:
+    """
+    Transforms states in the local frame to the global frame (x, y) position.
+
+    Args:
+        local_states (np.ndarray): The first row is the progress of the states
+            and the second row is the lateral deviation.
+
+    Returns:
+        np.ndarray: states in the global frame.
+    """
+    progress = local_states[0, :]
+    assert np.min(progress) >= 0. and np.max(progress) <= 1., (
+        "The progress should be within [0, 1]!"
+    )
+    lateral_dev = local_states[1, :]
+    global_states, slope = self._interp_s(progress)
+    global_states[0, :] = global_states[0, :] + np.sin(slope) * lateral_dev
+    global_states[1, :] = global_states[1, :] - np.cos(slope) * lateral_dev
+    return global_states
+
+  def global2local(self, global_states: np.ndarray) -> np.ndarray:
+    """
+    Transforms states in the global frame to the local frame (progress, lateral
+    deviation).
+
+    Args:
+        global_states (np.ndarray): The first row is the x position and the
+            second row is the y position.
+
+    Returns:
+        np.ndarray: states in the local frame.
+    """
+    local_states = np.zeros(shape=(2, global_states.shape[1]))
+    closest_pt, slope, progress = self.get_closest_pts(
+        global_states, normalize_progress=True
+    )
+    dx = global_states[0, :] - closest_pt[0, :]
+    dy = global_states[1, :] - closest_pt[1, :]
+    sr = np.sin(slope)
+    cr = np.cos(slope)
+
+    lateral_dev = sr*dx - cr*dy
+    local_states[0, :] = progress
+    local_states[1, :] = lateral_dev
+
+    return local_states
 
 
 if __name__ == '__main__':
