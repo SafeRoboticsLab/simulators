@@ -57,16 +57,7 @@ class Constraints:
       close_pts: np.ndarray, slopes: np.ndarray,
       get_obs_circ_index: Optional[bool] = False
   ) -> Tuple[dict, np.ndarray] | dict:
-    # Transforms to column vector.
-    if states.ndim == 1:  # (4, N)
-      states = states[:, np.newaxis]
-    if controls.ndim == 1:  # (2, N)
-      controls = controls[:, np.newaxis]
-    if close_pts.ndim == 1:  # (2, N)
-      close_pts = close_pts[:, np.newaxis]
-    # Makes it numpy array.
-    if isinstance(slopes, float):  # (1, N)
-      slopes = np.array([[slopes]])
+    self._check_input(states, controls, close_pts, slopes)
 
     num_steps = states.shape[1]
 
@@ -127,6 +118,7 @@ class Constraints:
   ) -> np.ndarray:
 
     if cons_dict is None:
+      self._check_input(states, controls, close_pts, slopes)
       cons_dict = self.get_constraint(
           footprint, states, controls, close_pts, slopes
       )
@@ -168,16 +160,7 @@ class Constraints:
         close_pts: 2xN array of each state's closest point [x,y] on the track
         slopes: 1xN array of track's slopess (rad) at closest points
     '''
-    # Transforms to column vector.
-    if states.ndim == 1:  # (4, N)
-      states = states[:, np.newaxis]
-    if controls.ndim == 1:  # (2, N)
-      controls = controls[:, np.newaxis]
-    if close_pts.ndim == 1:  # (2, N)
-      close_pts = close_pts[:, np.newaxis]
-    # Makes it numpy array.
-    if isinstance(slopes, float):  # (1, N)
-      slopes = np.array([[slopes]])
+    self._check_input(states, controls, close_pts, slopes)
 
     cons_dict, obs_circ_idx = self.get_constraint(
         footprint, states, controls, close_pts, slopes, get_obs_circ_index=True
@@ -511,3 +494,12 @@ class Constraints:
 
     # print(np.linalg.norm(c_x_tmp - c_x), np.linalg.norm(c_xx_tmp - c_xx))
     return c_x, c_xx
+
+  def _check_input(
+      self, states: np.ndarray, controls: np.ndarray, close_pts: np.ndarray,
+      slopes: np.ndarray
+  ):
+    assert states.ndim == 2, "states dimension is not correct!"
+    assert controls.ndim == 2, "controls dimension is not correct!"
+    assert close_pts.ndim == 2, "close_pts dimension is not correct!"
+    assert slopes.ndim == 2, "slopes dimension is not correct!"

@@ -156,6 +156,7 @@ class RaceCarSingleEnv(BaseEnv):
     )
     transform = np.array([[np.sin(slopes), -np.cos(slopes), zeros, zeros],
                           [zeros, zeros, ones, zeros]])
+    slopes = slopes[np.newaxis, :]
 
     # Reference path.
     ref_states = np.zeros_like(states_with_final)
@@ -225,6 +226,7 @@ class RaceCarSingleEnv(BaseEnv):
         state, action, state_nxt
     )
     close_pts, slopes, _ = self.track.get_closest_pts(states_with_final[:2, :])
+    slopes = slopes[np.newaxis, :]
 
     return self.constraints.get_constraint(
         footprint=self.agent.footprint, states=states_with_final,
