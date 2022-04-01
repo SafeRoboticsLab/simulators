@@ -59,11 +59,20 @@ class Track:
     return interp_pt.T, slope
 
   def interp(self, theta_list):
-    '''
-    Given a list of theta (progress since start), return corresponing (x,y)
-    points on the track. In addition, return slope of trangent line on those
-    points.
-    '''
+    """
+    Gets the closest points on the centerline and the slope of trangent line on
+    those points given the unnormalized progress.
+
+    Args:
+        s (np.ndarray): unnormalized progress on the centerline. This is a
+            vector of shape (N,).
+
+    Returns:
+        np.ndarray: the position of the closest points on the centerline. This
+            array is of the shape (2, N).
+        np.ndarray: the slope of of trangent line on those points. This vector
+            is of the shape (N, ).
+    """
     if self.loop:
       s = np.remainder(theta_list, self.length) / self.length
     else:
@@ -108,11 +117,12 @@ class Track:
         np.ndarray: the position of the closest points on the centerline. This
             array is of the shape (2, N).
         np.ndarray: the slope of of trangent line on those points. This vector
-            is of the shape (N, ).
+            is of the shape (1, N).
         np.ndarray: the progress along the centerline.
     """
     s, _ = self.center_line.projectPoint(points.T, eps=1e-3)
     closest_pt, slope = self._interp_s(s)
+    slope = slope[np.newaxis, :]
 
     if not normalize_progress:
       s = s * self.length
