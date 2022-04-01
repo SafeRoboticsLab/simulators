@@ -196,11 +196,13 @@ class Track:
     return local_states
 
   # region: plotting
-  def plot_track(self, ax: Optional[matplotlib.axes.Axes] = None):
+  def plot_track(
+      self, ax: Optional[matplotlib.axes.Axes] = None, c: str = 'k'
+  ):
     if ax is None:
       ax = plt.gca()
-    ax.plot(self.track_bound[0, :], self.track_bound[1, :], 'k-')
-    ax.plot(self.track_bound[2, :], self.track_bound[3, :], 'k-')
+    ax.plot(self.track_bound[0, :], self.track_bound[1, :], c=c, linestyle='-')
+    ax.plot(self.track_bound[2, :], self.track_bound[3, :], c=c, linestyle='-')
 
   def plot_track_center(self, ax: Optional[matplotlib.axes.Axes] = None):
     if ax is None:
@@ -222,6 +224,10 @@ if __name__ == '__main__':
   local_states = np.zeros((2, num_pts))
   local_states[0, :] = np.linspace(0, 1., num_pts)
   global_states = track.local2global(local_states)
+
+  local_states_transform = track.global2local(global_states)
+  print(np.linalg.norm(local_states_transform - local_states))
+
   for idx in range(num_pts):
     pt = global_states[:, idx]
     ax.scatter(pt[0], pt[1], c='b')
