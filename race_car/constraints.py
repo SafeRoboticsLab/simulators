@@ -195,6 +195,12 @@ class Constraints:
     c_x_cons = c_x_rd + c_x_lat + c_x_obs + c_x_vel
     c_xx_cons = c_xx_rd + c_xx_lat + c_xx_obs + c_xx_vel
 
+    # with np.printoptions(precision=2, suppress=True):
+    #     print("c_x_rd", c_x_rd)
+    #     print("c_x_lat", c_x_lat)
+    #     print("c_x_vel", c_x_vel)
+    #     print("c_x_obs", c_x_obs)
+
     c_u_cons = c_u_lat
     c_uu_cons = c_uu_lat
     c_ux_cons = c_ux_lat
@@ -286,6 +292,9 @@ class Constraints:
         close_pts: 2xN array of each state's closest point [x,y] on the track
         slopes: 1xN array of track's slopess (rad) at closest points
     '''
+    cons_road_l = cons_road_l.reshape(-1)
+    cons_road_r = cons_road_r.reshape(-1)
+
     N = states.shape[-1]
     sr = np.sin(slopes).reshape(-1)
     cr = np.cos(slopes).reshape(-1)
@@ -438,10 +447,8 @@ class Constraints:
 
     c_x = np.zeros(shape=(4, num_steps))
     c_xx = np.zeros(shape=(4, 4, num_steps))
-    # c_x_tmp = np.zeros(shape=(4, num_steps))
-    # c_xx_tmp = np.zeros(shape=(4, 4, num_steps))
 
-    cons_flatten = cons_obs.reshape(-1, order='F')  # column first
+    cons_flatten = cons_obs.reshape(-1, order='F')  # column-by-column
     cons_dot_concat = np.zeros(shape=(4, num_steps * num_obs))
 
     for i in range(num_steps):
@@ -449,8 +456,9 @@ class Constraints:
       cos_theta = np.cos(state[3])
       sin_theta = np.sin(state[3])
 
-      # cons_dot = np.zeros(shape=(4, len(self.obs_list)))
       for j, obs_list_j in enumerate(self.obs_list):
+        if cons_obs[j, i] < -0.2:  # ignore obstacle too far away.
+          continue
         obs_j_i = obs_list_j[i]
 
         self_circ_idx, obs_j_circ_idx = obs_circ_idx[:, j, i]
@@ -461,25 +469,11 @@ class Constraints:
         obs_center = obs_j_i.center[:, obs_j_circ_idx]
         diff = self_center - obs_center
         dist = np.linalg.norm(diff)
-        # cons_dot[:2, j] = -diff / dist
-        # cons_dot[2, j] = pos_along_major_axis / dist * (
+        cons_dot_concat[:2, i*num_obs + j] = -diff / dist
+        #! ignore yaw
+        # cons_dot_concat[3, i*num_obs + j] = pos_along_major_axis / dist * (
         #     diff[0] * sin_theta - diff[1] * cos_theta
         # )
-        cons_dot_concat[:2, i*num_obs + j] = -diff / dist
-        cons_dot_concat[3, i*num_obs + j] = pos_along_major_axis / dist * (
-            diff[0] * sin_theta - diff[1] * cos_theta
-        )
-
-      # _c_x, _c_xx = barrier_function(
-      #     q1=self.q1_obs,
-      #     q2=self.q2_obs,
-      #     cons=cons_obs[:, i],
-      #     cons_dot=cons_dot,
-      #     cons_min=-0.2 * self.q2_obs,
-      #     cons_max=self.barrier_thr,
-      # )
-      # c_x_tmp[:, i] = _c_x.sum(axis=-1)
-      # c_xx_tmp[:, :, i] = _c_xx.sum(axis=-1)
 
     _c_x, _c_xx = barrier_function(
         q1=self.q1_obs, q2=self.q2_obs, cons=cons_flatten,
@@ -492,7 +486,6 @@ class Constraints:
       c_x[:, i] = np.sum(_c_x[:, start:end], axis=-1)
       c_xx[:, :, i] = np.sum(_c_xx[:, :, start:end], axis=-1)
 
-    # print(np.linalg.norm(c_x_tmp - c_x), np.linalg.norm(c_xx_tmp - c_xx))
     return c_x, c_xx
 
   def _check_input(
