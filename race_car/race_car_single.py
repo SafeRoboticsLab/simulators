@@ -74,6 +74,14 @@ class RaceCarSingleEnv(BaseEnv):
     self.observation_dim = self.observation_space.low.shape
     self.reset()
 
+  @property
+  def dim_x(self):
+    return self.agent.dyn.dim_x
+
+  @property
+  def dim_u(self):
+    return self.agent.dyn.dim_u
+
   def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, Dict]:
     """Implements the step function in the environment.
 

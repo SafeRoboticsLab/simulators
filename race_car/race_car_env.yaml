@@ -5,7 +5,9 @@ environment:
   TRACK_FILE: /Users/kaichieh/Desktop/LINC/simulators/race_car/outerloop_center_smooth.csv
   TRACK_WIDTH_RIGHT: 0.3
   TRACK_WIDTH_LEFT: 0.3
+  TRACK_OFFSET: 0.15
   # LOOP: true
+  TIMEOFF: 150
   # CONSTRAINT PARAM
   Q1_V: 0.
   Q2_V: 0.
@@ -15,14 +17,17 @@ environment:
   Q2_LAT: 5.
   Q1_OBS: 2.
   Q2_OBS: 5.
+  GAMMA: 0.9
   # COST PARAM
   W_VEL: 4.
   W_CONTOUR: 30.
   W_THETA: 0.
   W_ACCEL: 0.1
   W_DELTA: 0.1
-  GAMMA: 0.9
+  V_REF: 1.
   USE_SOFT_CONS_COST: True
+  # DONE FLAG PARAM
+  END_CRITERION: fail
 
 agent:
   DYN: Bicycle
