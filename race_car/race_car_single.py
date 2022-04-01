@@ -148,21 +148,10 @@ class RaceCarSingleEnv(BaseEnv):
     states_with_final, actions_with_final = self._reshape(
         state, action, state_nxt
     )
-
-    zeros = np.zeros((states_with_final.shape[1]))
-    ones = np.ones((states_with_final.shape[1]))
     close_pts, slopes, progress = self.track.get_closest_pts(
         states_with_final[:2, :], normalize_progress=True
     )
-    transform = np.array([[np.sin(slopes), -np.cos(slopes), zeros, zeros],
-                          [zeros, zeros, ones, zeros]])
-    slopes = slopes[np.newaxis, :]
-
-    # Reference path.
-    ref_states = np.zeros_like(states_with_final)
-    ref_states[0, :] = close_pts[0, :] + np.sin(slopes) * self.track_offset
-    ref_states[1, :] = close_pts[1, :] - np.cos(slopes) * self.track_offset
-    ref_states[2, :] = self.v_ref
+    ref_states, transform = self._get_ref_path_transform(close_pts, slopes)
 
     # State cost.
     error = states_with_final - ref_states
@@ -226,7 +215,6 @@ class RaceCarSingleEnv(BaseEnv):
         state, action, state_nxt
     )
     close_pts, slopes, _ = self.track.get_closest_pts(states_with_final[:2, :])
-    slopes = slopes[np.newaxis, :]
 
     return self.constraints.get_constraint(
         footprint=self.agent.footprint, states=states_with_final,
@@ -267,6 +255,150 @@ class RaceCarSingleEnv(BaseEnv):
             safety margin used in reachability analysis.
     """
     pass
+
+  def get_derivatives(
+      self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray
+  ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    states_with_final, actions_with_final = self._reshape(
+        state, action, state_nxt
+    )
+    close_pts, slopes, _ = self.track.get_closest_pts(
+        states_with_final[:2, :], normalize_progress=True
+    )
+
+    c_x_cost, c_xx_cost = self._get_cost_state_derivative(
+        states_with_final, close_pts, slopes
+    )
+
+    c_u_cost, c_uu_cost = self._get_cost_control_derivative(actions_with_final)
+
+    q = c_x_cost
+    Q = c_xx_cost
+
+    r = c_u_cost
+    R = c_uu_cost
+
+    S = np.zeros((
+        self.agent.dyn.dim_u, self.agent.dyn.dim_x, states_with_final.shape[1]
+    ))
+    # with np.printoptions(precision=2, suppress=True):
+    #   print("c_x_cost", c_x_cost)
+    #   print("c_xx_cost", c_xx_cost)
+    #   print("c_u_cost", c_u_cost)
+    #   print("c_uu_cost", c_uu_cost)
+
+    if self.use_soft_cons_cost:
+      c_x_cons, c_xx_cons, c_u_cons, c_uu_cons, c_ux_cons = (
+          self.constraints.get_derivatives(
+              footprint=self.agent.footprint, states=states_with_final,
+              controls=actions_with_final, close_pts=close_pts, slopes=slopes
+          )
+      )
+      # with np.printoptions(precision=2, suppress=True):
+      #   print("c_x_cons", c_x_cons)
+      #   print("c_xx_cons", c_xx_cons)
+      #   print("c_u_cons", c_u_cons)
+      #   print("c_uu_cons", c_uu_cons)
+      #   print("c_ux_cons", c_ux_cons)
+      q += c_x_cons
+      Q += c_xx_cons
+      r += c_u_cons
+      R += c_uu_cons
+      S += c_ux_cons
+
+    return q, Q, r, R, S
+
+  def _get_cost_state_derivative(
+      self, states: np.ndarray, close_pts: np.ndarray, slopes: np.ndarray
+  ) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Calculates Jacobian and Hessian of the cost function with respect to state.
+
+    Args:
+        states (np.ndarray): planned trajectory, (4, N).
+        close_pts (np.ndarray): the position of the closest points on the
+            centerline. This array should be of the shape (2, N).
+        slopes (np.ndarray): the slope of of trangent line on those points.
+            This vector should be of the shape (1, N).
+
+    Returns:
+        np.ndarray: Jacobian.
+        np.ndarray: Hessian.
+    """
+    ref_states, transform = self._get_ref_path_transform(close_pts, slopes)
+    num_pts = close_pts.shape[1]
+    zeros = np.zeros((num_pts))
+    sr = np.sin(slopes).reshape(-1)
+    cr = np.cos(slopes).reshape(-1)
+
+    error = states - ref_states
+    Q_trans = np.einsum(
+        'abn, bcn->acn',
+        np.einsum(
+            'dan, ab -> dbn', transform.transpose(1, 0, 2), self.W_state
+        ), transform
+    ) - self.track_offset
+
+    # shape [4xN]
+    c_x = 2 * np.einsum('abn, bn->an', Q_trans, error)
+
+    c_x_progress = -self.w_theta * np.array([cr, sr, zeros, zeros])
+    c_x = c_x + c_x_progress
+    c_xx = 2 * Q_trans
+
+    return c_x, c_xx
+
+  def _get_cost_control_derivative(
+      self, controls: np.ndarray
+  ) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Calculates Jacobian and Hessian of the cost function w.r.t the control.
+
+    Args:
+        controls (np.ndarray): planned control, (2, N).
+
+    Returns:
+        np.ndarray: Jacobian.
+        np.ndarray: Hessian.
+    """
+    c_u = 2 * np.einsum('ab, bn->an', self.W_control, controls)
+    c_uu = 2 * np.repeat(
+        self.W_control[:, :, np.newaxis], controls.shape[1], axis=2
+    )
+    c_u[:, -1] = 0.
+    c_uu[:, :, -1] = 0.
+    return c_u, c_uu
+
+  def _get_ref_path_transform(
+      self, close_pts: np.ndarray, slopes: np.ndarray
+  ) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Gets the reference path and the transformation form the global frame to the
+    local frame with the origin at the closest points.
+
+    Args:
+        close_pts (np.ndarray): the position of the closest points on the
+            centerline. This array should be of the shape (2, N).
+        slopes (np.ndarray): the slope of of trangent line on those points.
+            This vector should be of the shape (1, N).
+
+    Returns:
+        np.ndarray: _description_
+    """
+    num_pts = close_pts.shape[1]
+    zeros = np.zeros((num_pts))
+    ones = np.ones((num_pts))
+    slopes = slopes.reshape(-1)
+
+    transform = np.array([[np.sin(slopes), -np.cos(slopes), zeros, zeros],
+                          [zeros, zeros, ones, zeros]])
+
+    ref_states = np.zeros((self.agent.dyn.dim_x, num_pts))
+    ref_states[0, :] = close_pts[0, :] + np.sin(slopes) * self.track_offset
+    ref_states[1, :] = close_pts[1, :] - np.cos(slopes) * self.track_offset
+    ref_states[2, :] = self.v_ref
+
+    return ref_states, transform
 
   def _reshape(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray
