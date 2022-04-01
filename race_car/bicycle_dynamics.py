@@ -49,7 +49,6 @@ class BicycleDynamics(BaseDynamics):
 
     Returns:
         np.ndarray: next state.
-        np.ndarray: clipped control.
     """
 
     # Clips the controller values between min and max accel and steer values.
@@ -89,7 +88,7 @@ class BicycleDynamics(BaseDynamics):
 
     return state_nxt, control_clip
 
-  def get_dyn_jacobian(
+  def get_jacobian(
       self, nominal_states: np.ndarray, nominal_controls: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
     """

@@ -62,4 +62,4 @@ class Agent:
         np.ndarray: the Jacobian of next state w.r.t. the current state.
         np.ndarray: the Jacobian of next state w.r.t. the current control.
     """
-    return self.dyn.get_dyn_jacobian(nominal_states, nominal_controls)
+    return self.dyn.get_jacobian(nominal_states, nominal_controls)

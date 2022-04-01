@@ -45,7 +45,7 @@ class BaseDynamics(ABC):
     raise NotImplementedError
 
   @abstractmethod
-  def get_dyn_jacobian(
+  def get_jacobian(
       self, nominal_states: np.ndarray, nominal_controls: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
     """
