@@ -6,7 +6,7 @@ import numpy as np
 from ..ell_reach.ellipse import Ellipse
 from ..utils import barrier_function
 
-# TODO: We currently support Ellipsod obstacles.
+# TODO: We currently only support Ellipse obstacles.
 
 
 class Constraints:
@@ -48,6 +48,12 @@ class Constraints:
     self.gamma = getattr(config_env, "GAMMA", 1.)
 
   def update_obs(self, obs_list: List[List[Ellipse]]):
+    """Updates the obstacles.
+
+    Args:
+        obs_list (List[List[Ellipse]]): a list of ellipse lists. Each Ellipse
+        in the list is an obstacle at each time step.
+    """
     dim = np.array([len(x) for x in obs_list])
     assert np.all(dim == dim[0]), ("The length of each list does not match!")
     self.obs_list = obs_list
@@ -57,6 +63,29 @@ class Constraints:
       close_pts: np.ndarray, slopes: np.ndarray,
       get_obs_circ_index: Optional[bool] = False
   ) -> Tuple[dict, np.ndarray] | dict:
+    """
+    Gets the constraint function values given the interested states, the
+    closest points on the centerline, the slope of their tangent lines, and the
+    interested controls.
+
+    Args:
+        footprint (Ellipse): the footprint of the ego agent.
+        states (np.ndarray): of the shape (4, N).
+        controls (np.ndarray): of the shape (2, N).
+        close_pts (np.ndarray): the position of the closest points on the
+            centerline. This array is of the shape (2, N).
+        slopes (np.ndarray): the slope of of trangent line on those points.
+            This vector is of the shape (1, N).
+        get_obs_circ_index (Optional[bool], optional): returns the index of the
+            closest circles if True. Defaults to False.
+
+    Returns:
+        Dict: each (key, value) pair is the name and value of a constraint
+            function.
+        np.ndarray: the index of the closest circles of ego and obstacle. For
+            example, x[:, i, j] = (idx_ego_circ, idx_obs_circ). Only returns if
+            get_obs_circ_index is True.
+    """
     self._check_input(states, controls, close_pts, slopes)
 
     num_steps = states.shape[1]
@@ -116,6 +145,26 @@ class Constraints:
       close_pts: Optional[np.ndarray] = None,
       slopes: Optional[np.ndarray] = None, cons_dict: Optional[dict] = None
   ) -> np.ndarray:
+    """
+    Gets the barrier cost of constraint function values given the interested
+    states, the closest points on the centerline, the slope of their tangent
+    lines, and the interested controls.
+
+    Args:
+        footprint (Ellipse): the footprint of the ego agent.
+        states (np.ndarray): of the shape (4, N).
+        controls (np.ndarray): of the shape (2, N).
+        close_pts (np.ndarray): the position of the closest points on the
+            centerline. This array is of the shape (2, N).
+        slopes (np.ndarray): the slope of of trangent line on those points.
+            This vector is of the shape (1, N).
+        cons_dict (Optional[dict], optional): if provided, directly using the
+            constraint values within. Defaults to None.
+
+    Returns:
+        np.ndarray: the soft constraint cost at each time step, of the shape
+            (1, N).
+    """
 
     if cons_dict is None:
       self._check_input(states, controls, close_pts, slopes)
@@ -151,15 +200,28 @@ class Constraints:
       self, footprint: Ellipse, states: np.ndarray, controls: np.ndarray,
       close_pts: np.ndarray, slopes: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    '''
-    Calculates the Jacobian and Hessian of soft constraint cost.
+    """
+    Calculates the Jacobian and Hessian of soft constraint cost given the
+    interested states, the closest points on the centerline, the slope of their
+    tangent lines, and the interested controls.
 
     Args:
-        states: 4xN array of planned trajectory
-        controls: 2xN array of planned control
-        close_pts: 2xN array of each state's closest point [x,y] on the track
-        slopes: 1xN array of track's slopess (rad) at closest points
-    '''
+        footprint (Ellipse): the footprint of the ego agent.
+        states (np.ndarray): of the shape (4, N).
+        controls (np.ndarray): of the shape (2, N).
+        close_pts (np.ndarray): the position of the closest points on the
+            centerline. This array is of the shape (2, N).
+        slopes (np.ndarray): the slope of of trangent line on those points.
+            This vector is of the shape (1, N).
+
+    Returns:
+        np.ndarray: c_x of the shape (4, N).
+        np.ndarray: c_xx of the shape (4, 4, N).
+        np.ndarray: c_u of the shape (2, N).
+        np.ndarray: c_uu of the shape (2, 2, N).
+        np.ndarray: c_ux of the shape (2, 4, N).
+
+    """
     self._check_input(states, controls, close_pts, slopes)
 
     cons_dict, obs_circ_idx = self.get_constraint(
@@ -214,13 +276,16 @@ class Constraints:
     """Computes the road boundary constraint.
 
     Args:
-        footprint (Ellipse): the footprint of the agent.
-        states (np.ndarray): (4, N) array.
-        close_pts (np.ndarray): (2, N) array.
-        slopes (np.ndarray): (1, N) array.
+        footprint (Ellipse): the footprint of the ego agent.
+        states (np.ndarray): of the shape (4, N).
+        close_pts (np.ndarray): the position of the closest points on the
+            centerline. This array is of the shape (2, N).
+        slopes (np.ndarray): the slope of of trangent line on those points.
+            This vector is of the shape (1, N).
 
     Returns:
-        Tuple[np.ndarray, np.ndarray]: _description_
+        np.ndarray: constarint fucntion value of the left road boundary.
+        np.ndarray: constarint fucntion value of the road road boundary.
     """
     dx = states[0, :] - close_pts[0, :]
     dy = states[1, :] - close_pts[1, :]
@@ -237,6 +302,18 @@ class Constraints:
   def _road_boundary_cost(
       self, cons_road_l: np.ndarray, cons_road_r: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Transforms the constraint values of the road boundary to the corresponding
+    barrier costs.
+
+    Args:
+        cons_road_l (np.ndarray): constarint value of the left road boundary.
+        cons_road_r (np.ndarray): constarint value of the right road boundary.
+
+    Returns:
+        np.ndarray: barrier cost of the left road boundary.
+        np.ndarray: barrier cost of the right road boundary.
+    """
     barrier_l = self.q1_road * np.exp(
         np.clip(
             self.q2_road * cons_road_l, self.road_thr * self.q2_road,
@@ -253,6 +330,18 @@ class Constraints:
 
   def _velocity_cost(self, cons_v_min: np.ndarray,
                      cons_v_max: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Transforms the constraint values of the velocity limit to the corresponding
+    barrier costs.
+
+    Args:
+        cons_v_min (np.ndarray): constarint value of the minimum velocity.
+        cons_v_max (np.ndarray): constarint value of the maximum velocity.
+
+    Returns:
+        np.ndarray: barrier cost of the minimum velocity.
+        np.ndarray: barrier cost of the maximum velocity.
+    """
     barrier_v_min = self.q1_v * np.exp(
         np.clip(self.q2_v * cons_v_min, None, self.barrier_thr)
     )
@@ -264,6 +353,20 @@ class Constraints:
   def _lat_accec_cost(
       self, cons_a_lat_min: np.ndarray, cons_a_lat_max: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Transforms the constraint values of the lateral acceleration limit to the
+    corresponding barrier costs.
+
+    Args:
+        cons_a_lat_min (np.ndarray): constarint value of the minimum lateral
+            acceleration.
+        cons_a_lat_max (np.ndarray): constarint value of the maximum lateral
+            acceleration.
+
+    Returns:
+        np.ndarray: barrier cost of the minimum lateral acceleration.
+        np.ndarray: barrier cost of the maximum lateral acceleration.
+    """
     barrier_a_lat_min = self.q1_lat * (
         np.exp(np.clip(self.q2_lat * cons_a_lat_min, None, self.barrier_thr))
     )
@@ -273,6 +376,17 @@ class Constraints:
     return barrier_a_lat_min, barrier_a_lat_max
 
   def _obs_cost(self, cons_obs: np.ndarray) -> np.ndarray:
+    """
+    Transforms the constraint values of obstacles to the corresponding
+    barrier costs.
+
+    Args:
+        cons_obs (np.ndarray): of the shape (#obstacles, N).
+
+    Returns:
+        np.ndarray: barrier cost of the obstacle constraints, of the shape
+            (#obstacles, N).
+    """
     # Ignores and sets to -0.2 when self is far away from the obstacle.
     cons_clip = np.clip(
         self.q2_obs * cons_obs, -0.2 * self.q2_obs, self.barrier_thr
@@ -284,14 +398,22 @@ class Constraints:
       self, states: np.ndarray, slopes: np.ndarray, cons_road_l: np.ndarray,
       cons_road_r: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
-    '''
+    """
     Calculates the Jacobian and Hessian of road boundary soft constraint cost.
 
     Args:
-        states: 4xN array of planned trajectory
-        close_pts: 2xN array of each state's closest point [x,y] on the track
-        slopes: 1xN array of track's slopess (rad) at closest points
-    '''
+        states (np.ndarray): of the shape (4, N).
+        close_pts (np.ndarray): the position of the closest points on the
+            centerline. This array is of the shape (2, N).
+        slopes (np.ndarray): the slope of of trangent line on those points.
+            This vector is of the shape (1, N).
+        cons_road_l (np.ndarray): constarint value of the left road boundary.
+        cons_road_r (np.ndarray): constarint value of the right road boundary.
+
+    Returns:
+        np.ndarray: c_x of the shape (4, N).
+        np.ndarray: c_xx of the shape (4, 4, N).
+    """
     cons_road_l = cons_road_l.reshape(-1)
     cons_road_r = cons_road_r.reshape(-1)
 
@@ -299,10 +421,8 @@ class Constraints:
     sr = np.sin(slopes).reshape(-1)
     cr = np.cos(slopes).reshape(-1)
     transform = np.array([sr, -cr])  # (2, N).
-    # thr = self.q1_road * np.exp(self.road_thr * self.q2_road)
 
     # region: right bound
-    # idx_ignore = cost_road_r < thr
     idx_ignore = cons_road_r < self.road_thr
 
     # Jacobian
@@ -315,21 +435,12 @@ class Constraints:
     c_x_r[:2, :] = _c_x_r
     c_xx_r[:2, :2, :] = _c_xx_r
 
-    # c_x_r[0, :] = self.q2_road * cost_road_r * sr
-    # c_x_r[1, :] = -self.q2_road * cost_road_r * cr
-
-    # c_xx_r[0, 0, :] = self.q2_road * self.q2_road * cost_road_r * sr * sr
-    # c_xx_r[1, 1, :] = self.q2_road * self.q2_road * cost_road_r * cr * cr
-    # c_xx_r[0, 1, :] = c_xx_r[
-    #     1, 0, :] = -self.q2_road * self.q2_road * cost_road_r * cr * sr
-
     # remove inactive
     c_x_r[:, idx_ignore] = 0
     c_xx_r[:, :, idx_ignore] = 0
     # endregion
 
     # region: Left Bound
-    # idx_ignore = cost_road_l < thr
     idx_ignore = cons_road_l < self.road_thr
 
     # Jacobian
@@ -343,15 +454,7 @@ class Constraints:
     c_x_l[:2, :] = _c_x_l
     c_xx_l[:2, :2, :] = _c_xx_l
 
-    # c_x_l[0, :] = -self.q2_road * cost_road_l * sr
-    # c_x_l[1, :] = self.q2_road * cost_road_l * cr
-
-    # c_xx_l[0, 0, :] = self.q2_road * self.q2_road * cost_road_l * sr * sr
-    # c_xx_l[1, 1, :] = self.q2_road * self.q2_road * cost_road_l * cr * cr
-    # c_xx_l[0, 1, :] = c_xx_l[
-    #     1, 0, :] = -self.q2_road * self.q2_road * cost_road_l * cr * sr
-
-    # # remove inactive
+    # remove inactive
     c_x_l[:, idx_ignore] = 0
     c_xx_l[:, :, idx_ignore] = 0
 
@@ -362,12 +465,18 @@ class Constraints:
   def _velocity_bound_derivative(
       self, states: np.ndarray, cons_v_min: np.ndarray, cons_v_max: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
-    '''
+    """
     Calculates the Jacobian and Hessian of velocity soft constraint cost.
 
     Args:
-        states: 4xN array of planned trajectory
-    '''
+        states (np.ndarray): of the shape (4, N).
+        cons_v_min (np.ndarray): constarint value of the minimum velocity.
+        cons_v_max (np.ndarray): constarint value of the maximum velocity.
+
+    Returns:
+        np.ndarray: c_x of the shape (4, N).
+        np.ndarray: c_xx of the shape (4, 4, N).
+    """
     N = states.shape[1]
     transform = np.ones((1, N))
     c_x = np.zeros((4, N))
@@ -388,14 +497,25 @@ class Constraints:
       self, states: np.ndarray, controls: np.ndarray,
       cons_a_lat_min: np.ndarray, cons_a_lat_max: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    '''
+    """
     Calculates the Jacobian and Hessian of Lateral Acceleration soft constraint
         cost.
 
     Args:
-        states: 4xN array of planned trajectory
-        controls: 2xN array of planned control
-    '''
+        states (np.ndarray): of the shape (4, N).
+        controls (np.ndarray): of the shape (2, N).
+        cons_a_lat_min (np.ndarray): constarint value of the minimum lateral
+            acceleration.
+        cons_a_lat_max (np.ndarray): constarint value of the maximum lateral
+            acceleration.
+
+    Returns:
+        np.ndarray: c_x of the shape (4, N).
+        np.ndarray: c_xx of the shape (4, 4, N).
+        np.ndarray: c_u of the shape (2, N).
+        np.ndarray: c_uu of the shape (2, 2, N).
+        np.ndarray: c_ux of the shape (2, 4, N).
+    """
     cost_a_lat_min = self.q1_lat * (
         np.exp(np.clip(self.q2_lat * cons_a_lat_min, None, self.barrier_thr))
     )
@@ -441,6 +561,20 @@ class Constraints:
       self, footprint: Ellipse, states: np.ndarray, cons_obs: np.ndarray,
       obs_circ_idx: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Calculates the Jacobian and Hessian of obstacles soft constraint cost.
+
+    Args:
+        footprint (Ellipse): the footprint of the ego agent.
+        states (np.ndarray): of the shape (4, N).
+        cons_obs (np.ndarray): of the shape (#obstacles, N).
+        obs_circ_idx (np.ndarray): the index of the closest circles of ego and
+            obstacle. For example, x[:, i, j] = (idx_ego_circ, idx_obs_circ).
+
+    Returns:
+        np.ndarray: c_x of the shape (4, N).
+        np.ndarray: c_xx of the shape (4, 4, N).
+    """
     centers_with_wheelbase = footprint.center_local + self.wheelbase
     num_steps = states.shape[1]
     num_obs = len(self.obs_list)
@@ -470,10 +604,9 @@ class Constraints:
         diff = self_center - obs_center
         dist = np.linalg.norm(diff)
         cons_dot_concat[:2, i*num_obs + j] = -diff / dist
-        #! ignore yaw
-        # cons_dot_concat[3, i*num_obs + j] = pos_along_major_axis / dist * (
-        #     diff[0] * sin_theta - diff[1] * cos_theta
-        # )
+        cons_dot_concat[3, i*num_obs + j] = pos_along_major_axis / dist * (
+            diff[0] * sin_theta - diff[1] * cos_theta
+        )
 
     _c_x, _c_xx = barrier_function(
         q1=self.q1_obs, q2=self.q2_obs, cons=cons_flatten,
@@ -492,6 +625,16 @@ class Constraints:
       self, states: np.ndarray, controls: np.ndarray, close_pts: np.ndarray,
       slopes: np.ndarray
   ):
+    """Checks the shape of the input arrays.
+
+    Args:
+        states (np.ndarray): of the shape (4, N).
+        controls (np.ndarray): of the shape (2, N).
+        close_pts (np.ndarray): the position of the closest points on the
+            centerline. This array is of the shape (2, N).
+        slopes (np.ndarray): the slope of of trangent line on those points.
+            This vector is of the shape (1, N).
+    """
     assert states.ndim == 2, "states dimension is not correct!"
     assert controls.ndim == 2, "controls dimension is not correct!"
     assert close_pts.ndim == 2, "close_pts dimension is not correct!"
