@@ -65,32 +65,6 @@ class RaceCarSingleEnv(BaseSingleEnv):
   def dim_u(self):
     return self.agent.dyn.dim_u
 
-  def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, Dict]:
-    """Implements the step function in the environment.
-
-    Args:
-        action (np.ndarray): a dictionary consists of 'ctrl' and 'dstb', which
-            are accessed by action['ctrl'] and action['dstb'].
-
-    Returns:
-        np.ndarray: next state.
-        float: the reward that ctrl wants to maximize and dstb wants to
-            minimize.
-        bool: True if the episode ends.
-        Dict[str, Any]]: additional information of the step, such as target
-            margin and safety margin used in reachability analysis.
-    """
-    self.cnt += 1
-    state_nxt, _ = self.agent.integrate_forward(
-        state=self.state, control=action, **self.integrate_kwargs
-    )
-    constraints = self.get_constraints(self.state, action, state_nxt)
-    cost = self.get_cost(self.state, action, state_nxt, constraints)
-    done = self.get_done_flag(self.state, action, state_nxt, constraints)
-    info = self.get_info(self.state, action, state_nxt, cost, constraints)
-
-    return np.copy(state_nxt), -cost, done, info
-
   def reset(self, state: Optional[np.ndarray] = None) -> np.ndarray:
     """
     Resets the environment and returns the new state.
