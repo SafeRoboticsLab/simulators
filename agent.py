@@ -1,7 +1,7 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Callable, Any
 import numpy as np
 
-from .race_car.bicycle_dynamics import BicycleDynamics
+from .dynamics.bicycle_dynamics import BicycleDynamics
 from .ell_reach.ellipse import Ellipse
 
 
@@ -18,9 +18,32 @@ class Agent:
       ego_Q = np.diag([ego_a**2, ego_b**2])
       self.footprint = Ellipse(q=ego_q, Q=ego_Q)
 
+    self._policy = None
+    self._nominal_trajectory = {}
+
+  @property
+  def nominal_states(self):
+    assert self._nominal_trajectory, "The nominal trajectory is empty!"
+    return self._nominal_trajectory["nominal_states"].copy()
+
+  @property
+  def nominal_controls(self):
+    assert self._nominal_trajectory, "The nominal trajectory is empty!"
+    return self._nominal_trajectory["nominal_controls"].copy()
+
+  def update_policy(self, policy: Callable[[np.ndarray, Any], np.ndarray]):
+    self._policy = policy
+
+  def update_nominal_trajectory(
+      self, nominal_states: np.ndarray, nominal_controls: np.ndarray
+  ):
+    self._nominal_trajectory["nominal_states"] = nominal_states
+    self._nominal_trajectory["nominal_controls"] = nominal_controls
+
   def integrate_forward(
-      self, state: np.ndarray, control: np.ndarray, step: Optional[int] = 1,
-      noise: Optional[np.ndarray] = None, noise_type: Optional[str] = 'unif',
+      self, state: np.ndarray, control: Optional[np.ndarray] = None,
+      step: Optional[int] = 1, noise: Optional[np.ndarray] = None,
+      noise_type: Optional[str] = 'unif',
       adversary: Optional[np.ndarray] = None, **kwargs
   ) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -43,6 +66,11 @@ class Agent:
         np.ndarray: next state.
         np.ndarray: clipped control.
     """
+    assert control is not None or self._policy is not None, (
+        "Tou need to either pass in a control or construct a policy!"
+    )
+    if control is None:
+      control = self.policy(state, **kwargs)
     return self.dyn.integrate_forward(
         state, control, step, noise, noise_type, adversary, **kwargs
     )
@@ -63,3 +91,7 @@ class Agent:
         np.ndarray: the Jacobian of next state w.r.t. the current control.
     """
     return self.dyn.get_jacobian(nominal_states, nominal_controls)
+
+  def policy(self, state: np.ndarray, **kwargs) -> np.ndarray:
+    assert self._policy is not None, "You need to first pass in a policy"
+    return self._policy(state, **kwargs)
