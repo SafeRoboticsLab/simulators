@@ -10,17 +10,19 @@ from .utils import GenericAction, GenericState
 
 class BaseEnv(gym.Env, ABC):
 
-  def __init__(self) -> None:
+  def __init__(self, config_env) -> None:
     super().__init__()
+    self.cnt = 0
+    self.timeoff = config_env.TIMEOFF
+    self.end_criterion = config_env.END_CRITERION
 
   @abstractmethod
   def step(self,
            action: GenericAction) -> Tuple[GenericState, float, bool, Dict]:
     raise NotImplementedError
 
-  @abstractmethod
   def reset(self) -> GenericState:
-    raise NotImplementedError
+    self.cnt = 0
 
   @abstractmethod
   def render(self):

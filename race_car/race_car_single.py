@@ -4,27 +4,23 @@ from matplotlib import pyplot as plt
 import matplotlib
 from gym import spaces
 
-from ..agent import Agent
-from ..base_env import BaseEnv
+from ..base_single_env import BaseSingleEnv
 from ..ell_reach.ellipse import Ellipse
 from .track import Track
 from .constraints import Constraints
 from .utils import get_centerline_from_traj
 
 
-class RaceCarSingleEnv(BaseEnv):
+class RaceCarSingleEnv(BaseSingleEnv):
   """
   Implements an environment of a single Princeton Race Car.
   """
 
   def __init__(self, config_env: Any, config_agent: Any) -> None:
     assert config_env.NUM_AGENTS == 1, "This environment only has one agent!"
-    super().__init__()
+    super().__init__(config_env, config_agent)
 
     # Environment.
-    self.timeoff = config_env.TIMEOFF
-    self.end_criterion = config_env.END_CRITERION
-
     self.track = Track(
         center_line=get_centerline_from_traj(config_env.TRACK_FILE),
         width_left=config_env.TRACK_WIDTH_LEFT,
@@ -46,18 +42,6 @@ class RaceCarSingleEnv(BaseEnv):
     self.use_soft_cons_cost = config_env.USE_SOFT_CONS_COST
     self.W_state = np.array([[self.w_contour, 0], [0, self.w_vel]])
     self.W_control = np.array([[self.w_accel, 0], [0, self.w_delta]])
-
-    # Action Space.
-    action_space = np.array(config_agent.ACTION_RANGE)
-    self.action_dim = action_space.shape[0]
-    self.agent = Agent(config_agent, action_space)
-    self.action_space = spaces.Box(
-        low=action_space[:, 0], high=action_space[:, 1]
-    )
-
-    self.integrate_kwargs = getattr(config_agent, "INTEGRATE_KWARGS", {})
-    if "noise" in self.integrate_kwargs:
-      self.integrate_kwargs['noise'] = np.array(self.integrate_kwargs['noise'])
 
     # Observation Space. Note that the first two dimension is in the local
     # frame and it needs to call track.local2global() to get the (x, y)
@@ -118,7 +102,7 @@ class RaceCarSingleEnv(BaseEnv):
     Returns:
         np.ndarray: the new state of the shape (4, 1).
     """
-    self.cnt = 0
+    super().reset()
     if state is None:
       state = self.observation_space.sample()
       state[:2], slope = self.track.local2global(state[:2], return_slope=True)
