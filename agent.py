@@ -1,3 +1,8 @@
+"""
+Please contact the author(s) of this library if you have any questions.
+Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
+"""
+
 from typing import Optional, Tuple, Callable, Any
 import numpy as np
 
@@ -6,6 +11,15 @@ from .ell_reach.ellipse import Ellipse
 
 
 class Agent:
+  """A basic unit in our environments.
+
+  Attributes:
+      dyn (object): agent's dynamics.
+      footprint (object): agent's shape.
+      nominal_states (np.ndarray): nominal states of the planned trajectory.
+      nominal_controls (np.ndarray): nominal controls of the planned
+          trajectory.
+  """
 
   def __init__(self, config, action_space: np.ndarray) -> None:
     if config.DYN == "Bicycle":

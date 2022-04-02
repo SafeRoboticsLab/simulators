@@ -1,39 +1,43 @@
+"""
+Please contact the author(s) of this library if you have any questions.
+Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
+"""
+
 from abc import abstractmethod
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Any
 import numpy as np
 from gym import spaces
 
+from .agent import Agent
 from .base_env import BaseEnv
-from .utils import ActionZS, get_agent, build_obs_space
+from .utils import ActionZS, build_obs_space
 
 
 class BaseZeroSumEnv(BaseEnv):
   """
-  Implements an environment of two-player discrete-time zero-sum dynamic game.
-  The agent minimizing the cost is called 'ctrl', while the agent maximizing
-  the cost is called 'dstb'.
+  Implements an environment of a two-player discrete-time zero-sum dynamic
+  game. The agent minimizing the cost is called 'ctrl', while the agent
+  maximizing the cost is called 'dstb'.
   """
 
-  def __init__(self, config) -> None:
-    assert config.NUM_AGENTS == 2, (
+  def __init__(self, config_env: Any, config_agent: Any) -> None:
+    assert config_env.NUM_AGENTS == 2, (
         "Zero-Sum Game currently only supports two agents!"
     )
     super().__init__()
 
     # Action Space.
-    ctrl_space = np.array(config.ACTION_RANGE['CTRL'])
+    ctrl_space = np.array(config_agent.ACTION_RANGE['CTRL'])
     self.action_space_ctrl = spaces.Box(
         low=ctrl_space[:, 0], high=ctrl_space[:, 1]
     )
     self.action_dim_ctrl = ctrl_space.shape[0]
-    self.agent = get_agent(
-        dyn=config.DYNAMICS, config=config, action_space=ctrl_space
-    )
+    self.agent = Agent(config_agent, ctrl_space)
     # Other keyword arguments for integrate_forward, such as step, noise,
     # noise_type.
-    self.integrate_kwargs = config.INTEGRATE_KWARGS
+    self.integrate_kwargs = config_agent.INTEGRATE_KWARGS
 
-    dstb_space = np.array(config.ACTION_RANGE['DSTB'])
+    dstb_space = np.array(config_agent.ACTION_RANGE['DSTB'])
     self.action_space_dstb = spaces.Box(
         low=dstb_space[:, 0], high=dstb_space[:, 1]
     )
@@ -43,9 +47,9 @@ class BaseZeroSumEnv(BaseEnv):
     )
 
     # Observation Space.
-    obs_spec = np.array(config.OBS_RANGE)
+    obs_spec = np.array(config_agent.OBS_RANGE)
     self.observation_space = build_obs_space(
-        obs_spec=obs_spec, obs_dim=config.OBS_DIM
+        obs_spec=obs_spec, obs_dim=config_agent.OBS_DIM
     )
     self.observation_dim = self.observation_space.low.shape
     self.state = self.observation_space.sample()  # Overriden by reset later.

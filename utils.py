@@ -1,3 +1,8 @@
+"""
+Please contact the author(s) of this library if you have any questions.
+Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
+"""
+
 from __future__ import annotations
 from typing import TypeVar, TypedDict, List, Any, Optional, Union, Tuple
 import numpy as np

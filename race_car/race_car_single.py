@@ -1,3 +1,8 @@
+"""
+Please contact the author(s) of this library if you have any questions.
+Authors: Kai-Chieh Hsu ( kaichieh@princeton.edu )
+"""
+
 from typing import Dict, Tuple, List, Any, Optional
 import numpy as np
 from matplotlib import pyplot as plt
@@ -12,8 +17,7 @@ from .utils import get_centerline_from_traj
 
 
 class RaceCarSingleEnv(BaseSingleEnv):
-  """
-  Implements an environment of a single Princeton Race Car.
+  """Implements an environment of a single Princeton Race Car.
   """
 
   def __init__(self, config_env: Any, config_agent: Any) -> None:

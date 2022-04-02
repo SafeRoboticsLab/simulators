@@ -1,3 +1,9 @@
+"""
+Please contact the author(s) of this library if you have any questions.
+Authors:  Zixu Zhang ( zixuz@princeton.edu )
+          Kai-Chieh Hsu ( kaichieh@princeton.edu )
+"""
+
 from __future__ import annotations
 import time
 from typing import List, Any, Optional, Tuple
@@ -255,12 +261,6 @@ class Constraints:
     # sum up
     c_x_cons = c_x_rd + c_x_lat + c_x_obs + c_x_vel
     c_xx_cons = c_xx_rd + c_xx_lat + c_xx_obs + c_xx_vel
-
-    # with np.printoptions(precision=2, suppress=True):
-    #     print("c_x_rd", c_x_rd)
-    #     print("c_x_lat", c_x_lat)
-    #     print("c_x_vel", c_x_vel)
-    #     print("c_x_obs", c_x_obs)
 
     c_u_cons = c_u_lat
     c_uu_cons = c_uu_lat

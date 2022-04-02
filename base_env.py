@@ -1,5 +1,10 @@
+"""
+Please contact the author(s) of this library if you have any questions.
+Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
+"""
+
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple, Any
+from typing import Dict, Tuple
 import random
 import numpy as np
 import gym

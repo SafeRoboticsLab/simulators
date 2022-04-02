@@ -1,10 +1,16 @@
+"""
+Please contact the author(s) of this library if you have any questions.
+Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
+"""
+
 from abc import abstractmethod
 from typing import Dict, Tuple, Any, List
 import numpy as np
 from gym import spaces
 
+from .agent import Agent
 from .base_env import BaseEnv
-from .utils import get_agent, build_obs_space
+from .utils import build_obs_space
 
 
 class BaseMultiAgentEnv(BaseEnv):
@@ -16,9 +22,9 @@ class BaseMultiAgentEnv(BaseEnv):
       (2) Global Observation Broadcast.
   """
 
-  def __init__(self, config: Any) -> None:
+  def __init__(self, config_env: Any, config_agent: List[Any]) -> None:
     super().__init__()
-    self.num_agents = config.NUM_AGENTS
+    self.num_agents = config_env.NUM_AGENTS
 
     # placeholder
     _obs_space = {}
@@ -31,21 +37,18 @@ class BaseMultiAgentEnv(BaseEnv):
     for i in range(self.num_agents):
       agent_name = 'agent_' + str(i)
       # Action Space.
-      tmp_action_space = np.array(config.ACTION_RANGE[agent_name])
+      tmp_action_space = np.array(config_agent[i].ACTION_RANGE[agent_name])
       _action_space[agent_name] = spaces.Box(
           low=tmp_action_space[:, 0], high=tmp_action_space[:, 1]
       )
       self.action_dim[i] = _action_space[agent_name].low.shape
-      self.agent[i] = get_agent(
-          dyn=config.DYNAMICS[agent_name], config=config.PHYSICS[agent_name],
-          action_space=tmp_action_space
-      )
-      self.integrate_kwargs[i] = config.INTEGRATE_KWARGS[agent_name]
+      self.agent[i] = Agent(config_agent[i], action_space=tmp_action_space)
+      self.integrate_kwargs[i] = config_agent[i].INTEGRATE_KWARGS[agent_name]
 
       # Observation space.
-      obs_spec = np.array(config.OBS_RANGE[agent_name])
+      obs_spec = np.array(config_agent[i].OBS_RANGE[agent_name])
       _obs_space[agent_name] = build_obs_space(
-          obs_spec=obs_spec, obs_dim=config.OBS_DIM[agent_name]
+          obs_spec=obs_spec, obs_dim=config_agent[i].OBS_DIM[agent_name]
       )
       self.observation_dim[i] = _obs_space[agent_name].low.shape
 

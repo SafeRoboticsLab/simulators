@@ -1,3 +1,9 @@
+"""
+Please contact the author(s) of this library if you have any questions.
+Authors:  Zixu Zhang ( zixuz@princeton.edu )
+          Kai-Chieh Hsu ( kaichieh@princeton.edu )
+"""
+
 from typing import Tuple, Optional, List
 import numpy as np
 import time

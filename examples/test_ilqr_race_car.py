@@ -1,3 +1,8 @@
+"""
+Please contact the author(s) of this library if you have any questions.
+Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
+"""
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
