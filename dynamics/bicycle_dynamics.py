@@ -81,7 +81,7 @@ class BicycleDynamics(BaseDynamics):
         ], [-np.sin(state_nxt[-1]),
             np.cos(state_nxt[-1]), 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
         if noise_type == 'unif':
-          rv = np.random.rand(4) - 0.5
+          rv = (np.random.rand(4) - 0.5) * 2  # Maps to [-1, 1]
         else:
           rv = np.random.normal(size=(4))
         state_nxt = state_nxt + (transform_mtx@noise) * rv / step
