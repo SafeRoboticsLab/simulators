@@ -52,7 +52,7 @@ class iLQR():
 
     J = self.env.get_cost(state=X, action=U, state_nxt=state_final)
 
-    return X, state_final, U, J
+    return X, U, state_final, J
 
   def backward_pass(
       self, nominal_states: np.ndarray, nominal_controls: np.ndarray,
@@ -102,7 +102,7 @@ class iLQR():
   def solve(
       self, state_init: np.ndarray, controls: Optional[np.ndarray] = None,
       obs_list: Optional[List[List[Ellipse]]] = None
-  ):
+  ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float, int]:
     status = 0
     self.eps = 10
     if obs_list is not None:
@@ -164,10 +164,12 @@ class iLQR():
         break
     t_process = time.time() - time0
 
-    return states, controls, t_process, status
+    return states, controls, state_final, t_process, status
 
   def _check_shape(self, array_dict: dict):
     for key, value in array_dict.items():
       assert value.shape[-1] == self.N - 1, (
-          "The length of {} should be horizon-1.".format(key)
+          "The length of {} should be {} but get {}.".format(
+              key, self.N - 1, value.shape[-1]
+          )
       )

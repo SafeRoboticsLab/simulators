@@ -55,9 +55,8 @@ class RaceCarSingleEnv(BaseEnv):
         low=action_space[:, 0], high=action_space[:, 1]
     )
 
-    self.integrate_kwargs = {}
-    if hasattr(config_agent, 'INTEGRATE_KWARGS'):
-      self.integrate_kwargs = config_agent.INTEGRATE_KWARGS
+    self.integrate_kwargs = getattr(config_agent, "INTEGRATE_KWARGS", {})
+    if "noise" in self.integrate_kwargs:
       self.integrate_kwargs['noise'] = np.array(self.integrate_kwargs['noise'])
 
     # Observation Space. Note that the first two dimension is in the local
@@ -114,6 +113,8 @@ class RaceCarSingleEnv(BaseEnv):
       state = self.observation_space.sample()
       state[:2], slope = self.track.local2global(state[:2], return_slope=True)
       state[3] = slope
+    elif state.ndim == 1:
+      state = state[:, np.newaxis]
     self.state = state.copy()
     return state
 
