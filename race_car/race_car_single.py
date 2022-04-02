@@ -108,6 +108,16 @@ class RaceCarSingleEnv(BaseEnv):
     return np.copy(state_nxt), -cost, done, info
 
   def reset(self, state: Optional[np.ndarray] = None) -> np.ndarray:
+    """
+    Resets the environment and returns the new state.
+
+    Args:
+        state (Optional[np.ndarray], optional): reset to this state if
+            provided. Defaults to None.
+
+    Returns:
+        np.ndarray: the new state of the shape (4, 1).
+    """
     self.cnt = 0
     if state is None:
       state = self.observation_space.sample()
@@ -122,6 +132,17 @@ class RaceCarSingleEnv(BaseEnv):
       self, ax: Optional[matplotlib.axes.Axes] = None, c_track: str = 'k',
       c_obs: str = 'r', c_ego: str = 'b', s: float = 12
   ):
+    """Visualizes the current environment.
+
+    Args:
+        ax (Optional[matplotlib.axes.Axes], optional): the axes of matplotlib
+            to plot if provided. Otherwise, we use the current axes. Defaults
+            to None.
+        c_track (str, optional): the color of the track. Defaults to 'k'.
+        c_obs (str, optional): the color of the obstacles. Defaults to 'r'.
+        c_ego (str, optional): the color of the ego agent. Defaults to 'b'.
+        s (float, optional): the size of the ego agent point. Defaults to 12.
+    """
     if ax is None:
       ax = plt.gca()
     self.track.plot_track(ax, c=c_track)
@@ -130,10 +151,15 @@ class RaceCarSingleEnv(BaseEnv):
     ax.scatter(self.state[0], self.state[1], c=c_ego, s=s)
     if self.constraints.obs_list is not None:
       for obs_list_j in self.constraints.obs_list:
-        for obs_i_j in obs_list_j:
-          obs_i_j.plot(ax, color=c_obs, plot_center=False)
+        obs_list_j[0].plot(ax, color=c_obs, plot_center=False)
 
   def update_obs(self, obs_list: List[List[Ellipse]]):
+    """Updates the obstacles.
+
+    Args:
+        obs_list (List[List[Ellipse]]): a list of ellipse lists. Each Ellipse
+        in the list is an obstacle at each time step.
+    """
     self.constraints.update_obs(obs_list)
 
   def get_cost(
@@ -144,15 +170,14 @@ class RaceCarSingleEnv(BaseEnv):
     Gets the cost given current state, current action, and next state.
 
     Args:
-        state (np.ndarray): current state.
-        action (np.ndarray): a dictionary consists of 'ctrl' and 'dstb', which
-            are accessed by action['ctrl'] and action['dstb'].
-        state_nxt (np.ndarray): next state or the final state.
+        state (np.ndarray): current states of the shape (4, N).
+        action (np.ndarray): current actions of the shape (2, N).
+        state_nxt (np.ndarray): next state or final state of the shape (4, ).
         constraints (Dict): each (key, value) pair is the name and value of a
             constraint function.
 
     Returns:
-        float: the cost that ctrl wants to minimize and dstb wants to maximize.
+        float: the cost to minimize.
     """
     states_with_final, actions_with_final = self._reshape(
         state, action, state_nxt
@@ -211,10 +236,9 @@ class RaceCarSingleEnv(BaseEnv):
     action, and next state.
 
     Args:
-        state (np.ndarray): current state.
-        action (np.ndarray): a dictionary consists of 'ctrl' and 'dstb', which
-            are accessed by action['ctrl'] and action['dstb'].
-        state_nxt (np.ndarray): next state.
+        state (np.ndarray): current states of the shape (4, N).
+        action (np.ndarray): current actions of the shape (2, N).
+        state_nxt (np.ndarray): next state or final state of the shape (4, ).
 
     Returns:
         Dict: each (key, value) pair is the name and value of a constraint
@@ -268,6 +292,22 @@ class RaceCarSingleEnv(BaseEnv):
   def get_derivatives(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Calculates Jacobian and Hessian of the cost (possibly with soft constraint
+    cost).
+
+    Args:
+        state (np.ndarray): current states of the shape (4, N).
+        action (np.ndarray): current actions of the shape (2, N).
+        state_nxt (np.ndarray): next state or final state of the shape (4, ).
+
+    Returns:
+        np.ndarray: c_x of the shape (4, N).
+        np.ndarray: c_xx of the shape (4, 4, N).
+        np.ndarray: c_u of the shape (2, N).
+        np.ndarray: c_uu of the shape (2, 2, N).
+        np.ndarray: c_ux of the shape (2, 4, N).
+    """
     states_with_final, actions_with_final = self._reshape(
         state, action, state_nxt
     )
@@ -290,11 +330,6 @@ class RaceCarSingleEnv(BaseEnv):
     S = np.zeros((
         self.agent.dyn.dim_u, self.agent.dyn.dim_x, states_with_final.shape[1]
     ))
-    # with np.printoptions(precision=2, suppress=True):
-    #   print("c_x_cost", c_x_cost)
-    #   print("c_xx_cost", c_xx_cost)
-    #   print("c_u_cost", c_u_cost)
-    #   print("c_uu_cost", c_uu_cost)
 
     if self.use_soft_cons_cost:
       c_x_cons, c_xx_cons, c_u_cons, c_uu_cons, c_ux_cons = (
@@ -303,12 +338,6 @@ class RaceCarSingleEnv(BaseEnv):
               controls=actions_with_final, close_pts=close_pts, slopes=slopes
           )
       )
-      # with np.printoptions(precision=2, suppress=True):
-      #   print("c_x_cons", c_x_cons)
-      #   print("c_xx_cons", c_xx_cons)
-      #   print("c_u_cons", c_u_cons)
-      #   print("c_uu_cons", c_uu_cons)
-      #   print("c_ux_cons", c_ux_cons)
       q += c_x_cons
       Q += c_xx_cons
       r += c_u_cons
@@ -412,6 +441,18 @@ class RaceCarSingleEnv(BaseEnv):
   def _reshape(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Concatenates states with state_nxt and appends dummy control after action.
+
+    Args:
+        state (np.ndarray): current states of the shape (4, N).
+        action (np.ndarray): current actions of the shape (2, N).
+        state_nxt (np.ndarray): next state or final state of the shape (4, ).
+
+    Returns:
+        np.ndarray: states with the final state.
+        np.ndarray: action with the dummy control.
+    """
     if state.ndim == 1:
       state = state[:, np.newaxis]
     if state_nxt.ndim == 1:

@@ -220,7 +220,6 @@ class Constraints:
         np.ndarray: c_u of the shape (2, N).
         np.ndarray: c_uu of the shape (2, 2, N).
         np.ndarray: c_ux of the shape (2, 4, N).
-
     """
     self._check_input(states, controls, close_pts, slopes)
 

@@ -45,8 +45,8 @@ agent:
   DT: 0.1
   INTEGRATE_KWARGS:  # keywords for integrate_forward
     step: 10
-  #   noise: [0., 0., 0., 0.]
-  #   noise_type: unif
+    noise: [0., 0.1, 0., 0.]
+    noise_type: unif
   # CONSTRAINT
   V_MIN: 0.
   V_MAX: 2.
