@@ -97,9 +97,11 @@ class Track:
     else:
       self.track_bound = np.zeros((4, N))
 
+    # Inner curve.
     self.track_bound[0, :N] = interp_pt[0, :] - np.sin(slope) * self.width_left
     self.track_bound[1, :N] = interp_pt[1, :] + np.cos(slope) * self.width_left
 
+    # Outer curve.
     self.track_bound[
         2, :N] = interp_pt[0, :] + np.sin(slope) * self.width_right
     self.track_bound[
@@ -217,7 +219,9 @@ class Track:
   ):
     if ax is None:
       ax = plt.gca()
+    # Inner curve.
     ax.plot(self.track_bound[0, :], self.track_bound[1, :], c=c, linestyle='-')
+    # Outer curve.
     ax.plot(self.track_bound[2, :], self.track_bound[3, :], c=c, linestyle='-')
 
   def plot_track_center(self, ax: Optional[matplotlib.axes.Axes] = None):
@@ -236,10 +240,18 @@ if __name__ == '__main__':
   )
 
   fig, ax = plt.subplots(1, 1, figsize=(8, 8))
-  num_pts = 11
+  num_pts = 201
   local_states = np.zeros((2, num_pts))
   local_states[0, :] = np.linspace(0, 1., num_pts)
   global_states = track.local2global(local_states)
+  # x_min, y_min = np.min(global_states, axis=1)
+  # x_max, y_max = np.max(global_states, axis=1)
+  # x_min -= track.width_right
+  # x_max += track.width_right
+  # y_min -= track.width_right
+  # y_max += track.width_right
+  x_min, y_min = np.min(track.track_bound[2:, :], axis=1)
+  x_max, y_max = np.max(track.track_bound[2:, :], axis=1)
 
   local_states_transform = track.global2local(global_states)
   print(np.linalg.norm(local_states_transform - local_states))
@@ -247,6 +259,13 @@ if __name__ == '__main__':
   for idx in range(num_pts):
     pt = global_states[:, idx]
     ax.scatter(pt[0], pt[1], c='b')
+
+  ax.plot([x_min, x_max], [y_min, y_min], c='m')
+  ax.plot([x_min, x_max], [y_max, y_max], c='m')
+  ax.plot([x_min, x_min], [y_min, y_max], c='m')
+  ax.plot([x_max, x_max], [y_min, y_max], c='m')
+  # print(x_min, x_max, y_min, y_max)
+  # print(np.min(track.track_bound[2:, :], axis=1))
 
   track.plot_track(ax)
   # track.plot_track_center()

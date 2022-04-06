@@ -81,7 +81,7 @@ class Agent:
         np.ndarray: clipped control.
     """
     assert control is not None or self._policy is not None, (
-        "Tou need to either pass in a control or construct a policy!"
+        "You need to either pass in a control or construct a policy!"
     )
     if control is None:
       control = self.policy(state, **kwargs)
