@@ -239,7 +239,10 @@ class RaceCarSingleEnv(BaseSingleEnv):
         Dict: each (key, value) pair is the name and value of a target margin
             function.
     """
-    pass
+    velocity = np.empty(shape=(state.shape[1] + 1))
+    targets = {}
+    targets['velocity'] = velocity - 0.01  # less than 1 cm / s.
+    return targets
 
   def get_done_and_info(
       self, constraints: Dict, targets: Optional[Dict] = None,
