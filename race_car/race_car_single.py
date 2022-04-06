@@ -3,7 +3,7 @@ Please contact the author(s) of this library if you have any questions.
 Authors: Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 
-from typing import Dict, Tuple, List, Any, Optional
+from typing import Dict, Tuple, List, Any, Optional, final
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib
@@ -36,6 +36,18 @@ class RaceCarSingleEnv(BaseSingleEnv):
         config_env=config_env, config_agent=config_agent
     )
 
+    # Reset Sample Space. Note that the first two dimension is in the local
+    # frame and it needs to call track.local2global() to get the (x, y)
+    # position in the global frame.
+    low = np.zeros((4, 1))
+    low[1] = -config_env.TRACK_WIDTH_LEFT + config_agent.WIDTH * 3 / 4
+    high = np.zeros((4, 1))
+    high[0] = 1.
+    high[1] = config_env.TRACK_WIDTH_RIGHT - config_agent.WIDTH * 3 / 4
+    high[2] = config_agent.V_MAX
+    high[3] = 2 * np.pi
+    self.reset_sample_sapce = spaces.Box(low=low, high=high)
+
     # Cost.
     self.w_vel = config_env.W_VEL
     self.w_contour = config_env.W_CONTOUR
@@ -47,17 +59,17 @@ class RaceCarSingleEnv(BaseSingleEnv):
     self.W_state = np.array([[self.w_contour, 0], [0, self.w_vel]])
     self.W_control = np.array([[self.w_accel, 0], [0, self.w_delta]])
 
-    # Observation Space. Note that the first two dimension is in the local
-    # frame and it needs to call track.local2global() to get the (x, y)
-    # position in the global frame.
+    # Observation space.
+    x_min, y_min = np.min(self.track.track_bound[2:, :], axis=1)
+    x_max, y_max = np.max(self.track.track_bound[2:, :], axis=1)
     low = np.zeros((4, 1))
-    low[1] = -config_env.TRACK_WIDTH_LEFT + config_agent.WIDTH * 3 / 4
+    low[0] = x_min
+    low[1] = y_min
     high = np.zeros((4, 1))
-    high[0] = 1.
-    high[1] = config_env.TRACK_WIDTH_RIGHT - config_agent.WIDTH * 3 / 4
+    high[0] = x_max
+    high[1] = y_max
     high[2] = config_agent.V_MAX
     high[3] = 2 * np.pi
-    self.observation_space = spaces.Box(low=low, high=high)
     self.observation_dim = self.observation_space.low.shape
     self.reset()
 
@@ -82,7 +94,7 @@ class RaceCarSingleEnv(BaseSingleEnv):
     """
     super().reset()
     if state is None:
-      state = self.observation_space.sample()
+      state = self.reset_sample_sapce.sample()
       state[:2], slope = self.track.local2global(state[:2], return_slope=True)
       state[3] = slope
     elif state.ndim == 1:
@@ -183,11 +195,6 @@ class RaceCarSingleEnv(BaseSingleEnv):
             controls=actions_with_final, cons_dict=constraints
         )
 
-    # with np.printoptions(precision=2, suppress=True):
-    #   print("c_state", c_contour)
-    #   print("c_constraint", c_soft_cons)
-    #   print("c_control", c_control)
-    #   print("c_progress", c_progress)
     return np.sum(c_contour + c_control + c_soft_cons) + c_progress
 
   def get_constraints(
@@ -203,8 +210,8 @@ class RaceCarSingleEnv(BaseSingleEnv):
         state_nxt (np.ndarray): next state or final state of the shape (4, ).
 
     Returns:
-        Dict: each (key, value) pair is the name and value of a constraint
-            function.
+        Dict: each (key, value) pair is the name of a constraint function and
+            an array consisting of values at each time step.
     """
     states_with_final, actions_with_final = self._reshape(
         state, action, state_nxt
@@ -216,40 +223,110 @@ class RaceCarSingleEnv(BaseSingleEnv):
         controls=actions_with_final, close_pts=close_pts, slopes=slopes
     )
 
-  def get_done_flag(self, constraints: Dict) -> bool:
+  def get_target_margin(
+      self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray
+  ) -> Dict:
     """
-    Gets the done flag given current state, current action, next state, and
-    constraints.
+    Gets the values of all target margin functions given current state, current
+    action, and next state.
+
+    Args:
+        state (np.ndarray): current states of the shape (4, N).
+        action (np.ndarray): current actions of the shape (2, N).
+        state_nxt (np.ndarray): next state or final state of the shape (4, ).
+
+    Returns:
+        Dict: each (key, value) pair is the name and value of a target margin
+            function.
+    """
+    pass
+
+  def get_done_and_info(
+      self, constraints: Dict, targets: Optional[Dict] = None,
+      final_only: bool = True
+  ) -> Tuple[bool, Dict]:
+    """
+    Gets the done flag and a dictionary to provide additional information of
+    the step function given current state, current action, next state,
+    constraints, and targets.
 
     Args:
         constraints (Dict): each (key, value) pair is the name and value of a
             constraint function.
+        targets (Dict): each (key, value) pair is the name and value of a
+            target margin function.
 
     Returns:
         bool: True if the episode ends.
-    """
-    if self.cnt >= self.timeoff:
-      return True
-    if self.end_criterion == 'fail':
-      for value in constraints.values():
-        if value > 0.:
-          return True
-      return False
-
-  def get_info(self, constraints: Dict) -> Dict:
-    """
-    Gets a dictionary to provide additional information of the step function
-    given current state, current action, next state, cost, and constraints.
-
-    Args:
-        constraints (Dict): each (key, value) pair is the name and value of a
-            constraint function.
-
-    Returns:
         Dict: additional information of the step, such as target margin and
             safety margin used in reachability analysis.
     """
-    pass
+    done = False
+    done_type = "not_raised"
+    if self.cnt >= self.timeoff:
+      done = True
+      done_type = "timeout"
+
+    # Retrieves constraints / traget values.
+    constraint_values = None
+    for key, value in constraints.items():
+      if constraint_values is None:
+        num_pts = value.shape[1]
+        constraint_values = value
+      else:
+        assert num_pts == value.shape[1], (
+            "The length of constraint ({}) do not match".format(key)
+        )
+        constraint_values = np.concatenate((constraint_values, value), axis=0)
+    if self.end_criterion == 'reach-avoid':
+      target_values = None
+      for key, value in targets.items():
+        assert num_pts == value.shape[1], (
+            "The length of target ({}) do not match".format(key)
+        )
+        if target_values is None:
+          target_values = value
+        else:
+          target_values = np.concatenate((target_values, value), axis=0)
+
+    # Gets done flag
+    if self.end_criterion == 'failure':
+      if final_only:
+        failure = np.any(constraint_values[:, -1] > 0.)
+      else:
+        failure = np.any(constraint_values > 0.)
+      if failure:
+        done = True
+        done_type = "failure"
+    elif self.end_criterion == 'reach-avoid':
+      g_x_list = np.max(constraint_values, axis=0)
+      l_x_list = np.max(target_values, axis=0)
+      if final_only:
+        g_x = g_x_list[-1]
+        l_x = l_x_list[-1]
+        failure = g_x > 0.
+        success = not failure and l_x <= 0.
+      else:
+        v_x_list = np.empty(shape=(num_pts,))
+        v_x_list[num_pts
+                 - 1] = max(l_x_list[num_pts - 1], g_x_list[num_pts - 1])
+        for i in range(num_pts - 2, -1, -1):
+          v_x_list[i] = max(g_x_list[i], min(l_x_list[i], v_x_list[i + 1]))
+        inst = np.argmin(v_x_list)
+        success = v_x_list[inst] <= 0
+        failure = np.any(constraint_values[:, :inst + 1] > 0.)
+        g_x = g_x_list
+        l_x = l_x_list
+      if success:
+        done = True
+        done_type = "success"
+      elif failure:
+        done = True
+        done_type = "failure"
+
+    # Gets info
+    info = {"done_type": done_type, "g_x": g_x, "l_x": l_x}
+    return done, info
 
   def get_derivatives(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray

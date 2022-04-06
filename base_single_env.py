@@ -52,8 +52,10 @@ class BaseSingleEnv(BaseEnv):
     )
     constraints = self.get_constraints(self.state, action, state_nxt)
     cost = self.get_cost(self.state, action, state_nxt, constraints)
-    done = self.get_done_flag(self.state, action, state_nxt, constraints)
-    info = self.get_info(self.state, action, state_nxt, cost, constraints)
+    targets = self.get_target_margin(self.state, action, state_nxt)
+    done, info = self.get_done_and_info(constraints, targets)
+
+    self.state = np.copy(state_nxt.reshape(-1, 1))
 
     return np.copy(state_nxt.reshape(-1, 1)), -cost, done, info
 
@@ -97,31 +99,40 @@ class BaseSingleEnv(BaseEnv):
     raise NotImplementedError
 
   @abstractmethod
-  def get_done_flag(self, constraints: Dict) -> bool:
+  def get_target_margin(
+      self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray
+  ) -> Dict:
     """
-    Gets the done flag given current state, current action, next state, and
-    constraints.
+    Gets the values of all target margin functions given current state, current
+    action, and next state.
 
     Args:
-        constraints (Dict): each (key, value) pair is the name and value of a
-            constraint function.
+        state (np.ndarray): current states of the shape (4, N).
+        action (np.ndarray): current actions of the shape (2, N).
+        state_nxt (np.ndarray): next state or final state of the shape (4, ).
 
     Returns:
-        bool: True if the episode ends.
+        Dict: each (key, value) pair is the name and value of a target margin
+            function.
     """
     raise NotImplementedError
 
   @abstractmethod
-  def get_info(self, constraints: Dict) -> Dict:
+  def get_done_and_info(self, constraints: Dict,
+                        targets: Dict) -> Tuple[bool, Dict]:
     """
-    Gets a dictionary to provide additional information of the step function
-    given current state, current action, next state, cost, and constraints.
+    Gets the done flag and a dictionary to provide additional information of
+    the step function given current state, current action, next state,
+    constraints, and targets.
 
     Args:
         constraints (Dict): each (key, value) pair is the name and value of a
             constraint function.
+        targets (Dict): each (key, value) pair is the name and value of a
+            target margin function.
 
     Returns:
+        bool: True if the episode ends.
         Dict: additional information of the step, such as target margin and
             safety margin used in reachability analysis.
     """
