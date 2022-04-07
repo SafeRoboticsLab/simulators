@@ -171,6 +171,10 @@ class Track:
     Returns:
         np.ndarray: states in the global frame.
     """
+    flatten = False
+    if local_states.ndim == 1:
+      flatten = True
+      local_states = local_states[:, np.newaxis]
     num_pts = local_states.shape[1]
     progress = local_states[0, :]
     assert np.min(progress) >= 0. and np.max(progress) <= 1., (
@@ -182,6 +186,9 @@ class Track:
       global_states = global_states.reshape(2, 1)
     global_states[0, :] = global_states[0, :] + np.sin(slope) * lateral_dev
     global_states[1, :] = global_states[1, :] - np.cos(slope) * lateral_dev
+
+    if flatten:
+      global_states = global_states[:, 0]
     if return_slope:
       return global_states, slope
     return global_states
@@ -198,6 +205,10 @@ class Track:
     Returns:
         np.ndarray: states in the local frame.
     """
+    flatten = False
+    if global_states.ndim == 1:
+      flatten = True
+      global_states = global_states[:, np.newaxis]
     local_states = np.zeros(shape=(2, global_states.shape[1]))
     closest_pt, slope, progress = self.get_closest_pts(
         global_states, normalize_progress=True
@@ -210,6 +221,9 @@ class Track:
     lateral_dev = sr*dx - cr*dy
     local_states[0, :] = progress
     local_states[1, :] = lateral_dev
+
+    if flatten:
+      local_states = local_states[:, 0]
 
     return local_states
 
