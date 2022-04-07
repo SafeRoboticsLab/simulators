@@ -36,8 +36,8 @@ class iLQR():
             K_closed_loop=K_closed_loop, k_open_loop=k_open_loop
         )
     )
-    X = np.zeros_like(nominal_states)  # (dim_x, N-1)
-    U = np.zeros_like(nominal_controls)  # (dim_u, N-1)
+    X = np.zeros_like(nominal_states)  # (state_dim, N-1)
+    U = np.zeros_like(nominal_controls)  # (action_dim, N-1)
 
     X[:, 0] = nominal_states[:, 0]
     for i in range(self.N - 1):
@@ -75,15 +75,19 @@ class iLQR():
     fx, fu = self.env.agent.get_dyn_jacobian(nominal_states, nominal_controls)
 
     # Placeholders.
-    k_open_loop = np.zeros((self.env.dim_u, self.N - 1))
-    K_closed_loop = np.zeros((self.env.dim_u, self.env.dim_x, self.N - 1))
-    Q_u_hist = np.zeros([self.env.dim_u, self.N - 1])
-    Q_uu_hist = np.zeros([self.env.dim_u, self.env.dim_u, self.N - 1])
+    k_open_loop = np.zeros((self.env.action_dim, self.N - 1))
+    K_closed_loop = np.zeros(
+        (self.env.action_dim, self.env.state_dim, self.N - 1)
+    )
+    Q_u_hist = np.zeros([self.env.action_dim, self.N - 1])
+    Q_uu_hist = np.zeros([
+        self.env.action_dim, self.env.action_dim, self.N - 1
+    ])
 
     # derivative of value function at final step
     V_x = c_x[:, -1]
     V_xx = c_xx[:, :, -1]
-    reg_mat = self.eps * np.eye(self.env.dim_u)  # Numeric stability.
+    reg_mat = self.eps * np.eye(self.env.action_dim)  # Numeric stability.
 
     for i in range(self.N - 2, -1, -1):
       Q_x = c_x[:, i] + fx[:, :, i].T @ V_x
@@ -115,10 +119,10 @@ class iLQR():
       self.env.update_obs(obs_list)
 
     if controls is None:
-      controls = np.zeros((self.env.dim_u, self.N - 1))
+      controls = np.zeros((self.env.action_dim, self.N - 1))
 
     # Rolls out.
-    states = np.zeros((self.env.dim_x, self.N - 1))
+    states = np.zeros((self.env.state_dim, self.N - 1))
     states[:, 0] = state_init
     for i in range(self.N - 1):
       state_nxt, _ = self.env.agent.integrate_forward(

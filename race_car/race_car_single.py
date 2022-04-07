@@ -39,9 +39,9 @@ class RaceCarSingleEnv(BaseSingleEnv):
     # Reset Sample Space. Note that the first two dimension is in the local
     # frame and it needs to call track.local2global() to get the (x, y)
     # position in the global frame.
-    low = np.zeros((4, 1))
+    low = np.zeros((4,))
     low[1] = -config_env.TRACK_WIDTH_LEFT + config_agent.WIDTH * 3 / 4
-    high = np.zeros((4, 1))
+    high = np.zeros((4,))
     high[0] = 1.
     high[1] = config_env.TRACK_WIDTH_RIGHT - config_agent.WIDTH * 3 / 4
     high[2] = config_agent.V_MAX
@@ -62,24 +62,22 @@ class RaceCarSingleEnv(BaseSingleEnv):
     # Observation space.
     x_min, y_min = np.min(self.track.track_bound[2:, :], axis=1)
     x_max, y_max = np.max(self.track.track_bound[2:, :], axis=1)
-    low = np.zeros((4, 1))
+    low = np.zeros((4,))
     low[0] = x_min
     low[1] = y_min
-    high = np.zeros((4, 1))
+    high = np.zeros((4,))
     high[0] = x_max
     high[1] = y_max
     high[2] = config_agent.V_MAX
     high[3] = 2 * np.pi
+    self.observation_space = spaces.Box(low=low, high=high)
     self.observation_dim = self.observation_space.low.shape
+    self.seed(config_env.SEED)
     self.reset()
 
   @property
-  def dim_x(self):
+  def state_dim(self):
     return self.agent.dyn.dim_x
-
-  @property
-  def dim_u(self):
-    return self.agent.dyn.dim_u
 
   def reset(self, state: Optional[np.ndarray] = None) -> np.ndarray:
     """
@@ -90,15 +88,13 @@ class RaceCarSingleEnv(BaseSingleEnv):
             provided. Defaults to None.
 
     Returns:
-        np.ndarray: the new state of the shape (4, 1).
+        np.ndarray: the new state of the shape (4, ).
     """
     super().reset()
     if state is None:
       state = self.reset_sample_sapce.sample()
       state[:2], slope = self.track.local2global(state[:2], return_slope=True)
       state[3] = slope
-    elif state.ndim == 1:
-      state = state[:, np.newaxis]
     self.state = state.copy()
     return state
 
@@ -120,7 +116,7 @@ class RaceCarSingleEnv(BaseSingleEnv):
     if ax is None:
       ax = plt.gca()
     self.track.plot_track(ax, c=c_track)
-    ego = self.agent.footprint.move2state(self.state[[0, 1, 3], 0])
+    ego = self.agent.footprint.move2state(self.state[[0, 1, 3]])
     ego.plot(ax, plot_center=False, color=c_ego)
     ax.scatter(self.state[0], self.state[1], c=c_ego, s=s)
     if self.constraints.obs_list is not None:
@@ -183,6 +179,7 @@ class RaceCarSingleEnv(BaseSingleEnv):
     )
 
     # Soft constraint cost.
+    c_soft_cons = 0.
     if self.use_soft_cons_cost:
       if constraints is None:
         c_soft_cons = self.constraints.get_soft_cons_cost(
@@ -239,9 +236,12 @@ class RaceCarSingleEnv(BaseSingleEnv):
         Dict: each (key, value) pair is the name and value of a target margin
             function.
     """
-    velocity = np.empty(shape=(state.shape[1] + 1))
+    states_with_final, actions_with_final = self._reshape(
+        state, action, state_nxt
+    )
     targets = {}
-    targets['velocity'] = velocity - 0.01  # less than 1 cm / s.
+    # less than 1 cm / s.
+    targets['velocity'] = states_with_final[2:3, :] - 0.01
     return targets
 
   def get_done_and_info(
@@ -281,16 +281,25 @@ class RaceCarSingleEnv(BaseSingleEnv):
             "The length of constraint ({}) do not match".format(key)
         )
         constraint_values = np.concatenate((constraint_values, value), axis=0)
-    if self.end_criterion == 'reach-avoid':
-      target_values = None
-      for key, value in targets.items():
-        assert num_pts == value.shape[1], (
-            "The length of target ({}) do not match".format(key)
-        )
-        if target_values is None:
-          target_values = value
-        else:
-          target_values = np.concatenate((target_values, value), axis=0)
+    target_values = None
+    for key, value in targets.items():
+      assert num_pts == value.shape[1], (
+          "The length of target ({}) do not match".format(key)
+      )
+      if target_values is None:
+        target_values = value
+      else:
+        target_values = np.concatenate((target_values, value), axis=0)
+
+    # Gets info.
+    g_x_list = np.max(constraint_values, axis=0)
+    l_x_list = np.max(target_values, axis=0)
+    if final_only:
+      g_x = g_x_list[-1]
+      l_x = l_x_list[-1]
+    else:
+      g_x = g_x_list
+      l_x = l_x_list
 
     # Gets done flag
     if self.end_criterion == 'failure':
@@ -302,11 +311,7 @@ class RaceCarSingleEnv(BaseSingleEnv):
         done = True
         done_type = "failure"
     elif self.end_criterion == 'reach-avoid':
-      g_x_list = np.max(constraint_values, axis=0)
-      l_x_list = np.max(target_values, axis=0)
       if final_only:
-        g_x = g_x_list[-1]
-        l_x = l_x_list[-1]
         failure = g_x > 0.
         success = not failure and l_x <= 0.
       else:
@@ -318,14 +323,14 @@ class RaceCarSingleEnv(BaseSingleEnv):
         inst = np.argmin(v_x_list)
         success = v_x_list[inst] <= 0
         failure = np.any(constraint_values[:, :inst + 1] > 0.)
-        g_x = g_x_list
-        l_x = l_x_list
       if success:
         done = True
         done_type = "success"
       elif failure:
         done = True
         done_type = "failure"
+    else:
+      raise ValueError("End criterion not supported!")
 
     # Gets info
     info = {"done_type": done_type, "g_x": g_x, "l_x": l_x}
