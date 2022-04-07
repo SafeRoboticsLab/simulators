@@ -102,11 +102,11 @@ class Constraints:
     )
 
     # Velocity constraint.
-    cons_v_min = self.v_min - states[2, :]
-    cons_v_max = states[2, :] - self.v_max
+    cons_v_min = self.v_min - states[2:3, :]
+    cons_v_max = states[2:3, :] - self.v_max
 
     # Lateral acceleration constraint
-    accel = states[2, :]**2 * np.tan(controls[1, :]) / self.wheelbase
+    accel = states[2:3, :]**2 * np.tan(controls[1, :]) / self.wheelbase
     cons_a_lat_max = accel - self.alat_max
     cons_a_lat_min = self.alat_min - accel
 
