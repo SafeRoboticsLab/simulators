@@ -21,8 +21,8 @@ class BicycleDynamics(BaseDynamics):
         config (Any): an object specifies configuration.
         action_space (np.ndarray): action space.
     """
-    self.dim_x = 4
-    self.dim_u = 2
+    self.dim_x = 4  # [X, Y, V, psi].
+    self.dim_u = 2  # [a, delta].
 
     # load parameters
     self.dt = config.DT  # time step for each planning step

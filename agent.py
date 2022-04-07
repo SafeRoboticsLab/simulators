@@ -3,7 +3,7 @@ Please contact the author(s) of this library if you have any questions.
 Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 
-from typing import Optional, Tuple, Callable, Any
+from typing import Optional, Tuple, Any
 import numpy as np
 
 # Dynamics.
@@ -13,7 +13,6 @@ from .dynamics.bicycle_dynamics import BicycleDynamics
 from .ell_reach.ellipse import Ellipse
 
 # Policy.
-from .policy.base_policy import BasePolicy
 from .policy.ilqr_policy import iLQR
 
 
@@ -39,6 +38,9 @@ class Agent:
       ego_Q = np.diag([ego_a**2, ego_b**2])
       self.footprint = Ellipse(q=ego_q, Q=ego_Q)
 
+    # Policy should be initialized by `update_policy()`.
+    self.policy = None
+
   def integrate_forward(
       self, state: np.ndarray, control: Optional[np.ndarray] = None,
       step: Optional[int] = 1, noise: Optional[np.ndarray] = None,
@@ -50,9 +52,8 @@ class Agent:
     control input.
 
     Args:
-        #!
-        state (np.ndarray): (4, ) array [X, Y, V, psi].
-        control (np.ndarray): (2, ) array [a, delta].
+        state (np.ndarray): (dyn.dim_x, ) array.
+        control (np.ndarray): (dyn.dim_u, ) array.
         step (int, optional): The number of segements to forward the
             dynamics. Defaults to 1.
         noise (np.ndarray, optional): the ball radius or standard
