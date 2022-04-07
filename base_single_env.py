@@ -35,8 +35,7 @@ class BaseSingleEnv(BaseEnv):
     """Implements the step function in the environment.
 
     Args:
-        action (np.ndarray): a dictionary consists of 'ctrl' and 'dstb', which
-            are accessed by action['ctrl'] and action['dstb'].
+        action (np.ndarray): current actions of the shape (2, ).
 
     Returns:
         np.ndarray: next state.
@@ -55,9 +54,9 @@ class BaseSingleEnv(BaseEnv):
     targets = self.get_target_margin(self.state, action, state_nxt)
     done, info = self.get_done_and_info(constraints, targets)
 
-    self.state = np.copy(state_nxt.reshape(-1, 1))
+    self.state = np.copy(state_nxt)
 
-    return np.copy(state_nxt.reshape(-1, 1)), -cost, done, info
+    return np.copy(state_nxt), -cost, done, info
 
   @abstractmethod
   def get_cost(
