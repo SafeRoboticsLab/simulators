@@ -71,13 +71,9 @@ class RaceCarSingleEnv(BaseSingleEnv):
     high[2] = config_agent.V_MAX
     high[3] = 2 * np.pi
     self.observation_space = spaces.Box(low=low, high=high)
-    self.observation_dim = self.observation_space.low.shape
+    self.observation_dim = self.observation_space.low.shape[0]
     self.seed(config_env.SEED)
     self.reset()
-
-  @property
-  def state_dim(self):
-    return self.agent.dyn.dim_x
 
   def reset(self, state: Optional[np.ndarray] = None) -> np.ndarray:
     """

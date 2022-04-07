@@ -1,18 +1,20 @@
 """
 Please contact the author(s) of this library if you have any questions.
-Authors:  Zixu Zhang ( zixuz@princeton.edu )
-          Kai-Chieh Hsu ( kaichieh@princeton.edu )
+Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
-
 from typing import Tuple, Optional
-import time
 import copy
+import time
 import numpy as np
 
+from .base_policy import BasePolicy
 
-class iLQR():
 
-  def __init__(self, env, config):
+class iLQR(BasePolicy):
+
+  def __init__(self, env, config) -> None:
+    super().__init__()
+
     self.N = config.N
     self.max_iter = config.MAX_ITER
 
@@ -24,6 +26,74 @@ class iLQR():
     self.eps_min = 1e-3
 
     self.alphas = 1.1**(-np.arange(10)**2)  # Stepsize scheduler.
+
+  def get_action(
+      self, state: np.ndarray, controls: Optional[np.ndarray] = None, **kwargs
+  ) -> np.ndarray:
+    status = 0
+    self.eps = 10
+
+    if controls is None:
+      controls = np.zeros((self.env.action_dim, self.N - 1))
+
+    # Rolls out.
+    states = np.zeros((self.env.observation_dim, self.N - 1))
+    states[:, 0] = state
+    for i in range(self.N - 1):
+      state_nxt, _ = self.env.agent.integrate_forward(
+          states[:, i], controls[:, i]
+      )
+      if i == self.N - 2:
+        state_final = state_nxt.copy()
+      else:
+        states[:, i + 1] = state_nxt.copy()
+
+    # Initial Cost.
+    J = self.env.get_cost(state=states, action=controls, state_nxt=state_final)
+
+    converged = False
+    time0 = time.time()
+    for i in range(self.max_iter):
+      K_closed_loop, k_open_loop = self.backward_pass(
+          nominal_states=states, nominal_controls=controls,
+          nominal_state_final=state_final
+      )
+      updated = False
+      for alpha in self.alphas:
+        X_new, U_new, x_final_new, J_new = (
+            self.forward_pass(
+                states, controls, K_closed_loop, k_open_loop, alpha
+            )
+        )
+        if J_new <= J:  # Improved!
+          if np.abs((J-J_new) / J) < self.tol:  # Small improvement.
+            converged = True
+
+          # Updates nominal trajectory and best cost.
+          J = J_new
+          states = X_new
+          controls = U_new
+          state_final = x_final_new
+          updated = True
+          break
+      if updated:
+        self.eps *= 0.7
+      else:
+        status = 2
+        break
+      # self.eps = min(max(self.eps_min, self.eps), self.eps_max)
+      self.eps = max(self.eps_min, self.eps)
+
+      if converged:
+        status = 1
+        break
+    t_process = time.time() - time0
+
+    solver_info = dict(
+        states=states, controls=controls, state_final=state_final,
+        t_process=t_process, status=status
+    )
+    return controls[:, 0], solver_info
 
   def forward_pass(
       self, nominal_states: np.ndarray, nominal_controls: np.ndarray,
@@ -107,70 +177,6 @@ class iLQR():
       Q_uu_hist[:, :, i] = Q_uu
 
     return K_closed_loop, k_open_loop
-
-  def get_action(
-      self, state: np.ndarray, controls: Optional[np.ndarray] = None
-  ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float, int]:
-    status = 0
-    self.eps = 10
-
-    if controls is None:
-      controls = np.zeros((self.env.action_dim, self.N - 1))
-
-    # Rolls out.
-    states = np.zeros((self.env.observation_dim, self.N - 1))
-    states[:, 0] = state
-    for i in range(self.N - 1):
-      state_nxt, _ = self.env.agent.integrate_forward(
-          states[:, i], controls[:, i]
-      )
-      if i == self.N - 2:
-        state_final = state_nxt.copy()
-      else:
-        states[:, i + 1] = state_nxt.copy()
-
-    # Initial Cost.
-    J = self.env.get_cost(state=states, action=controls, state_nxt=state_final)
-
-    converged = False
-    time0 = time.time()
-    for i in range(self.max_iter):
-      K_closed_loop, k_open_loop = self.backward_pass(
-          nominal_states=states, nominal_controls=controls,
-          nominal_state_final=state_final
-      )
-      updated = False
-      for alpha in self.alphas:
-        X_new, U_new, x_final_new, J_new = (
-            self.forward_pass(
-                states, controls, K_closed_loop, k_open_loop, alpha
-            )
-        )
-        if J_new <= J:  # Improved!
-          if np.abs((J-J_new) / J) < self.tol:  # Small improvement.
-            converged = True
-
-          # Updates nominal trajectory and best cost.
-          J = J_new
-          states = X_new
-          controls = U_new
-          state_final = x_final_new
-          updated = True
-          break
-      if updated:
-        self.eps *= 0.7
-      else:
-        status = 2
-        break
-      # self.eps = min(max(self.eps_min, self.eps), self.eps_max)
-      self.eps = max(self.eps_min, self.eps)
-
-      if converged:
-        status = 1
-        break
-    t_process = time.time() - time0
-
-    return states, controls, state_final, t_process, status
 
   def _check_shape(self, array_dict: dict):
     for key, value in array_dict.items():

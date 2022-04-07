@@ -10,7 +10,7 @@ from matplotlib import cm
 import imageio
 from IPython.display import Image
 
-from simulators import RaceCarSingleEnv, load_config, iLQR
+from simulators import RaceCarSingleEnv, load_config
 from simulators.ell_reach.ellipse import Ellipse
 from simulators.ell_reach.plot_ellipsoids import plot_ellipsoids
 
@@ -40,7 +40,7 @@ env.constraints.update_obs([static_obs_list])
 # endregion
 
 # region: Constructs placeholder and initializes iLQR
-solver = iLQR(env, config_solver)
+env.agent.update_policy(policy_type="iLQR", env=env, config=config_solver)
 init_control = np.zeros((2, config_solver.N - 1))
 
 t_total = 0.
@@ -60,32 +60,32 @@ os.makedirs(fig_prog_folder, exist_ok=True)
 fig, ax = plt.subplots(1, 1, figsize=(6, 6))
 for i in range(max_iter_receding):
   # Plans the trajectory by using iLQR.
-  states, controls, state_final, t_process, status = (
-      solver.solve(state_init=x_cur, controls=init_control)
+  control, solver_info = (
+      env.agent.policy.get_action(state=x_cur, controls=init_control)
   )
 
   # Executes the first control.
   x_cur, _ = env.agent.integrate_forward(
-      state=x_cur, control=controls[:, 0], **env.integrate_kwargs
+      state=x_cur, control=control, **env.integrate_kwargs
   )
   print(
       "[{}]: solver returns status {} and uses {:.3f}.".format(
-          i, status, t_process
+          i, solver_info['status'], solver_info['t_process']
       ), end='\r'
   )
-  t_total += t_process
+  t_total += solver_info['t_process']
 
   # Records planning history, states and controls.
-  plan_hist[i]['states'] = states
-  plan_hist[i]['controls'] = controls
-  plan_hist[i]['state_final'] = state_final
+  plan_hist[i]['states'] = solver_info['states']
+  plan_hist[i]['controls'] = solver_info['controls']
+  plan_hist[i]['state_final'] = solver_info['state_final']
 
-  state_hist[:, i] = states[:, 0]
-  control_hist[:, i] = controls[:, 0]
+  state_hist[:, i] = solver_info['states'][:, 0]
+  control_hist[:, i] = control
 
   # Updates the nominal control signal for next receding horizon (The first
   # control is executed).
-  init_control[:, :-1] = controls[:, 1:]
+  init_control[:, :-1] = solver_info['controls'][:, 1:]
   init_control[:, -1] = 0.
 
   # Plots the current progress.
@@ -96,12 +96,15 @@ for i in range(max_iter_receding):
       ax, static_obs_list[0:1], arg_list=[dict(c='r', linewidth=1.)],
       dims=[0, 1], N=50, plot_center=False, use_alpha=True
   )
-  ego = env.agent.footprint.move2state(states[[0, 1, 3], 0])
+  ego = env.agent.footprint.move2state(solver_info['states'][[0, 1, 3], 0])
   plot_ellipsoids(
       ax, [ego], arg_list=[dict(c='b')], dims=[0, 1], N=50, plot_center=False
   )
 
-  ax.plot(states[0, :], states[1, :], linewidth=2, c='b')
+  ax.plot(
+      solver_info['states'][0, :], solver_info['states'][1, :], linewidth=2,
+      c='b'
+  )
   sc = ax.scatter(
       state_hist[0, :i + 1], state_hist[1, :i + 1], s=24,
       c=state_hist[2, :i + 1], cmap=cm.jet, vmin=0, vmax=config_agent.V_MAX,

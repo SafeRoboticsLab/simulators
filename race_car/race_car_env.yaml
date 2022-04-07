@@ -1,5 +1,6 @@
 
 environment:
+  SEED: 0
   NUM_AGENTS: 1
   # TRACK
   TRACK_FILE: /Users/kaichieh/Desktop/LINC/simulators/race_car/outerloop_center_smooth.csv
@@ -27,7 +28,7 @@ environment:
   V_REF: 2.
   USE_SOFT_CONS_COST: True
   # DONE FLAG PARAM
-  END_CRITERION: fail
+  END_CRITERION: failure
 
 agent:
   DYN: Bicycle

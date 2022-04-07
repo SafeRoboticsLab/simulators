@@ -6,8 +6,15 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 from typing import Optional, Tuple, Callable, Any
 import numpy as np
 
+# Dynamics.
 from .dynamics.bicycle_dynamics import BicycleDynamics
+
+# Footprint.
 from .ell_reach.ellipse import Ellipse
+
+# Policy.
+from .policy.base_policy import BasePolicy
+from .policy.ilqr_policy import iLQR
 
 
 class Agent:
@@ -32,28 +39,6 @@ class Agent:
       ego_Q = np.diag([ego_a**2, ego_b**2])
       self.footprint = Ellipse(q=ego_q, Q=ego_Q)
 
-    self._policy = None
-    self._nominal_trajectory = {}
-
-  @property
-  def nominal_states(self):
-    assert self._nominal_trajectory, "The nominal trajectory is empty!"
-    return self._nominal_trajectory["nominal_states"].copy()
-
-  @property
-  def nominal_controls(self):
-    assert self._nominal_trajectory, "The nominal trajectory is empty!"
-    return self._nominal_trajectory["nominal_controls"].copy()
-
-  def update_policy(self, policy: Callable[[np.ndarray, Any], np.ndarray]):
-    self._policy = policy
-
-  def update_nominal_trajectory(
-      self, nominal_states: np.ndarray, nominal_controls: np.ndarray
-  ):
-    self._nominal_trajectory["nominal_states"] = nominal_states
-    self._nominal_trajectory["nominal_controls"] = nominal_controls
-
   def integrate_forward(
       self, state: np.ndarray, control: Optional[np.ndarray] = None,
       step: Optional[int] = 1, noise: Optional[np.ndarray] = None,
@@ -65,6 +50,7 @@ class Agent:
     control input.
 
     Args:
+        #!
         state (np.ndarray): (4, ) array [X, Y, V, psi].
         control (np.ndarray): (2, ) array [a, delta].
         step (int, optional): The number of segements to forward the
@@ -84,7 +70,7 @@ class Agent:
         "You need to either pass in a control or construct a policy!"
     )
     if control is None:
-      control = self.policy(state, **kwargs)
+      control = self.policy.get_action(state, **kwargs)[0]
     return self.dyn.integrate_forward(
         state, control, step, noise, noise_type, adversary, **kwargs
     )
@@ -106,6 +92,14 @@ class Agent:
     """
     return self.dyn.get_jacobian(nominal_states, nominal_controls)
 
-  def policy(self, state: np.ndarray, **kwargs) -> np.ndarray:
-    assert self._policy is not None, "You need to first pass in a policy"
-    return self._policy(state, **kwargs)
+  def update_policy(
+      self, policy_type: str, config: Any, env: Optional[Any] = None, **kwargs
+  ):
+    if policy_type == "iLQR":
+      self.policy = iLQR(env, config)
+    # elif policy_type == "MPC":
+    # elif policy_type == "NN":
+    else:
+      raise ValueError(
+          "The policy type ({}) is not supported!".format(policy_type)
+      )

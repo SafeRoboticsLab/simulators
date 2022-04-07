@@ -7,7 +7,7 @@ Authors:  Zixu Zhang ( zixuz@princeton.edu )
 from typing import Optional, Tuple, Any
 import numpy as np
 
-from ..base_dynamics import BaseDynamics
+from .base_dynamics import BaseDynamics
 
 
 class BicycleDynamics(BaseDynamics):
