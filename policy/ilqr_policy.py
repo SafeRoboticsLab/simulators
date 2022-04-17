@@ -14,6 +14,7 @@ class iLQR(BasePolicy):
 
   def __init__(self, env, config) -> None:
     super().__init__()
+    self.policy_type = "iLQR"
 
     self.N = config.N
     self.max_iter = config.MAX_ITER
@@ -41,7 +42,7 @@ class iLQR(BasePolicy):
     states[:, 0] = state
     for i in range(self.N - 1):
       state_nxt, _ = self.env.agent.integrate_forward(
-          states[:, i], controls[:, i]
+          states[:, i], controls[:, i], **self.env.integrate_kwargs
       )
       if i == self.N - 2:
         state_final = state_nxt.copy()

@@ -93,7 +93,7 @@ class Agent:
     """
     return self.dyn.get_jacobian(nominal_states, nominal_controls)
 
-  def update_policy(
+  def init_policy(
       self, policy_type: str, config: Any, env: Optional[Any] = None, **kwargs
   ):
     if policy_type == "iLQR":

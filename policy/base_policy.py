@@ -15,4 +15,13 @@ class BasePolicy(ABC):
 
   @abstractmethod
   def get_action(self, state: np.ndarray, **kwargs) -> Tuple[np.ndarray, dict]:
+    """Gets the action to execute.
+
+    Args:
+        state (np.ndarray): current state.
+
+    Returns:
+        np.ndarray: the action to be executed.
+        dict: info for the solver, e.g., processing time, status, etc.
+    """
     raise NotImplementedError

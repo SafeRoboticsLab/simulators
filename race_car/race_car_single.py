@@ -3,7 +3,7 @@ Please contact the author(s) of this library if you have any questions.
 Authors: Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 
-from typing import Dict, Tuple, List, Any, Optional, final
+from typing import Dict, Tuple, List, Any, Optional
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib
@@ -75,7 +75,7 @@ class RaceCarSingleEnv(BaseSingleEnv):
     self.seed(config_env.SEED)
     self.reset()
 
-  def reset(self, state: Optional[np.ndarray] = None) -> np.ndarray:
+  def reset(self, state: Optional[np.ndarray] = None, **kwargs) -> np.ndarray:
     """
     Resets the environment and returns the new state.
 
@@ -90,7 +90,7 @@ class RaceCarSingleEnv(BaseSingleEnv):
     if state is None:
       state = self.reset_sample_sapce.sample()
       state[:2], slope = self.track.local2global(state[:2], return_slope=True)
-      state[3] = slope
+      # state[3] = slope  # random yaw as well.
     self.state = state.copy()
     return state
 
@@ -242,7 +242,7 @@ class RaceCarSingleEnv(BaseSingleEnv):
 
   def get_done_and_info(
       self, constraints: Dict, targets: Optional[Dict] = None,
-      final_only: bool = True
+      final_only: bool = True, end_criterion: Optional[str] = None
   ) -> Tuple[bool, Dict]:
     """
     Gets the done flag and a dictionary to provide additional information of
@@ -260,9 +260,12 @@ class RaceCarSingleEnv(BaseSingleEnv):
         Dict: additional information of the step, such as target margin and
             safety margin used in reachability analysis.
     """
+    if end_criterion is None:
+      end_criterion = self.end_criterion
+
     done = False
     done_type = "not_raised"
-    if self.cnt >= self.timeoff:
+    if self.cnt >= self.timeout:
       done = True
       done_type = "timeout"
 
@@ -298,7 +301,7 @@ class RaceCarSingleEnv(BaseSingleEnv):
       l_x = l_x_list
 
     # Gets done flag
-    if self.end_criterion == 'failure':
+    if end_criterion == 'failure':
       if final_only:
         failure = np.any(constraint_values[:, -1] > 0.)
       else:
@@ -306,7 +309,7 @@ class RaceCarSingleEnv(BaseSingleEnv):
       if failure:
         done = True
         done_type = "failure"
-    elif self.end_criterion == 'reach-avoid':
+    elif end_criterion == 'reach-avoid':
       if final_only:
         failure = g_x > 0.
         success = not failure and l_x <= 0.
@@ -317,14 +320,16 @@ class RaceCarSingleEnv(BaseSingleEnv):
         for i in range(num_pts - 2, -1, -1):
           v_x_list[i] = max(g_x_list[i], min(l_x_list[i], v_x_list[i + 1]))
         inst = np.argmin(v_x_list)
-        success = v_x_list[inst] <= 0
         failure = np.any(constraint_values[:, :inst + 1] > 0.)
+        success = not failure and (v_x_list[inst] <= 0)
       if success:
         done = True
         done_type = "success"
       elif failure:
         done = True
         done_type = "failure"
+    elif end_criterion == 'timeout':
+      pass
     else:
       raise ValueError("End criterion not supported!")
 
