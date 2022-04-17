@@ -18,7 +18,7 @@ class BaseEnv(gym.Env, ABC):
   def __init__(self, config_env) -> None:
     super().__init__()
     self.cnt = 0
-    self.timeoff = config_env.TIMEOFF
+    self.timeout = config_env.TIMEOUT
     self.end_criterion = config_env.END_CRITERION
 
   @abstractmethod

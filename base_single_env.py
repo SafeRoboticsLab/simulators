@@ -4,7 +4,7 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 
 from abc import abstractmethod
-from typing import Any, Tuple, Dict, Optional
+from typing import Any, Tuple, Optional, Callable, List, Dict, Union
 import numpy as np
 from gym import spaces
 
@@ -27,7 +27,7 @@ class BaseSingleEnv(BaseEnv):
         low=action_space[:, 0], high=action_space[:, 1]
     )
 
-    self.integrate_kwargs = getattr(config_agent, "INTEGRATE_KWARGS", {})
+    self.integrate_kwargs = getattr(config_env, "INTEGRATE_KWARGS", {})
     if "noise" in self.integrate_kwargs:
       self.integrate_kwargs['noise'] = np.array(self.integrate_kwargs['noise'])
 
@@ -61,7 +61,7 @@ class BaseSingleEnv(BaseEnv):
   @abstractmethod
   def get_cost(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray,
-      constraints: Optional[dict] = None
+      constraints: Optional[Dict] = None
   ) -> float:
     """
     Gets the cost given current state, current action, and next state.
@@ -117,8 +117,10 @@ class BaseSingleEnv(BaseEnv):
     raise NotImplementedError
 
   @abstractmethod
-  def get_done_and_info(self, constraints: Dict,
-                        targets: Dict) -> Tuple[bool, Dict]:
+  def get_done_and_info(
+      self, constraints: Dict, targets: Dict, final_only: bool = True,
+      end_criterion: Optional[str] = None
+  ) -> Tuple[bool, Dict]:
     """
     Gets the done flag and a dictionary to provide additional information of
     the step function given current state, current action, next state,
@@ -136,3 +138,154 @@ class BaseSingleEnv(BaseEnv):
             safety margin used in reachability analysis.
     """
     raise NotImplementedError
+
+  def simulate_one_trajectory(
+      self, T_rollout: int, end_criterion: str,
+      reset_kwargs: Optional[Dict] = None,
+      action_kwargs: Optional[Dict] = None,
+      rollout_step_callback: Optional[Callable] = None,
+      rollout_episode_callback: Optional[Callable] = None
+  ) -> Tuple[np.ndarray, int, Dict]:
+    """
+    Rolls out the trajectory given the horizon, termination criterion, reset
+    keyword arguments, callback afeter every step, and callout after the
+    rollout.
+
+    Args:
+        T_rollout (int): rollout horizon.
+        end_criterion (str): termination criterion.
+        reset_kwargs (Dict): keyword argument dictionary for reset function.
+        action_kwargs (Dict): keyword argument dictionary for get_action
+            function.
+        rollout_step_callback (Callable): function to call after every step.
+        rollout_episode_callback (Callable): function to call after rollout.
+
+    Returns:
+        np.ndarray: state trajectory.
+        int: result (0: unfinished, 1: success, -1: failure).
+        Dict: auxiliarry information -
+            "action_hist": action sequence.
+            "plan_hist": planning info history.
+            "reward_hist": rewards for every step.
+            "step_hist": information for every step.
+    """
+    # Stores the environment attributes temporarily and sets to rollout
+    # settings.
+    timeout_backup = self.timeout
+    end_criterion_backup = self.end_criterion
+    self.timeout = T_rollout
+    self.end_criterion = end_criterion
+    if reset_kwargs is None:
+      reset_kwargs = {}
+    if action_kwargs is None:
+      action_kwargs = {}
+
+    state_hist = []
+    action_hist = []
+    reward_hist = []
+    plan_hist = []
+    step_hist = []
+
+    # Initializes robot.
+    result = 0
+    x_cur = self.reset(**reset_kwargs)
+    state_hist.append(x_cur)
+    if self.agent.policy.policy_type == "iLQR":
+      init_control = np.zeros((self.action_dim, self.agent.policy.N - 1))
+
+    for t in range(T_rollout):
+      # Gets action.
+      if self.agent.policy.policy_type == "iLQR":
+        action, solver_info = (
+            self.agent.policy.get_action(
+                state=x_cur, controls=init_control, **action_kwargs
+            )
+        )
+
+      # Applies action: `done` and `info` are evaluated at the next state.
+      x_cur, reward, done, step_info = self.step(action)
+
+      # Executes step callback.
+      state_hist.append(x_cur)
+      action_hist.append(action)
+      plan_hist.append(solver_info)
+      reward_hist.append(reward)
+      step_hist.append(step_info)
+      if rollout_step_callback is not None:
+        rollout_step_callback(
+            self, state_hist, action_hist, plan_hist, step_hist
+        )
+
+      # Checks termination criterion.
+      if done:
+        if step_info["done_type"] == "success":
+          result = 1
+        elif step_info["done_type"] == "failure":
+          result = -1
+        break
+
+      if self.agent.policy.policy_type == "iLQR":  # Better warmup.
+        init_control[:, :-1] = solver_info['controls'][:, 1:]
+        init_control[:, -1] = 0.
+
+    if rollout_episode_callback is not None:
+      rollout_episode_callback(
+          self, state_hist, action_hist, plan_hist, step_hist
+      )
+    # Reverts to training setting.
+    self.timeout = timeout_backup
+    self.end_criterion = end_criterion_backup
+    return state_hist, result, dict(
+        action_hist=action_hist, plan_hist=plan_hist, reward_hist=reward_hist,
+        step_hist=step_hist
+    )
+
+  def simulate_trajectories(
+      self,
+      num_trajectories: int,
+      T_rollout: int,
+      end_criterion: str,
+      reset_kwargs_list: Union[List[Dict], Dict],
+      action_kwargs_list: Union[List[Dict], Dict],
+      rollout_step_callback: Optional[Callable] = None,
+      rollout_episode_callback: Optional[Callable] = None,
+  ):
+    """
+    Rolls out multiple trajectories given the horizon, termination criterion,
+    reset keyword arguments, callback afeter every step, and callout after the
+    rollout. Need to call env.reset() after this function to revert back to the
+    training mode.
+    """
+
+    if isinstance(reset_kwargs_list, list):
+      assert num_trajectories == len(reset_kwargs_list), (
+          "The length of reset_kwargs_list does not match with",
+          "the number of rollout trajectories"
+      )
+    if isinstance(action_kwargs_list, list):
+      assert num_trajectories == len(action_kwargs_list), (
+          "The length of action_kwargs_list does not match with",
+          "the number of rollout trajectories"
+      )
+
+    results = np.empty(shape=(num_trajectories,), dtype=int)
+    trajectories = []
+    for trial in range(num_trajectories):
+      if isinstance(reset_kwargs_list, list):
+        reset_kwargs = reset_kwargs_list[trial]
+      else:
+        reset_kwargs = reset_kwargs_list
+      if isinstance(action_kwargs_list, list):
+        action_kwargs = action_kwargs_list[trial]
+      else:
+        action_kwargs = action_kwargs_list
+
+      state_hist, result, _ = self.simulate_one_trajectory(
+          T_rollout=T_rollout, end_criterion=end_criterion,
+          reset_kwargs=reset_kwargs, action_kwargs=action_kwargs,
+          rollout_step_callback=rollout_step_callback,
+          rollout_episode_callback=rollout_episode_callback
+      )
+      trajectories.append(state_hist)
+      results[trial] = result
+    return trajectories, results

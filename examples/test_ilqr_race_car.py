@@ -4,6 +4,7 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 
 import os
+import copy
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -35,21 +36,23 @@ pos0, psi0 = env.track.interp([2])  # The position and yaw on the track.
 x_cur = np.array([pos0[0], pos0[1], 0, psi0[-1]])
 env.reset(x_cur)
 
-static_obs_list = [static_obs for _ in range(config_solver.N)]
+static_obs_list = [static_obs for _ in range(2)]
 env.constraints.update_obs([static_obs_list])
 # endregion
 
 # region: Constructs placeholder and initializes iLQR
-env.agent.update_policy(policy_type="iLQR", env=env, config=config_solver)
+config_env_imaginary = copy.deepcopy(config_env)
+config_env_imaginary.INTEGRATE_KWARGS = config_agent.INTEGRATE_KWARGS
+config_env_imaginary.USE_SOFT_CONS_COST = True
+env_imaginary = RaceCarSingleEnv(config_env_imaginary, config_agent)
+static_obs_list = [static_obs for _ in range(config_solver.N)]
+env_imaginary.constraints.update_obs([static_obs_list])
+env.agent.init_policy(
+    policy_type="iLQR", env=env_imaginary, config=config_solver
+)
 init_control = np.zeros((2, config_solver.N - 1))
 
-t_total = 0.
 max_iter_receding = config_solver.MAX_ITER_RECEDING
-state_hist = np.zeros((4, max_iter_receding))
-control_hist = np.zeros((2, max_iter_receding))
-plan_hist = [{} for _ in range(max_iter_receding)]
-
-c_track = 'k'
 
 fig_folder = os.path.join("figure")
 fig_prog_folder = os.path.join(fig_folder, "progress")
@@ -58,71 +61,115 @@ os.makedirs(fig_prog_folder, exist_ok=True)
 
 # region: Runs iLQR
 fig, ax = plt.subplots(1, 1, figsize=(6, 6))
-for i in range(max_iter_receding):
-  # Plans the trajectory by using iLQR.
-  control, solver_info = (
-      env.agent.policy.get_action(state=x_cur, controls=init_control)
-  )
+c_track = 'k'
+c_obs = 'r'
+c_ego = 'b'
 
-  # Executes the first control.
-  x_cur, _ = env.agent.integrate_forward(
-      state=x_cur, control=control, **env.integrate_kwargs
-  )
-  print(
-      "[{}]: solver returns status {} and uses {:.3f}.".format(
-          i, solver_info['status'], solver_info['t_process']
-      ), end='\r'
-  )
-  t_total += solver_info['t_process']
 
-  # Records planning history, states and controls.
-  plan_hist[i]['states'] = solver_info['states']
-  plan_hist[i]['controls'] = solver_info['controls']
-  plan_hist[i]['state_final'] = solver_info['state_final']
-
-  state_hist[:, i] = solver_info['states'][:, 0]
-  control_hist[:, i] = control
-
-  # Updates the nominal control signal for next receding horizon (The first
-  # control is executed).
-  init_control[:, :-1] = solver_info['controls'][:, 1:]
-  init_control[:, -1] = 0.
-
-  # Plots the current progress.
+def rollout_step_callback(
+    env, state_hist, action_hist, plan_hist, step_hist, *args, **kwargs
+):
+  solver_info = plan_hist[-1]
   ax.cla()
-  env.track.plot_track(ax, c=c_track)
 
+  # track.
+  env.track.plot_track(ax, c=c_track)
   plot_ellipsoids(
-      ax, static_obs_list[0:1], arg_list=[dict(c='r', linewidth=1.)],
+      ax, static_obs_list[0:1], arg_list=[dict(c=c_obs, linewidth=1.)],
       dims=[0, 1], N=50, plot_center=False, use_alpha=True
   )
+
+  # agent.
   ego = env.agent.footprint.move2state(solver_info['states'][[0, 1, 3], 0])
   plot_ellipsoids(
-      ax, [ego], arg_list=[dict(c='b')], dims=[0, 1], N=50, plot_center=False
+      ax, [ego], arg_list=[dict(c=c_ego)], dims=[0, 1], N=50, plot_center=False
   )
 
+  # plan.
   ax.plot(
       solver_info['states'][0, :], solver_info['states'][1, :], linewidth=2,
-      c='b'
+      c=c_ego
   )
+
+  # history.
+  states = np.array(state_hist).T  # last one is the next state.
   sc = ax.scatter(
-      state_hist[0, :i + 1], state_hist[1, :i + 1], s=24,
-      c=state_hist[2, :i + 1], cmap=cm.jet, vmin=0, vmax=config_agent.V_MAX,
-      edgecolor='none', marker='o'
+      states[0, :-1], states[1, :-1], s=24, c=states[2, :-1], cmap=cm.jet,
+      vmin=0, vmax=config_agent.V_MAX, edgecolor='none', marker='o'
   )
   cbar = fig.colorbar(sc, ax=ax)
   cbar.set_label(r"velocity [$m/s$]", size=20)
-  fig.savefig(os.path.join(fig_prog_folder, str(i) + ".png"), dpi=200)
+  fig.savefig(
+      os.path.join(fig_prog_folder,
+                   str(states.shape[1] - 1) + ".png"), dpi=200
+  )
   cbar.remove()
 
-print("\n\n --> Planning uses {:.3f}.".format(t_total))
+  print(
+      "[{}]: solver returns status {} and uses {:.3f}.".format(
+          states.shape[1] - 1, solver_info['status'], solver_info['t_process']
+      ), end='\r'
+  )
+
+
+def rollout_episode_callback(
+    env, state_hist, action_hist, plan_hist, step_hist, *args, **kwargs
+):
+  ax.cla()
+
+  # track.
+  env.track.plot_track(ax, c=c_track)
+  plot_ellipsoids(
+      ax, static_obs_list[0:1], arg_list=[dict(c=c_obs, linewidth=1.)],
+      dims=[0, 1], N=50, plot_center=False, use_alpha=True
+  )
+
+  # agent.
+  ego = env.agent.footprint.move2state(state_hist[-1][[0, 1, 3]])
+  plot_ellipsoids(
+      ax, [ego], arg_list=[dict(c=c_ego)], dims=[0, 1], N=50, plot_center=False
+  )
+
+  states = np.array(state_hist).T
+  sc = ax.scatter(
+      states[0, :], states[1, :], s=24, c=states[2, :], cmap=cm.jet, vmin=0,
+      vmax=config_agent.V_MAX, edgecolor='none', marker='o'
+  )
+  cbar = fig.colorbar(sc, ax=ax)
+  cbar.set_label(r"velocity [$m/s$]", size=20)
+  fig.savefig(os.path.join(fig_prog_folder, "final.png"), dpi=200)
+  cbar.remove()
+  t_process = 0.
+
+  for solver_info in plan_hist:
+    t_process += solver_info['t_process']
+  print("\n\n --> Planning uses {:.3f}.".format(t_process))
+
+  final_step_info = step_hist[-1]
+  if final_step_info["done_type"] == "failure":
+    print("The rollout fails!")
+    constraint_dict = env.get_constraints(
+        state=state_hist[-2], action=action_hist[-1], state_nxt=state_hist[-1]
+    )
+    for key, value in constraint_dict.items():
+      print(key, ":", value[:, -1])
+
+
+end_criterion = "failure"
+# end_criterion = "timeout"
+trajectory, result, _ = env.simulate_one_trajectory(
+    T_rollout=max_iter_receding, end_criterion=end_criterion,
+    reset_kwargs=dict(state=x_cur),
+    rollout_step_callback=rollout_step_callback,
+    rollout_episode_callback=rollout_episode_callback
+)
 # endregion
 
 # region: Visualizes
 gif_path = os.path.join(fig_folder, 'rollout.gif')
 with imageio.get_writer(gif_path, mode='I') as writer:
-  for i in range(max_iter_receding):
-    filename = os.path.join(fig_prog_folder, str(i) + ".png")
+  for i in range(len(trajectory) - 1):
+    filename = os.path.join(fig_prog_folder, str(i + 1) + ".png")
     image = imageio.imread(filename)
     writer.append_data(image)
 Image(open(gif_path, 'rb').read(), width=400)
