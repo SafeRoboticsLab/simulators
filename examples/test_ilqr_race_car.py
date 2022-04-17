@@ -43,7 +43,7 @@ env.constraints.update_obs([static_obs_list])
 # region: Constructs placeholder and initializes iLQR
 config_env_imaginary = copy.deepcopy(config_env)
 config_env_imaginary.INTEGRATE_KWARGS = config_agent.INTEGRATE_KWARGS
-config_env_imaginary.USE_SOFT_CONS_COST = True
+config_env_imaginary.USE_SOFT_CONS_COST = config_agent.USE_SOFT_CONS_COST
 env_imaginary = RaceCarSingleEnv(config_env_imaginary, config_agent)
 static_obs_list = [static_obs for _ in range(config_solver.N)]
 env_imaginary.constraints.update_obs([static_obs_list])
@@ -137,7 +137,7 @@ def rollout_episode_callback(
   )
   cbar = fig.colorbar(sc, ax=ax)
   cbar.set_label(r"velocity [$m/s$]", size=20)
-  fig.savefig(os.path.join(fig_prog_folder, "final.png"), dpi=200)
+  fig.savefig(os.path.join(fig_folder, "final.png"), dpi=200)
   cbar.remove()
   t_process = 0.
 

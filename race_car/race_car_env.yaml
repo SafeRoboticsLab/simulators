@@ -31,7 +31,7 @@ environment:
   END_CRITERION: failure
   INTEGRATE_KWARGS:  # keywords for integrate_forward used in the `real` env.
     step: 10
-    noise: [0., 0.1, 0., 0.]
+    noise: [0., 0.05, 0., 0.]
     noise_type: unif
 
 agent:
@@ -48,9 +48,11 @@ agent:
   # CAR DYNAMICS
   WHEELBASE: 0.257
   DT: 0.1
+  # for imaginary env
+  USE_SOFT_CONS_COST: True
   INTEGRATE_KWARGS:  # keywords for integrate_forward used in the `imaginary` env.
     step: 10
-    noise: [0., 0.1, 0., 0.]
+    noise: [0., 0.05, 0., 0.]
     noise_type: unif
   # CONSTRAINT
   V_MIN: 0.
