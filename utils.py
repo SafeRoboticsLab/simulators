@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import TypeVar, TypedDict, List, Any, Optional, Union, Tuple
 import numpy as np
 from gym import spaces
+import torch
 
 
 # Type Hints
@@ -19,7 +20,10 @@ GenericAction = TypeVar(
     'GenericAction', np.ndarray, List[np.ndarray], ActionZS
 )
 
-GenericState = TypeVar('GenericState', np.ndarray, List[np.ndarray])
+GenericState = TypeVar(
+    'GenericState', torch.FloatTensor, np.ndarray, List[torch.FloatTensor],
+    List[np.ndarray]
+)
 
 
 # Observation.

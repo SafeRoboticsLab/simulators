@@ -7,6 +7,7 @@ from abc import abstractmethod
 from typing import Any, Tuple, Optional, Callable, List, Dict, Union
 import numpy as np
 from gym import spaces
+import torch
 
 from .agent import Agent
 from .base_env import BaseEnv
@@ -31,11 +32,14 @@ class BaseSingleEnv(BaseEnv):
     if "noise" in self.integrate_kwargs:
       self.integrate_kwargs['noise'] = np.array(self.integrate_kwargs['noise'])
 
-  def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, Dict]:
+  def step(
+      self, action: np.ndarray, cast_torch: bool = False
+  ) -> Tuple[Union[np.ndarray, torch.FloatTensor], float, bool, Dict]:
     """Implements the step function in the environment.
 
     Args:
         action (np.ndarray): current actions of the shape (2, ).
+        cast_torch (bool): cast state to torch if True.
 
     Returns:
         np.ndarray: next state.
@@ -45,6 +49,11 @@ class BaseSingleEnv(BaseEnv):
         Dict[str, Any]]: additional information of the step, such as target
             margin and safety margin used in reachability analysis.
     """
+    if torch.is_tensor(action):
+      action = action.cpu().numpy()
+    else:
+      assert isinstance(action, np.ndarray), "Invalid action type!"
+
     self.cnt += 1
     state_nxt, _ = self.agent.integrate_forward(
         state=self.state, control=action, **self.integrate_kwargs
@@ -56,7 +65,11 @@ class BaseSingleEnv(BaseEnv):
 
     self.state = np.copy(state_nxt)
 
-    return np.copy(state_nxt), -cost, done, info
+    state = np.copy(state_nxt)
+    if cast_torch:
+      state = torch.FloatTensor(state)
+
+    return state, -cost, done, info
 
   @abstractmethod
   def get_cost(
@@ -245,8 +258,8 @@ class BaseSingleEnv(BaseEnv):
       num_trajectories: int,
       T_rollout: int,
       end_criterion: str,
-      reset_kwargs_list: Union[List[Dict], Dict],
-      action_kwargs_list: Union[List[Dict], Dict],
+      reset_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
+      action_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
       rollout_step_callback: Optional[Callable] = None,
       rollout_episode_callback: Optional[Callable] = None,
   ):

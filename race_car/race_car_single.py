@@ -3,11 +3,12 @@ Please contact the author(s) of this library if you have any questions.
 Authors: Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 
-from typing import Dict, Tuple, List, Any, Optional
+from typing import Dict, Tuple, List, Any, Optional, Union
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib
 from gym import spaces
+import torch
 
 from ..base_single_env import BaseSingleEnv
 from ..ell_reach.ellipse import Ellipse
@@ -75,13 +76,17 @@ class RaceCarSingleEnv(BaseSingleEnv):
     self.seed(config_env.SEED)
     self.reset()
 
-  def reset(self, state: Optional[np.ndarray] = None, **kwargs) -> np.ndarray:
+  def reset(
+      self, state: Optional[np.ndarray] = None, cast_torch: bool = False,
+      **kwargs
+  ) -> Union[np.ndarray, torch.FloatTensor]:
     """
     Resets the environment and returns the new state.
 
     Args:
         state (Optional[np.ndarray], optional): reset to this state if
             provided. Defaults to None.
+        cast_torch (bool): cast state to torch if True.
 
     Returns:
         np.ndarray: the new state of the shape (4, ).
@@ -92,6 +97,9 @@ class RaceCarSingleEnv(BaseSingleEnv):
       state[:2], slope = self.track.local2global(state[:2], return_slope=True)
       # state[3] = slope  # random yaw as well.
     self.state = state.copy()
+
+    if cast_torch:
+      state = torch.FloatTensor(state)
     return state
 
   def render(
@@ -296,9 +304,11 @@ class RaceCarSingleEnv(BaseSingleEnv):
     if final_only:
       g_x = g_x_list[-1]
       l_x = l_x_list[-1]
+      binary_cost = 1. if g_x > 0. else 0.
     else:
       g_x = g_x_list
       l_x = l_x_list
+      binary_cost = 1. if np.any(g_x > 0.) else 0.
 
     # Gets done flag
     if end_criterion == 'failure':
@@ -334,7 +344,12 @@ class RaceCarSingleEnv(BaseSingleEnv):
       raise ValueError("End criterion not supported!")
 
     # Gets info
-    info = {"done_type": done_type, "g_x": g_x, "l_x": l_x}
+    info = {
+        "done_type": done_type,
+        "g_x": g_x,
+        "l_x": l_x,
+        "binary_cost": binary_cost
+    }
     return done, info
 
   def get_derivatives(

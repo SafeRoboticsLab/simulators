@@ -4,7 +4,7 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 import random
 import numpy as np
 import gym
@@ -26,7 +26,21 @@ class BaseEnv(gym.Env, ABC):
            action: GenericAction) -> Tuple[GenericState, float, bool, Dict]:
     raise NotImplementedError
 
-  def reset(self) -> GenericState:
+  def reset(
+      self, state: Optional[GenericState] = None, cast_torch: bool = False,
+      **kwargs
+  ) -> GenericState:
+    """
+    Resets the environment and returns the new state.
+
+    Args:
+        state (Optional[GenericState], optional): reset to this state if
+            provided. Defaults to None.
+        cast_torch (bool): cast state to torch if True.
+
+    Returns:
+        np.ndarray: the new state of the shape (4, ).
+    """
     self.cnt = 0
 
   @abstractmethod
