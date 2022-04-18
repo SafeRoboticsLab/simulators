@@ -73,6 +73,11 @@ class RaceCarSingleEnv(BaseSingleEnv):
     high[3] = 2 * np.pi
     self.observation_space = spaces.Box(low=low, high=high)
     self.observation_dim = self.observation_space.low.shape[0]
+    self.visual_bounds = np.array([[x_min, x_max], [y_min, y_max]])
+    self.visual_extent = np.array([
+        self.visual_bounds[0, 0], self.visual_bounds[0, 1],
+        self.visual_bounds[1, 0], self.visual_bounds[1, 1]
+    ])
     self.seed(config_env.SEED)
     self.reset()
 
@@ -101,6 +106,40 @@ class RaceCarSingleEnv(BaseSingleEnv):
     if cast_torch:
       state = torch.FloatTensor(state)
     return state
+
+  def get_samples(self, nx: int, ny: int) -> Tuple[np.ndarray, np.ndarray]:
+    """Gets state samples for value function plotting.
+
+    Args:
+        nx (int): the number of points along x-axis.
+        ny (int): the number of points along y-axis.
+
+    Returns:
+        np.ndarray: a list of x-position.
+        np.ndarray: a list of y-position.
+    """
+    xs = np.linspace(self.visual_bounds[0, 0], self.visual_bounds[0, 1], nx)
+    ys = np.linspace(self.visual_bounds[1, 0], self.visual_bounds[1, 1], ny)
+    return xs, ys
+
+  def check_on_track(self, states: np.ndarray) -> np.ndarray:
+    """Checks if the state is on the track (considering footprint).
+
+    Args:
+        states (np.ndarray): (x, y) positions, should ne (2, N).
+
+    Returns:
+        np.ndarray: a bool array of shape (N, ). True if the agent is on the
+            track.
+    """
+    assert states.shape[0] == 2, "Shape should be (2, N)!"
+    close_pts, slopes, _ = self.track.get_closest_pts(states)
+    cons_road_l, cons_road_r = self.constraints._road_boundary_cons(
+        self.agent.footprint, states, close_pts, slopes
+    )
+
+    flags = np.logical_and(cons_road_l <= 0, cons_road_r <= 0)
+    return flags.reshape(-1)
 
   def render(
       self, ax: Optional[matplotlib.axes.Axes] = None, c_track: str = 'k',
