@@ -200,20 +200,24 @@ class BaseSingleEnv(BaseEnv):
     step_hist = []
 
     # Initializes robot.
+    if self.agent.policy.policy_type == "iLQR":
+      init_control = np.zeros((self.action_dim, self.agent.policy.N - 1))
     result = 0
     x_cur = self.reset(**reset_kwargs)
     state_hist.append(x_cur)
-    if self.agent.policy.policy_type == "iLQR":
-      init_control = np.zeros((self.action_dim, self.agent.policy.N - 1))
 
     for t in range(T_rollout):
       # Gets action.
       if self.agent.policy.policy_type == "iLQR":
-        action, solver_info = (
-            self.agent.policy.get_action(
-                state=x_cur, controls=init_control, **action_kwargs
-            )
+        action, solver_info = self.agent.policy.get_action(
+            state=x_cur, controls=init_control, **action_kwargs
         )
+      elif self.agent.policy.policy_type == "NNCS":
+        with torch.no_grad():
+          x_cur_tensor = torch.FloatTensor(x_cur).to(self.agent.policy.device)
+          action, solver_info = self.agent.policy.get_action(
+              state=x_cur_tensor, **action_kwargs
+          )
 
       # Applies action: `done` and `info` are evaluated at the next state.
       x_cur, reward, done, step_info = self.step(action)
@@ -248,9 +252,9 @@ class BaseSingleEnv(BaseEnv):
     # Reverts to training setting.
     self.timeout = timeout_backup
     self.end_criterion = end_criterion_backup
-    return state_hist, result, dict(
-        action_hist=action_hist, plan_hist=plan_hist, reward_hist=reward_hist,
-        step_hist=step_hist
+    return np.array(state_hist), result, dict(
+        action_hist=np.array(action_hist), plan_hist=plan_hist,
+        reward_hist=np.array(reward_hist), step_hist=step_hist
     )
 
   def simulate_trajectories(

@@ -14,6 +14,7 @@ from .ell_reach.ellipse import Ellipse
 
 # Policy.
 from .policy.ilqr_policy import iLQR
+from .policy.nn_policy import NeuralNetworkControlSystem
 
 
 class Agent:
@@ -99,7 +100,10 @@ class Agent:
     if policy_type == "iLQR":
       self.policy = iLQR(env, config)
     # elif policy_type == "MPC":
-    # elif policy_type == "NN":
+    elif policy_type == "NNCS":
+      self.policy = NeuralNetworkControlSystem(
+          env, kwargs['critic'], kwargs['actor'], config
+      )
     else:
       raise ValueError(
           "The policy type ({}) is not supported!".format(policy_type)
