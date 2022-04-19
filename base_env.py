@@ -59,3 +59,7 @@ class BaseEnv(gym.Env, ABC):
 
     self.action_space.seed(seed)
     self.observation_space.seed(seed)
+
+  @abstractmethod
+  def report(self):
+    raise NotImplementedError
