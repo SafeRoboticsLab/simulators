@@ -47,7 +47,9 @@ class RaceCarSingleEnv(BaseSingleEnv):
     high[1] = config_env.TRACK_WIDTH_RIGHT - config_agent.WIDTH * 3 / 4
     high[2] = config_agent.V_MAX
     high[3] = 2 * np.pi
-    self.reset_sample_sapce = spaces.Box(low=low, high=high)
+    self.reset_sample_sapce = spaces.Box(
+        low=np.float32(low), high=np.float32(high)
+    )
 
     # Cost.
     self.w_vel = config_env.W_VEL
@@ -59,6 +61,9 @@ class RaceCarSingleEnv(BaseSingleEnv):
     self.use_soft_cons_cost = config_env.USE_SOFT_CONS_COST
     self.W_state = np.array([[self.w_contour, 0], [0, self.w_vel]])
     self.W_control = np.array([[self.w_accel, 0], [0, self.w_delta]])
+    self.g_x_fail = config_env.G_X_FAIL
+    self.target_amp = getattr(config_env, "TARGET_AMP", 1.)
+    self.target_vel = getattr(config_env, "TARGET_VEL", 0.01)
 
     # Observation space.
     x_min, y_min = np.min(self.track.track_bound[2:, :], axis=1)
@@ -71,7 +76,9 @@ class RaceCarSingleEnv(BaseSingleEnv):
     high[1] = y_max
     high[2] = config_agent.V_MAX
     high[3] = 2 * np.pi
-    self.observation_space = spaces.Box(low=low, high=high)
+    self.observation_space = spaces.Box(
+        low=np.float32(low), high=np.float32(high)
+    )
     self.observation_dim = self.observation_space.low.shape[0]
     self.visual_bounds = np.array([[x_min, x_max], [y_min, y_max]])
     self.visual_extent = np.array([
@@ -283,8 +290,9 @@ class RaceCarSingleEnv(BaseSingleEnv):
         state, action, state_nxt
     )
     targets = {}
-    # less than 1 cm / s.
-    targets['velocity'] = states_with_final[2:3, :] - 0.01
+    target_vel_margin = states_with_final[2:3, :] - self.target_vel
+    target_vel_margin[target_vel_margin < 0] *= self.target_amp
+    targets['velocity'] = target_vel_margin
     return targets
 
   def get_done_and_info(
@@ -358,6 +366,7 @@ class RaceCarSingleEnv(BaseSingleEnv):
       if failure:
         done = True
         done_type = "failure"
+        g_x = self.g_x_fail
     elif end_criterion == 'reach-avoid':
       if final_only:
         failure = g_x > 0.
@@ -377,6 +386,7 @@ class RaceCarSingleEnv(BaseSingleEnv):
       elif failure:
         done = True
         done_type = "failure"
+        g_x = self.g_x_fail
     elif end_criterion == 'timeout':
       pass
     else:
@@ -572,3 +582,9 @@ class RaceCarSingleEnv(BaseSingleEnv):
         (action, np.zeros((action.shape[0], 1))), axis=1
     )
     return states_with_final, actions_with_final
+
+  def report(self):
+    print(
+        "This is a Race Car simulator based on bicycle dynamics and "
+        + "ellipse footprint."
+    )

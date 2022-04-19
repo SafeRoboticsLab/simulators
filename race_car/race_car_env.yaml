@@ -29,6 +29,9 @@ environment:
   USE_SOFT_CONS_COST: False
   # DONE FLAG PARAM
   END_CRITERION: failure
+  G_X_FAIL: 0.25
+  TARGET_AMP: 25
+  TARGET_VEL: 0.01
   INTEGRATE_KWARGS:  # keywords for integrate_forward used in the `real` env.
     step: 10
     noise: [0., 0.05, 0., 0.]

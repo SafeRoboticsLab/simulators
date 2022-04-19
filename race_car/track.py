@@ -229,14 +229,20 @@ class Track:
 
   # region: plotting
   def plot_track(
-      self, ax: Optional[matplotlib.axes.Axes] = None, c: str = 'k'
+      self, ax: Optional[matplotlib.axes.Axes] = None, c: str = 'k', zorder=0
   ):
     if ax is None:
       ax = plt.gca()
     # Inner curve.
-    ax.plot(self.track_bound[0, :], self.track_bound[1, :], c=c, linestyle='-')
+    ax.plot(
+        self.track_bound[0, :], self.track_bound[1, :], c=c, linestyle='-',
+        zorder=zorder
+    )
     # Outer curve.
-    ax.plot(self.track_bound[2, :], self.track_bound[3, :], c=c, linestyle='-')
+    ax.plot(
+        self.track_bound[2, :], self.track_bound[3, :], c=c, linestyle='-',
+        zorder=zorder
+    )
 
   def plot_track_center(self, ax: Optional[matplotlib.axes.Axes] = None):
     if ax is None:

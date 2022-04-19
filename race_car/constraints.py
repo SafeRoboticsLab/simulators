@@ -51,7 +51,7 @@ class Constraints:
 
     self.q1_obs = config_env.Q1_OBS
     self.q2_obs = config_env.Q2_OBS
-    self.gamma = getattr(config_env, "GAMMA", 1.)
+    self.gamma = getattr(config_env, "OBS_COST_GAMMA", 1.)
 
   def update_obs(self, obs_list: List[List[Ellipse]]):
     """Updates the obstacles.

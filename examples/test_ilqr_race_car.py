@@ -54,7 +54,7 @@ init_control = np.zeros((2, config_solver.N - 1))
 
 max_iter_receding = config_solver.MAX_ITER_RECEDING
 
-fig_folder = os.path.join("figure")
+fig_folder = os.path.join("experiments", "ilqr", "figure")
 fig_prog_folder = os.path.join(fig_folder, "progress")
 os.makedirs(fig_prog_folder, exist_ok=True)
 # endregion
