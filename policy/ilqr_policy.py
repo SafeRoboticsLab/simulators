@@ -92,6 +92,7 @@ class iLQR(BasePolicy):
 
     solver_info = dict(
         states=states, controls=controls, state_final=state_final,
+        K_closed_loop=K_closed_loop, k_open_loop=k_open_loop,
         t_process=t_process, status=status
     )
     return controls[:, 0], solver_info

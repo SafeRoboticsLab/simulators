@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Optional, Tuple, Any
 import numpy as np
 
+# TODO: Constructs an uncertainty object.
+
 
 class BaseDynamics(ABC):
 
@@ -18,8 +20,9 @@ class BaseDynamics(ABC):
 
   @abstractmethod
   def integrate_forward(
-      self, state: np.ndarray, control: np.ndarray, step: Optional[int] = 1,
-      noise: Optional[np.ndarray] = None, noise_type: Optional[str] = 'unif',
+      self, state: np.ndarray, control: np.ndarray,
+      num_segment: Optional[int] = 1, noise: Optional[np.ndarray] = None,
+      noise_type: Optional[str] = 'unif',
       adversary: Optional[np.ndarray] = None, **kwargs
   ) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -29,7 +32,7 @@ class BaseDynamics(ABC):
     Args:
         state (np.ndarray).
         control (np.ndarray).
-        step (int, optional): The number of segements to forward the
+        num_segment (int, optional): The number of segements to forward the
             dynamics. Defaults to 1.
         noise (np.ndarray, optional): the ball radius or standard
             deviation of the Gaussian noise. The magnitude should be in the
@@ -57,7 +60,7 @@ class BaseDynamics(ABC):
         nominal_controls (np.ndarray): controls along the trajectory.
 
     Returns:
-        np.ndarray: the Jacobian of next state w.r.t. the current state.
-        np.ndarray: the Jacobian of next state w.r.t. the current control.
+        np.ndarray: the Jacobian of the dynamics w.r.t. the current state.
+        np.ndarray: the Jacobian of the dynamics w.r.t. the current control.
     """
     raise NotImplementedError

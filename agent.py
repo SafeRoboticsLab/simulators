@@ -13,6 +13,7 @@ from .dynamics.bicycle_dynamics import BicycleDynamics
 from .ell_reach.ellipse import Ellipse
 
 # Policy.
+from .policy.base_policy import BasePolicy
 from .policy.ilqr_policy import iLQR
 from .policy.nn_policy import NeuralNetworkControlSystem
 
@@ -23,9 +24,7 @@ class Agent:
   Attributes:
       dyn (object): agent's dynamics.
       footprint (object): agent's shape.
-      nominal_states (np.ndarray): nominal states of the planned trajectory.
-      nominal_controls (np.ndarray): nominal controls of the planned
-          trajectory.
+      policy (object): agent's policy.
   """
 
   def __init__(self, config, action_space: np.ndarray) -> None:
@@ -39,12 +38,12 @@ class Agent:
       ego_Q = np.diag([ego_a**2, ego_b**2])
       self.footprint = Ellipse(q=ego_q, Q=ego_Q)
 
-    # Policy should be initialized by `update_policy()`.
+    # Policy should be initialized by `init_policy()`.
     self.policy = None
 
   def integrate_forward(
       self, state: np.ndarray, control: Optional[np.ndarray] = None,
-      step: Optional[int] = 1, noise: Optional[np.ndarray] = None,
+      num_segment: Optional[int] = 1, noise: Optional[np.ndarray] = None,
       noise_type: Optional[str] = 'unif',
       adversary: Optional[np.ndarray] = None, **kwargs
   ) -> Tuple[np.ndarray, np.ndarray]:
@@ -55,7 +54,7 @@ class Agent:
     Args:
         state (np.ndarray): (dyn.dim_x, ) array.
         control (np.ndarray): (dyn.dim_u, ) array.
-        step (int, optional): The number of segements to forward the
+        num_segment (int, optional): The number of segements to forward the
             dynamics. Defaults to 1.
         noise (np.ndarray, optional): the ball radius or standard
             deviation of the Gaussian noise. The magnitude should be in the
@@ -74,7 +73,8 @@ class Agent:
     if control is None:
       control = self.policy.get_action(state, **kwargs)[0]
     return self.dyn.integrate_forward(
-        state, control, step, noise, noise_type, adversary, **kwargs
+        state=state, control=control, num_segment=num_segment, noise=noise,
+        noise_type=noise_type, adversary=adversary, **kwargs
     )
 
   def get_dyn_jacobian(

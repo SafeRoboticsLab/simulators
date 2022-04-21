@@ -33,8 +33,9 @@ class BicycleDynamics(BaseDynamics):
     self.delta_max = action_space[1, 1]  # max steering angle rad
 
   def integrate_forward(
-      self, state: np.ndarray, control: np.ndarray, step: Optional[int] = 1,
-      noise: Optional[np.ndarray] = None, noise_type: Optional[str] = 'unif',
+      self, state: np.ndarray, control: np.ndarray,
+      num_segment: Optional[int] = 1, noise: Optional[np.ndarray] = None,
+      noise_type: Optional[str] = 'unif',
       adversary: Optional[np.ndarray] = None, **kwargs
   ) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -44,7 +45,7 @@ class BicycleDynamics(BaseDynamics):
     Args:
         state (np.ndarray): (4, ) array [X, Y, V, psi].
         control (np.ndarray): (2, ) array [a, delta].
-        step (int, optional): The number of segements to forward the
+        num_segment (int, optional): The number of segements to forward the
             dynamics. Defaults to 1.
         noise (np.ndarray, optional): the ball radius or standard
             deviation of the Gaussian noise. The magnitude should be in the
@@ -67,8 +68,8 @@ class BicycleDynamics(BaseDynamics):
 
     # Euler method
     state_nxt = np.copy(state)
-    dt_step = self.dt / step  # step size of Euler method
-    for _ in range(step):
+    dt_step = self.dt / num_segment  # step size of Euler method
+    for _ in range(num_segment):
       # State: [x, y, v, psi]
       d_x = ((state_nxt[2] * dt_step + 0.5 * accel * dt_step**2)
              * np.cos(state_nxt[3]))
@@ -90,7 +91,7 @@ class BicycleDynamics(BaseDynamics):
           rv = (np.random.rand(4) - 0.5) * 2  # Maps to [-1, 1]
         else:
           rv = np.random.normal(size=(4))
-        state_nxt = state_nxt + (transform_mtx@noise) * rv / step
+        state_nxt = state_nxt + (transform_mtx@noise) * rv / num_segment
 
     return state_nxt, control_clip
 

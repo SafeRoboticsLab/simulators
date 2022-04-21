@@ -14,6 +14,7 @@ from IPython.display import Image
 from simulators import RaceCarSingleEnv, load_config
 from simulators.ell_reach.ellipse import Ellipse
 from simulators.ell_reach.plot_ellipsoids import plot_ellipsoids
+from utils import save_obj
 
 # region: Sets environment
 # Loads config.
@@ -157,18 +158,31 @@ def rollout_episode_callback(
 
 end_criterion = "failure"
 # end_criterion = "timeout"
-trajectory, result, _ = env.simulate_one_trajectory(
+nominal_states, result, traj_info = env.simulate_one_trajectory(
     T_rollout=max_iter_receding, end_criterion=end_criterion,
     reset_kwargs=dict(state=x_cur),
     rollout_step_callback=rollout_step_callback,
     rollout_episode_callback=rollout_episode_callback
 )
+print("result", result)
+nominal_ctrls = traj_info['action_hist']
+A, B = env.agent.get_dyn_jacobian(
+    nominal_states=nominal_states[:-1, :].T, nominal_controls=nominal_ctrls.T
+)
+print(A.shape, B.shape)
+dict_for_minimax = {
+    "nominal_states": nominal_states,
+    "nominal_ctrls": nominal_ctrls,
+    "dyn_x": A,
+    "dyn_u": B
+}
+save_obj(dict_for_minimax, "dict_minimax")
 # endregion
 
 # region: Visualizes
 gif_path = os.path.join(fig_folder, 'rollout.gif')
 with imageio.get_writer(gif_path, mode='I') as writer:
-  for i in range(len(trajectory) - 1):
+  for i in range(len(nominal_states) - 1):
     filename = os.path.join(fig_prog_folder, str(i + 1) + ".png")
     image = imageio.imread(filename)
     writer.append_data(image)

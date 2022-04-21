@@ -10,10 +10,10 @@ environment:
   # LOOP: true
   TIMEOUT: 150
   # CONSTRAINT PARAM
-  Q1_V: 1.
-  Q2_V: 5.
+  Q1_V: 2.
+  Q2_V: 10.
   Q1_ROAD: 2.
-  Q2_ROAD: 5.
+  Q2_ROAD: 10.
   Q1_LAT: 5.
   Q2_LAT: 10.
   Q1_OBS: 5.
@@ -33,8 +33,8 @@ environment:
   TARGET_AMP: 25
   TARGET_VEL: 0.01
   INTEGRATE_KWARGS:  # keywords for integrate_forward used in the `real` env.
-    step: 10
-    noise: [0., 0.05, 0., 0.]
+    num_segment: 10
+    noise: [0., 0., 0., 0.]
     noise_type: unif
 
 agent:
@@ -54,8 +54,8 @@ agent:
   # for imaginary env
   USE_SOFT_CONS_COST: True
   INTEGRATE_KWARGS:  # keywords for integrate_forward used in the `imaginary` env.
-    step: 10
-    noise: [0., 0.05, 0., 0.]
+    num_segment: 10
+    noise: [0., 0., 0., 0.]
     noise_type: unif
   # CONSTRAINT
   V_MIN: 0.
@@ -69,4 +69,4 @@ agent:
 solver:
   N: 11
   MAX_ITER: 50
-  MAX_ITER_RECEDING: 100
+  MAX_ITER_RECEDING: 150

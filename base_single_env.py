@@ -178,12 +178,11 @@ class BaseSingleEnv(BaseEnv):
         int: result (0: unfinished, 1: success, -1: failure).
         Dict: auxiliarry information -
             "action_hist": action sequence.
-            "plan_hist": planning info history.
+            "plan_hist": planning info for every step.
             "reward_hist": rewards for every step.
             "step_hist": information for every step.
     """
-    # Stores the environment attributes temporarily and sets to rollout
-    # settings.
+    # Stores the environment attributes and sets to rollout settings.
     timeout_backup = self.timeout
     end_criterion_backup = self.end_criterion
     self.timeout = T_rollout
@@ -222,7 +221,7 @@ class BaseSingleEnv(BaseEnv):
       # Applies action: `done` and `info` are evaluated at the next state.
       x_cur, reward, done, step_info = self.step(action)
 
-      # Executes step callback.
+      # Executes step callback and stores history.
       state_hist.append(x_cur)
       action_hist.append(action)
       plan_hist.append(solver_info)
