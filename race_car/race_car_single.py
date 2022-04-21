@@ -133,13 +133,17 @@ class RaceCarSingleEnv(BaseSingleEnv):
     """Checks if the state is on the track (considering footprint).
 
     Args:
-        states (np.ndarray): (x, y) positions, should ne (2, N).
+        states (np.ndarray): (x, y) positions, should be (2, N).
 
     Returns:
         np.ndarray: a bool array of shape (N, ). True if the agent is on the
             track.
     """
-    assert states.shape[0] == 2, "Shape should be (2, N)!"
+    assert states.shape[0] == 2, (
+        "Shape should be (2, N), but get ({}, {})!".format(
+            states.shape[0], states.shape[1]
+        )
+    )
     close_pts, slopes, _ = self.track.get_closest_pts(states)
     cons_road_l, cons_road_r = self.constraints._road_boundary_cons(
         self.agent.footprint, states, close_pts, slopes
@@ -286,11 +290,9 @@ class RaceCarSingleEnv(BaseSingleEnv):
         Dict: each (key, value) pair is the name and value of a target margin
             function.
     """
-    states_with_final, actions_with_final = self._reshape(
-        state, action, state_nxt
-    )
+    states_with_final, _ = self._reshape(state, action, state_nxt)
     targets = {}
-    target_vel_margin = states_with_final[2:3, :] - self.target_vel
+    target_vel_margin = np.abs(states_with_final[2:3, :]) - self.target_vel
     target_vel_margin[target_vel_margin < 0] *= self.target_amp
     targets['velocity'] = target_vel_margin
     return targets
