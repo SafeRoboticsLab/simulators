@@ -53,7 +53,7 @@ if __name__ == '__main__':
   config_update = config_dict['update']
 
   action_range = np.array(config_env.ACTION_RANGE)
-  action_range = torch.from_numpy(action_range)
+  action_range = torch.FloatTensor(action_range)
   if action_range.ndim == 1:
     action_range = action_range.unsqueeze(0)
   print(action_range[:, 0], action_range[:, 1])
