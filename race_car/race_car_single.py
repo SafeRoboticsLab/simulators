@@ -62,8 +62,10 @@ class RaceCarSingleEnv(BaseSingleEnv):
     self.W_state = np.array([[self.w_contour, 0], [0, self.w_vel]])
     self.W_control = np.array([[self.w_accel, 0], [0, self.w_delta]])
     self.g_x_fail = config_env.G_X_FAIL
-    self.target_amp = getattr(config_env, "TARGET_AMP", 1.)
+    self.target_vel_amp = getattr(config_env, "TARGET_VEL_AMP", 1.)
     self.target_vel = getattr(config_env, "TARGET_VEL", 0.01)
+    self.target_path_amp = getattr(config_env, "TARGET_PATH_AMP", 1.)
+    self.target_path = getattr(config_env, "TARGET_PATH", 0.01)
 
     # Observation space.
     x_min, y_min = np.min(self.track.track_bound[2:, :], axis=1)
@@ -292,9 +294,40 @@ class RaceCarSingleEnv(BaseSingleEnv):
     """
     states_with_final, _ = self._reshape(state, action, state_nxt)
     targets = {}
-    target_vel_margin = np.abs(states_with_final[2:3, :]) - self.target_vel
-    target_vel_margin[target_vel_margin < 0] *= self.target_amp
-    targets['velocity'] = target_vel_margin
+
+    # velocity
+    if self.target_vel is not None:
+      # vel_margin = np.abs(states_with_final[2:3, :]) - self.target_vel
+      # vel_margin[vel_margin < 0] *= self.target_vel_amp
+      vel_margin = (
+          self.target_vel_amp *
+          (np.abs(states_with_final[2:3, :]) - self.target_vel)
+      )
+      # targets['velocity'] = vel_margin
+
+    # reference path
+    if self.target_path is not None:
+      close_pts, slopes, _ = self.track.get_closest_pts(
+          states_with_final[:2, :], normalize_progress=True
+      )
+      ref_states, _ = self._get_ref_path_transform(close_pts, slopes)
+      path_error = np.linalg.norm(
+          states_with_final[:2, :] - ref_states[:2, :], axis=0, keepdims=True
+      )
+      path_margin = self.target_path_amp * (path_error - self.target_path)
+      # path_margin[path_margin < 0] *= self.target_path_amp
+      # targets['path'] = path_margin
+
+    if self.target_vel is not None:
+      if self.target_path is None:
+        targets['velocity'] = vel_margin
+      else:
+        vel_path_margin = path_margin.copy()
+        vel_path_margin[vel_path_margin < 0] = vel_margin[vel_path_margin < 0]
+        targets['vel_path'] = vel_path_margin
+    elif self.target_path is not None:
+      targets['path'] = path_margin
+
     return targets
 
   def get_done_and_info(

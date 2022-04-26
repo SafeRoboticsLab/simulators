@@ -285,6 +285,8 @@ class BaseSingleEnv(BaseEnv):
       )
 
     results = np.empty(shape=(num_trajectories,), dtype=int)
+    length = np.empty(shape=(num_trajectories,), dtype=int)
+
     trajectories = []
     for trial in range(num_trajectories):
       if isinstance(reset_kwargs_list, list):
@@ -304,4 +306,6 @@ class BaseSingleEnv(BaseEnv):
       )
       trajectories.append(state_hist)
       results[trial] = result
-    return trajectories, results
+      length[trial] = len(state_hist)
+
+    return trajectories, results, length
