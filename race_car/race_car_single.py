@@ -311,8 +311,9 @@ class RaceCarSingleEnv(BaseSingleEnv):
           states_with_final[:2, :], normalize_progress=True
       )
       ref_states, _ = self._get_ref_path_transform(close_pts, slopes)
+      ref_pose = np.concatenate((ref_states[:2, :], slopes), axis=0)
       path_error = np.linalg.norm(
-          states_with_final[:2, :] - ref_states[:2, :], axis=0, keepdims=True
+          states_with_final[[0, 1, 3], :] - ref_pose, axis=0, keepdims=True
       )
       path_margin = self.target_path_amp * (path_error - self.target_path)
       # path_margin[path_margin < 0] *= self.target_path_amp
