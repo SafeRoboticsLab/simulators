@@ -66,6 +66,8 @@ class RaceCarSingleEnv(BaseSingleEnv):
     self.target_vel = getattr(config_env, "TARGET_VEL", 0.01)
     self.target_path_amp = getattr(config_env, "TARGET_PATH_AMP", 1.)
     self.target_path = getattr(config_env, "TARGET_PATH", 0.01)
+    self.target_yaw_amp = getattr(config_env, "TARGET_YAW_AMP", 1.)
+    self.target_yaw = getattr(config_env, "TARGET_YAW", 0.01)
 
     # Observation space.
     x_min, y_min = np.min(self.track.track_bound[2:, :], axis=1)
@@ -311,12 +313,18 @@ class RaceCarSingleEnv(BaseSingleEnv):
           states_with_final[:2, :], normalize_progress=True
       )
       ref_states, _ = self._get_ref_path_transform(close_pts, slopes)
-      ref_pose = np.concatenate((ref_states[:2, :], slopes), axis=0)
       path_error = np.linalg.norm(
-          states_with_final[[0, 1, 3], :] - ref_pose, axis=0, keepdims=True
+          states_with_final[:2, :] - ref_states[:2, :], axis=0, keepdims=True
       )
-      path_margin = self.target_path_amp * (path_error - self.target_path)
-      # path_margin[path_margin < 0] *= self.target_path_amp
+      path_margin = path_error - self.target_path
+      path_margin[path_margin < 0] *= self.target_path_amp
+
+      if self.target_yaw is not None:
+        yaw_error = np.abs(states_with_final[3:4, :] - slopes)
+        yaw_margin = yaw_error - self.target_yaw
+        yaw_margin[yaw_margin < 0] *= self.target_yaw_amp
+        path_margin = np.maximum(yaw_margin, path_margin)
+
       # targets['path'] = path_margin
 
     if self.target_vel is not None:
@@ -624,3 +632,14 @@ class RaceCarSingleEnv(BaseSingleEnv):
         "This is a Race Car simulator based on bicycle dynamics and "
         + "ellipse footprint."
     )
+    if self.target_vel is not None:
+      if self.target_path is None:
+        target_criterion = 'zero velocity'
+      else:
+        target_criterion = 'zero velocity and on track'
+    elif self.target_path is not None:
+      if self.target_yaw is not None:
+        target_criterion = 'on track with pose'
+      else:
+        target_criterion = 'on track'
+    print("The target is", target_criterion)
