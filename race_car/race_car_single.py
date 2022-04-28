@@ -71,20 +71,38 @@ class RaceCarSingleEnv(BaseSingleEnv):
     self.target_yaw = np.array(getattr(config_env, "TARGET_YAW", [-0.1, 0.1]))
 
     # Observation space.
+    self.obs_type = getattr(config_env, "OBS_TYPE", "perfect")
     x_min, y_min = np.min(self.track.track_bound[2:, :], axis=1)
     x_max, y_max = np.max(self.track.track_bound[2:, :], axis=1)
-    low = np.zeros((4,))
-    low[0] = x_min
-    low[1] = y_min
-    high = np.zeros((4,))
-    high[0] = x_max
-    high[1] = y_max
-    high[2] = config_agent.V_MAX
-    high[3] = 2 * np.pi
+    if self.obs_type == "perfect":
+      low = np.zeros((4,))
+      low[0] = x_min
+      low[1] = y_min
+      high = np.zeros((4,))
+      high[0] = x_max
+      high[1] = y_max
+      high[2] = config_agent.V_MAX
+      high[3] = 2 * np.pi
+    elif self.obs_type == "cos_sin":
+      low = np.zeros((5,))
+      low[0] = x_min
+      low[1] = y_min
+      low[3] = -1.
+      low[4] = -1.
+      high = np.zeros((5,))
+      high[0] = x_max
+      high[1] = y_max
+      high[2] = config_agent.V_MAX
+      high[3] = 1.
+      high[4] = 1.
+    else:
+      raise ValueError("Observation type {} is not supported!")
     self.observation_space = spaces.Box(
         low=np.float32(low), high=np.float32(high)
     )
-    self.observation_dim = self.observation_space.low.shape[0]
+    self.obs_dim = self.observation_space.low.shape[0]
+
+    # Visualization.
     self.visual_bounds = np.array([[x_min, x_max], [y_min, y_max]])
     self.visual_extent = np.array([
         self.visual_bounds[0, 0], self.visual_bounds[0, 1],
@@ -118,9 +136,10 @@ class RaceCarSingleEnv(BaseSingleEnv):
       state[3] = np.mod(direction*slope + state[3], 2 * np.pi)
     self.state = state.copy()
 
+    obs = self.get_obs(state)
     if cast_torch:
-      state = torch.FloatTensor(state)
-    return state
+      obs = torch.FloatTensor(obs)
+    return obs
 
   def get_samples(self, nx: int, ny: int) -> Tuple[np.ndarray, np.ndarray]:
     """Gets state samples for value function plotting.
@@ -194,12 +213,30 @@ class RaceCarSingleEnv(BaseSingleEnv):
     """
     self.constraints.update_obs(obs_list)
 
+  def get_obs(self, state: np.ndarray) -> np.ndarray:
+    """Gets the observation given the state.
+
+    Args:
+        state (np.ndarray): state of the shape (4, ).
+
+    Returns:
+        np.ndarray: observation. It can be the state or uses cos theta and
+            sin theta to represent yaw.
+    """
+    if self.obs_type == 'perfect':
+      return state
+    else:
+      _state = np.zeros(5)
+      _state[:3] = state[:3]
+      _state[3] = np.cos(state[3])
+      _state[4] = np.sin(state[3])
+      return _state
+
   def get_cost(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray,
       constraints: Optional[dict] = None
   ) -> float:
-    """
-    Gets the cost given current state, current action, and next state.
+    """Gets the cost given current state, current action, and next state.
 
     Args:
         state (np.ndarray): current states of the shape (4, N).
@@ -326,9 +363,6 @@ class RaceCarSingleEnv(BaseSingleEnv):
 
     # reference yaw
     if self.target_yaw is not None:
-      # yaw_error = np.abs(states_with_final[3:4, :] - slopes)
-      # yaw_margin = yaw_error - self.target_yaw
-      # Within self.target_yaw
       slopes2 = np.mod(slopes + np.pi, np.pi * 2)
       yaw_error1 = states_with_final[3:4, :] - slopes  # counter-clockwise
       yaw_error2 = states_with_final[3:4, :] - slopes2  # clockwise

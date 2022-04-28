@@ -43,8 +43,8 @@ env.constraints.update_obs([static_obs_list])
 
 # region: Constructs placeholder and initializes iLQR
 config_env_imaginary = copy.deepcopy(config_env)
-config_env_imaginary.INTEGRATE_KWARGS = config_agent.INTEGRATE_KWARGS
-config_env_imaginary.USE_SOFT_CONS_COST = config_agent.USE_SOFT_CONS_COST
+config_env_imaginary.INTEGRATE_KWARGS = config_agent.AGENT_INTEGRATE_KWARGS
+config_env_imaginary.USE_SOFT_CONS_COST = config_agent.AGENT_USE_SOFT_CONS_COST
 env_imaginary = RaceCarSingleEnv(config_env_imaginary, config_agent)
 static_obs_list = [static_obs for _ in range(config_solver.N)]
 env_imaginary.constraints.update_obs([static_obs_list])

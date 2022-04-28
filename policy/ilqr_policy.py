@@ -38,7 +38,7 @@ class iLQR(BasePolicy):
       controls = np.zeros((self.env.action_dim, self.N - 1))
 
     # Rolls out.
-    states = np.zeros((self.env.observation_dim, self.N - 1))
+    states = np.zeros((self.env.state_dim, self.N - 1))
     states[:, 0] = state
     for i in range(self.N - 1):
       state_nxt, _ = self.env.agent.integrate_forward(
@@ -107,7 +107,7 @@ class iLQR(BasePolicy):
             K_closed_loop=K_closed_loop, k_open_loop=k_open_loop
         )
     )
-    X = np.zeros_like(nominal_states)  # (observation_dim, N-1)
+    X = np.zeros_like(nominal_states)  # (state_dim, N-1)
     U = np.zeros_like(nominal_controls)  # (action_dim, N-1)
 
     X[:, 0] = nominal_states[:, 0]
@@ -148,7 +148,7 @@ class iLQR(BasePolicy):
     # Placeholders.
     k_open_loop = np.zeros((self.env.action_dim, self.N - 1))
     K_closed_loop = np.zeros(
-        (self.env.action_dim, self.env.observation_dim, self.N - 1)
+        (self.env.action_dim, self.env.state_dim, self.N - 1)
     )
     Q_u_hist = np.zeros([self.env.action_dim, self.N - 1])
     Q_uu_hist = np.zeros([
