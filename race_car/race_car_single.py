@@ -42,11 +42,12 @@ class RaceCarSingleEnv(BaseSingleEnv):
     # position in the global frame.
     low = np.zeros((4,))
     low[1] = -config_env.TRACK_WIDTH_LEFT + config_agent.WIDTH * 3 / 4
+    low[3] = -np.pi / 4
     high = np.zeros((4,))
     high[0] = 1.
     high[1] = config_env.TRACK_WIDTH_RIGHT - config_agent.WIDTH * 3 / 4
     high[2] = config_agent.V_MAX
-    high[3] = 2 * np.pi
+    high[3] = np.pi / 4
     self.reset_sample_sapce = spaces.Box(
         low=np.float32(low), high=np.float32(high)
     )
@@ -67,7 +68,7 @@ class RaceCarSingleEnv(BaseSingleEnv):
     self.target_path_amp = getattr(config_env, "TARGET_PATH_AMP", 1.)
     self.target_path = getattr(config_env, "TARGET_PATH", 0.01)
     self.target_yaw_amp = getattr(config_env, "TARGET_YAW_AMP", 1.)
-    self.target_yaw = getattr(config_env, "TARGET_YAW", 0.01)
+    self.target_yaw = np.array(getattr(config_env, "TARGET_YAW", [-0.1, 0.1]))
 
     # Observation space.
     x_min, y_min = np.min(self.track.track_bound[2:, :], axis=1)
@@ -111,7 +112,10 @@ class RaceCarSingleEnv(BaseSingleEnv):
     if state is None:
       state = self.reset_sample_sapce.sample()
       state[:2], slope = self.track.local2global(state[:2], return_slope=True)
-      # state[3] = slope  # random yaw as well.
+      direction = 1
+      if self.rng.random() > 0.5:
+        direction = -1
+      state[3] = np.mod(direction*slope + state[3], 2 * np.pi)
     self.state = state.copy()
 
     if cast_torch:
@@ -295,9 +299,12 @@ class RaceCarSingleEnv(BaseSingleEnv):
             function.
     """
     states_with_final, _ = self._reshape(state, action, state_nxt)
+    close_pts, slopes, _ = self.track.get_closest_pts(
+        states_with_final[:2, :], normalize_progress=True
+    )
     targets = {}
 
-    # velocity
+    # reference velocity
     if self.target_vel is not None:
       # vel_margin = np.abs(states_with_final[2:3, :]) - self.target_vel
       # vel_margin[vel_margin < 0] *= self.target_vel_amp
@@ -305,37 +312,36 @@ class RaceCarSingleEnv(BaseSingleEnv):
           self.target_vel_amp *
           (np.abs(states_with_final[2:3, :]) - self.target_vel)
       )
-      # targets['velocity'] = vel_margin
+      targets['velocity'] = vel_margin
 
     # reference path
     if self.target_path is not None:
-      close_pts, slopes, _ = self.track.get_closest_pts(
-          states_with_final[:2, :], normalize_progress=True
-      )
       ref_states, _ = self._get_ref_path_transform(close_pts, slopes)
       path_error = np.linalg.norm(
           states_with_final[:2, :] - ref_states[:2, :], axis=0, keepdims=True
       )
       path_margin = path_error - self.target_path
       path_margin[path_margin < 0] *= self.target_path_amp
-
-      if self.target_yaw is not None:
-        yaw_error = np.abs(states_with_final[3:4, :] - slopes)
-        yaw_margin = yaw_error - self.target_yaw
-        yaw_margin[yaw_margin < 0] *= self.target_yaw_amp
-        path_margin = np.maximum(yaw_margin, path_margin)
-
-      # targets['path'] = path_margin
-
-    if self.target_vel is not None:
-      if self.target_path is None:
-        targets['velocity'] = vel_margin
-      else:
-        vel_path_margin = path_margin.copy()
-        vel_path_margin[vel_path_margin < 0] = vel_margin[vel_path_margin < 0]
-        targets['vel_path'] = vel_path_margin
-    elif self.target_path is not None:
       targets['path'] = path_margin
+
+    # reference yaw
+    if self.target_yaw is not None:
+      # yaw_error = np.abs(states_with_final[3:4, :] - slopes)
+      # yaw_margin = yaw_error - self.target_yaw
+      # Within self.target_yaw
+      slopes2 = np.mod(slopes + np.pi, np.pi * 2)
+      yaw_error1 = states_with_final[3:4, :] - slopes  # counter-clockwise
+      yaw_error2 = states_with_final[3:4, :] - slopes2  # clockwise
+
+      yaw_margin1 = np.maximum(  # [slopes+target[0], slopes+target[1]]
+          yaw_error1 - self.target_yaw[1], self.target_yaw[0] - yaw_error1
+      )
+      yaw_margin2 = np.maximum(  # [-slopes-target[1], -slopes-target[0]]
+          yaw_error2 + self.target_yaw[0], -self.target_yaw[1] - yaw_error2
+      )
+      yaw_margin = np.minimum(yaw_margin1, yaw_margin2)
+      yaw_margin[yaw_margin < 0] *= self.target_yaw_amp
+      targets['yaw'] = yaw_margin
 
     return targets
 
@@ -632,14 +638,19 @@ class RaceCarSingleEnv(BaseSingleEnv):
         "This is a Race Car simulator based on bicycle dynamics and "
         + "ellipse footprint."
     )
+    target_criterion = ''
+    has_prev = False
+
     if self.target_vel is not None:
-      if self.target_path is None:
-        target_criterion = 'zero velocity'
-      else:
-        target_criterion = 'zero velocity and on track'
-    elif self.target_path is not None:
-      if self.target_yaw is not None:
-        target_criterion = 'on track with pose'
-      else:
-        target_criterion = 'on track'
-    print("The target is", target_criterion)
+      target_criterion += 'zero velocity'
+      has_prev = True
+    if self.target_path is not None:
+      if has_prev:
+        target_criterion += ', '
+      target_criterion += 'on track'
+      has_prev = True
+    if self.target_yaw is not None:
+      if has_prev:
+        target_criterion += ', '
+      target_criterion += 'with pose'
+    print("The target is", target_criterion + '.')
