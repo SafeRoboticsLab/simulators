@@ -111,6 +111,10 @@ class RaceCarSingleEnv(BaseSingleEnv):
     self.seed(config_env.SEED)
     self.reset()
 
+  def seed(self, seed: int = 0):
+    super().seed(seed)
+    self.reset_sample_sapce.seed(seed)
+
   def reset(
       self, state: Optional[np.ndarray] = None, cast_torch: bool = False,
       **kwargs
@@ -343,12 +347,12 @@ class RaceCarSingleEnv(BaseSingleEnv):
 
     # reference velocity
     if self.target_vel is not None:
-      # vel_margin = np.abs(states_with_final[2:3, :]) - self.target_vel
-      # vel_margin[vel_margin < 0] *= self.target_vel_amp
-      vel_margin = (
-          self.target_vel_amp *
-          (np.abs(states_with_final[2:3, :]) - self.target_vel)
-      )
+      vel_margin = np.abs(states_with_final[2:3, :]) - self.target_vel
+      vel_margin[vel_margin < 0] *= self.target_vel_amp
+      # vel_margin = (
+      #     self.target_vel_amp *
+      #     (np.abs(states_with_final[2:3, :]) - self.target_vel)
+      # )
       targets['velocity'] = vel_margin
 
     # reference path
