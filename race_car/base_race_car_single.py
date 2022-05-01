@@ -3,6 +3,7 @@ Please contact the author(s) of this library if you have any questions.
 Authors: Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 
+from abc import abstractmethod
 from typing import Dict, Tuple, List, Any, Optional, Union
 import numpy as np
 from matplotlib import pyplot as plt
@@ -13,11 +14,11 @@ import torch
 from ..base_single_env import BaseSingleEnv
 from ..ell_reach.ellipse import Ellipse
 from .track import Track
-from .constraints import Constraints
+from .constraints_bicycle_v1 import ConstraintsBicycleV1
 from .utils import get_centerline_from_traj
 
 
-class RaceCarSingleEnv(BaseSingleEnv):
+class BaseRaceCarSingleEnv(BaseSingleEnv):
   """Implements an environment of a single Princeton Race Car.
   """
 
@@ -33,35 +34,15 @@ class RaceCarSingleEnv(BaseSingleEnv):
         loop=getattr(config_env, 'LOOP', True)
     )
     self.track_offset = config_env.TRACK_OFFSET
-    self.constraints = Constraints(
-        config_env=config_env, config_agent=config_agent
-    )
-
-    # Reset Sample Space. Note that the first two dimension is in the local
-    # frame and it needs to call track.local2global() to get the (x, y)
-    # position in the global frame.
-    low = np.zeros((4,))
-    low[1] = -config_env.TRACK_WIDTH_LEFT + config_agent.WIDTH * 3 / 4
-    low[3] = -np.pi / 4
-    high = np.zeros((4,))
-    high[0] = 1.
-    high[1] = config_env.TRACK_WIDTH_RIGHT - config_agent.WIDTH * 3 / 4
-    high[2] = config_agent.V_MAX
-    high[3] = np.pi / 4
-    self.reset_sample_sapce = spaces.Box(
-        low=np.float32(low), high=np.float32(high)
-    )
 
     # Cost.
     self.w_vel = config_env.W_VEL
     self.w_contour = config_env.W_CONTOUR
     self.w_theta = config_env.W_THETA
-    self.w_accel = config_env.W_ACCEL
-    self.w_delta = config_env.W_DELTA
     self.v_ref = config_env.V_REF
     self.use_soft_cons_cost = config_env.USE_SOFT_CONS_COST
     self.W_state = np.array([[self.w_contour, 0], [0, self.w_vel]])
-    self.W_control = np.array([[self.w_accel, 0], [0, self.w_delta]])
+    self.W_control = np.zeros((2, 2))
     self.g_x_fail = config_env.G_X_FAIL
     self.target_vel_amp = getattr(config_env, "TARGET_VEL_AMP", 1.)
     self.target_vel = getattr(config_env, "TARGET_VEL", 0.01)
@@ -70,80 +51,25 @@ class RaceCarSingleEnv(BaseSingleEnv):
     self.target_yaw_amp = getattr(config_env, "TARGET_YAW_AMP", 1.)
     self.target_yaw = np.array(getattr(config_env, "TARGET_YAW", [-0.1, 0.1]))
 
-    # Observation space.
-    self.obs_type = getattr(config_env, "OBS_TYPE", "perfect")
+    # Visualization.
     x_min, y_min = np.min(self.track.track_bound[2:, :], axis=1)
     x_max, y_max = np.max(self.track.track_bound[2:, :], axis=1)
-    if self.obs_type == "perfect":
-      low = np.zeros((4,))
-      low[0] = x_min
-      low[1] = y_min
-      high = np.zeros((4,))
-      high[0] = x_max
-      high[1] = y_max
-      high[2] = config_agent.V_MAX
-      high[3] = 2 * np.pi
-    elif self.obs_type == "cos_sin":
-      low = np.zeros((5,))
-      low[0] = x_min
-      low[1] = y_min
-      low[3] = -1.
-      low[4] = -1.
-      high = np.zeros((5,))
-      high[0] = x_max
-      high[1] = y_max
-      high[2] = config_agent.V_MAX
-      high[3] = 1.
-      high[4] = 1.
-    else:
-      raise ValueError("Observation type {} is not supported!")
-    self.observation_space = spaces.Box(
-        low=np.float32(low), high=np.float32(high)
-    )
-    self.obs_dim = self.observation_space.low.shape[0]
-
-    # Visualization.
     self.visual_bounds = np.array([[x_min, x_max], [y_min, y_max]])
     self.visual_extent = np.array([
         self.visual_bounds[0, 0], self.visual_bounds[0, 1],
         self.visual_bounds[1, 0], self.visual_bounds[1, 1]
     ])
+    self.build_obs_rst_space(config_env, config_agent)
     self.seed(config_env.SEED)
     self.reset()
+
+  @abstractmethod
+  def build_obs_rst_space(self, config_env: Any, config_agent: Any):
+    raise NotImplementedError
 
   def seed(self, seed: int = 0):
     super().seed(seed)
     self.reset_sample_sapce.seed(seed)
-
-  def reset(
-      self, state: Optional[np.ndarray] = None, cast_torch: bool = False,
-      **kwargs
-  ) -> Union[np.ndarray, torch.FloatTensor]:
-    """
-    Resets the environment and returns the new state.
-
-    Args:
-        state (Optional[np.ndarray], optional): reset to this state if
-            provided. Defaults to None.
-        cast_torch (bool): cast state to torch if True.
-
-    Returns:
-        np.ndarray: the new state of the shape (4, ).
-    """
-    super().reset()
-    if state is None:
-      state = self.reset_sample_sapce.sample()
-      state[:2], slope = self.track.local2global(state[:2], return_slope=True)
-      direction = 1
-      if self.rng.random() > 0.5:
-        direction = -1
-      state[3] = np.mod(direction*slope + state[3], 2 * np.pi)
-    self.state = state.copy()
-
-    obs = self.get_obs(state)
-    if cast_torch:
-      obs = torch.FloatTensor(obs)
-    return obs
 
   def get_samples(self, nx: int, ny: int) -> Tuple[np.ndarray, np.ndarray]:
     """Gets state samples for value function plotting.
@@ -208,33 +134,14 @@ class RaceCarSingleEnv(BaseSingleEnv):
       for obs_list_j in self.constraints.obs_list:
         obs_list_j[0].plot(ax, color=c_obs, plot_center=False)
 
-  def update_obs(self, obs_list: List[List[Ellipse]]):
+  def update_obstacle(self, obs_list: List[List[Ellipse]]):
     """Updates the obstacles.
 
     Args:
         obs_list (List[List[Ellipse]]): a list of ellipse lists. Each Ellipse
         in the list is an obstacle at each time step.
     """
-    self.constraints.update_obs(obs_list)
-
-  def get_obs(self, state: np.ndarray) -> np.ndarray:
-    """Gets the observation given the state.
-
-    Args:
-        state (np.ndarray): state of the shape (4, ).
-
-    Returns:
-        np.ndarray: observation. It can be the state or uses cos theta and
-            sin theta to represent yaw.
-    """
-    if self.obs_type == 'perfect':
-      return state
-    else:
-      _state = np.zeros(5)
-      _state[:3] = state[:3]
-      _state[3] = np.cos(state[3])
-      _state[4] = np.sin(state[3])
-      return _state
+    self.constraints.update_obstacle(obs_list)
 
   def get_cost(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray,
@@ -243,9 +150,10 @@ class RaceCarSingleEnv(BaseSingleEnv):
     """Gets the cost given current state, current action, and next state.
 
     Args:
-        state (np.ndarray): current states of the shape (4, N).
+        state (np.ndarray): current states of the shape (dim_x, N).
         action (np.ndarray): current actions of the shape (2, N).
-        state_nxt (np.ndarray): next state or final state of the shape (4, ).
+        state_nxt (np.ndarray): next state or final state of the shape
+            (dim_x, ).
         constraints (Dict): each (key, value) pair is the name and value of a
             constraint function.
 
@@ -305,9 +213,10 @@ class RaceCarSingleEnv(BaseSingleEnv):
     action, and next state.
 
     Args:
-        state (np.ndarray): current states of the shape (4, N).
+        state (np.ndarray): current states of the shape (dim_x), N).
         action (np.ndarray): current actions of the shape (2, N).
-        state_nxt (np.ndarray): next state or final state of the shape (4, ).
+        state_nxt (np.ndarray): next state or final state of the shape
+            (dim_x, ).
 
     Returns:
         Dict: each (key, value) pair is the name of a constraint function and
@@ -331,9 +240,10 @@ class RaceCarSingleEnv(BaseSingleEnv):
     action, and next state.
 
     Args:
-        state (np.ndarray): current states of the shape (4, N).
+        state (np.ndarray): current states of the shape (dim_x, N).
         action (np.ndarray): current actions of the shape (2, N).
-        state_nxt (np.ndarray): next state or final state of the shape (4, ).
+        state_nxt (np.ndarray): next state or final state of the shape
+            (dim_x, ).
 
     Returns:
         Dict: each (key, value) pair is the name and value of a target margin
@@ -497,16 +407,17 @@ class RaceCarSingleEnv(BaseSingleEnv):
     cost).
 
     Args:
-        state (np.ndarray): current states of the shape (4, N).
+        state (np.ndarray): current states of the shape (dim_x, N).
         action (np.ndarray): current actions of the shape (2, N).
-        state_nxt (np.ndarray): next state or final state of the shape (4, ).
+        state_nxt (np.ndarray): next state or final state of the shape
+            (dim_x, ).
 
     Returns:
-        np.ndarray: c_x of the shape (4, N).
-        np.ndarray: c_xx of the shape (4, 4, N).
+        np.ndarray: c_x of the shape (dim_x, N).
+        np.ndarray: c_xx of the shape (dim_x, dim_x, N).
         np.ndarray: c_u of the shape (2, N).
         np.ndarray: c_uu of the shape (2, 2, N).
-        np.ndarray: c_ux of the shape (2, 4, N).
+        np.ndarray: c_ux of the shape (2, dim_x, N).
     """
     states_with_final, actions_with_final = self._reshape(
         state, action, state_nxt
@@ -546,6 +457,7 @@ class RaceCarSingleEnv(BaseSingleEnv):
 
     return q, Q, r, R, S
 
+  @abstractmethod
   def _get_cost_state_derivative(
       self, states: np.ndarray, close_pts: np.ndarray, slopes: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
@@ -553,7 +465,7 @@ class RaceCarSingleEnv(BaseSingleEnv):
     Calculates Jacobian and Hessian of the cost function with respect to state.
 
     Args:
-        states (np.ndarray): planned trajectory, (4, N).
+        states (np.ndarray): planned trajectory, (dim_x, N).
         close_pts (np.ndarray): the position of the closest points on the
             centerline. This array should be of the shape (2, N).
         slopes (np.ndarray): the slope of of trangent line on those points.
@@ -563,28 +475,7 @@ class RaceCarSingleEnv(BaseSingleEnv):
         np.ndarray: Jacobian.
         np.ndarray: Hessian.
     """
-    ref_states, transform = self._get_ref_path_transform(close_pts, slopes)
-    num_pts = close_pts.shape[1]
-    zeros = np.zeros((num_pts))
-    sr = np.sin(slopes).reshape(-1)
-    cr = np.cos(slopes).reshape(-1)
-
-    error = states - ref_states
-    Q_trans = np.einsum(
-        'abn, bcn->acn',
-        np.einsum(
-            'dan, ab -> dbn', transform.transpose(1, 0, 2), self.W_state
-        ), transform
-    ) - self.track_offset
-
-    # shape [4xN]
-    c_x = 2 * np.einsum('abn, bn->an', Q_trans, error)
-
-    c_x_progress = -self.w_theta * np.array([cr, sr, zeros, zeros])
-    c_x = c_x + c_x_progress
-    c_xx = 2 * Q_trans
-
-    return c_x, c_xx
+    raise NotImplementedError
 
   def _get_cost_control_derivative(
       self, controls: np.ndarray
@@ -645,9 +536,10 @@ class RaceCarSingleEnv(BaseSingleEnv):
     Concatenates states with state_nxt and appends dummy control after action.
 
     Args:
-        state (np.ndarray): current states of the shape (4, N).
+        state (np.ndarray): current states of the shape (dim_x, N).
         action (np.ndarray): current actions of the shape (2, N).
-        state_nxt (np.ndarray): next state or final state of the shape (4, ).
+        state_nxt (np.ndarray): next state or final state of the shape
+            (dim_x, ).
 
     Returns:
         np.ndarray: states with the final state.
@@ -672,10 +564,6 @@ class RaceCarSingleEnv(BaseSingleEnv):
     return states_with_final, actions_with_final
 
   def report(self):
-    print(
-        "This is a Race Car simulator based on bicycle dynamics and "
-        + "ellipse footprint."
-    )
     target_criterion = ''
     has_prev = False
 

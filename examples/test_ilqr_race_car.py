@@ -11,7 +11,7 @@ from matplotlib import cm
 import imageio
 from IPython.display import Image
 
-from simulators import RaceCarSingleEnv, load_config
+from simulators import RaceCarSingleEnvV1, load_config
 from simulators.ell_reach.ellipse import Ellipse
 from simulators.ell_reach.plot_ellipsoids import plot_ellipsoids
 from utils import save_obj
@@ -31,23 +31,23 @@ ego_q = np.array([0, 5.6])[:, np.newaxis]
 ego_Q = np.diag([ego_a**2, ego_b**2])
 static_obs = Ellipse(q=ego_q, Q=ego_Q)
 
-env = RaceCarSingleEnv(config_env, config_agent)
+env = RaceCarSingleEnvV1(config_env, config_agent)
 
 pos0, psi0 = env.track.interp([2])  # The position and yaw on the track.
 x_cur = np.array([pos0[0], pos0[1], 0, psi0[-1]])
 env.reset(x_cur)
 
 static_obs_list = [static_obs for _ in range(2)]
-env.constraints.update_obs([static_obs_list])
+env.constraints.update_obstacle([static_obs_list])
 # endregion
 
 # region: Constructs placeholder and initializes iLQR
 config_env_imaginary = copy.deepcopy(config_env)
 config_env_imaginary.INTEGRATE_KWARGS = config_agent.AGENT_INTEGRATE_KWARGS
 config_env_imaginary.USE_SOFT_CONS_COST = config_agent.AGENT_USE_SOFT_CONS_COST
-env_imaginary = RaceCarSingleEnv(config_env_imaginary, config_agent)
+env_imaginary = RaceCarSingleEnvV1(config_env_imaginary, config_agent)
 static_obs_list = [static_obs for _ in range(config_solver.N)]
-env_imaginary.constraints.update_obs([static_obs_list])
+env_imaginary.constraints.update_obstacle([static_obs_list])
 env.agent.init_policy(
     policy_type="iLQR", env=env_imaginary, config=config_solver
 )

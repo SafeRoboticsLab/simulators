@@ -10,7 +10,7 @@ import numpy as np
 from .base_dynamics import BaseDynamics
 
 
-class BicycleDynamics(BaseDynamics):
+class BicycleDynamicsV1(BaseDynamics):
 
   def __init__(self, config: Any, action_space: np.ndarray) -> None:
     """
@@ -21,7 +21,7 @@ class BicycleDynamics(BaseDynamics):
         config (Any): an object specifies configuration.
         action_space (np.ndarray): action space.
     """
-    self.dim_x = 4  # [X, Y, V, psi].
+    self.dim_x = 4  # [x, y, v, psi].
     self.dim_u = 2  # [a, delta].
 
     # load parameters
@@ -43,7 +43,7 @@ class BicycleDynamics(BaseDynamics):
     control input.
 
     Args:
-        state (np.ndarray): (4, ) array [X, Y, V, psi].
+        state (np.ndarray): (4, ) array [x, y, v, psi].
         control (np.ndarray): (2, ) array [a, delta].
         num_segment (int, optional): The number of segements to forward the
             dynamics. Defaults to 1.
@@ -78,22 +78,21 @@ class BicycleDynamics(BaseDynamics):
       d_v = accel * dt_step
       d_psi = ((state_nxt[2] * dt_step + 0.5 * accel * dt_step**2)
                * np.tan(delta) / self.wheelbase)
-      state_nxt = state_nxt + np.array([d_x, d_y, d_v, d_psi])
+      state_nxt += np.array([d_x, d_y, d_v, d_psi])
 
       # Adds noises.
       if noise is not None:
-        transform_mtx = np.array([[
-            np.cos(state_nxt[-1]),
-            np.sin(state_nxt[-1]), 0, 0
-        ], [-np.sin(state_nxt[-1]),
-            np.cos(state_nxt[-1]), 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+        cos = np.cos(state_nxt[-1])
+        sin = np.sin(state_nxt[-1])
+        transform_mtx = np.array([[cos, sin, 0, 0], [-sin, cos, 0, 0],
+                                  [0, 0, 1, 0], [0, 0, 0, 1]])
         if noise_type == 'unif':
-          rv = (np.random.rand(4) - 0.5) * 2  # Maps to [-1, 1]
+          rv = (np.random.rand(self.dim_x) - 0.5) * 2  # Maps to [-1, 1]
         else:
-          rv = np.random.normal(size=(4))
+          rv = np.random.normal(size=(self.dim_x))
         state_nxt = state_nxt + (transform_mtx@noise) * rv / num_segment
 
-    state_nxt[-1] = np.mod(state_nxt[-1], 2 * np.pi)
+    state_nxt[3] = np.mod(state_nxt[3], 2 * np.pi)
     return state_nxt, control_clip
 
   def get_jacobian(
@@ -112,35 +111,32 @@ class BicycleDynamics(BaseDynamics):
         np.ndarray: the Jacobian of next state w.r.t. the current control.
     """
     self.N = nominal_states.shape[1]  # number of planning steps
-    self.zeros = np.zeros((self.N))
-    self.ones = np.ones((self.N))
+    zeros = np.zeros((self.N))
+    ones = np.ones((self.N))
 
     v = nominal_states[2, :]
     psi = nominal_states[3, :]
     accel = nominal_controls[0, :]
     delta = nominal_controls[1, :]
 
-    A = np.empty((4, 4, self.N), dtype=float)
+    A = np.empty((self.dim_x, self.dim_x, self.N), dtype=float)
     A[0, :, :] = [
-        self.ones, self.zeros,
+        ones, zeros,
         np.cos(psi) * self.dt,
         -(v * self.dt + 0.5 * accel * self.dt**2) * np.sin(psi)
     ]
     A[1, :, :] = [
-        self.zeros, self.ones,
+        zeros, ones,
         np.sin(psi) * self.dt,
         (v * self.dt + 0.5 * accel * self.dt**2) * np.cos(psi)
     ]
-    A[2, :, :] = [self.zeros, self.zeros, self.ones, self.zeros]
-    A[3, :, :] = [
-        self.zeros, self.zeros,
-        np.tan(delta) * self.dt / self.wheelbase, self.ones
-    ]
+    A[2, :, :] = [zeros, zeros, ones, zeros]
+    A[3, :, :] = [zeros, zeros, np.tan(delta) * self.dt / self.wheelbase, ones]
 
-    B = np.empty((4, 2, self.N), dtype=float)
-    B[0, :, :] = [self.dt**2 * np.cos(psi) / 2, self.zeros]
-    B[1, :, :] = [self.dt**2 * np.sin(psi) / 2, self.zeros]
-    B[2, :, :] = [self.dt * self.ones, self.zeros]
+    B = np.empty((self.dim_x, self.dim_u, self.N), dtype=float)
+    B[0, :, :] = [self.dt**2 * np.cos(psi) / 2, zeros]
+    B[1, :, :] = [self.dt**2 * np.sin(psi) / 2, zeros]
+    B[2, :, :] = [self.dt * ones, zeros]
     B[3, :, :] = [
         np.tan(delta) * self.dt**2 / (2 * self.wheelbase),
         (v * self.dt + 0.5 * accel * self.dt**2) /

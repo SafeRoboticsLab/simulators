@@ -45,7 +45,7 @@ environment:
   OBS_TYPE: perfect
 
 agent:
-  DYN: Bicycle
+  DYN: BicycleV1
   FOOTPRINT: Ellipse
   ACTION_RANGE:
     - [-3.5, 3.5]
