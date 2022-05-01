@@ -109,10 +109,11 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
         np.ndarray: observation. It can be the state or uses cos theta and
             sin theta to represent yaw.
     """
+    assert state.shape[0] == self.state_dim, ("State shape is incorrect!")
     if self.obs_type == 'perfect':
       return state.copy()
     else:
-      _state = np.zeros(self.state_dim)
+      _state = np.zeros(self.state_dim + 1)
       _state[:3] = state[:3].copy()  # x, y, v
       _state[3] = np.cos(state[3].copy())
       _state[4] = np.sin(state[3].copy())
