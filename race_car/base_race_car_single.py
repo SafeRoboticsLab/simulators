@@ -6,15 +6,13 @@ Authors: Kai-Chieh Hsu ( kaichieh@princeton.edu )
 from abc import abstractmethod
 from typing import Dict, Tuple, List, Any, Optional, Union
 import numpy as np
+import torch
 from matplotlib import pyplot as plt
 import matplotlib
-from gym import spaces
-import torch
 
 from ..base_single_env import BaseSingleEnv
 from ..ell_reach.ellipse import Ellipse
 from .track import Track
-from .constraints_bicycle_v1 import ConstraintsBicycleV1
 from .utils import get_centerline_from_traj
 
 
@@ -70,6 +68,56 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
   def seed(self, seed: int = 0):
     super().seed(seed)
     self.reset_sample_sapce.seed(seed)
+
+  def reset(
+      self, state: Optional[np.ndarray] = None, cast_torch: bool = False,
+      **kwargs
+  ) -> Union[np.ndarray, torch.FloatTensor]:
+    """
+    Resets the environment and returns the new state.
+
+    Args:
+        state (Optional[np.ndarray], optional): reset to this state if
+            provided. Defaults to None.
+        cast_torch (bool): cast state to torch if True.
+
+    Returns:
+        np.ndarray: the new state of the shape (dim_x, ).
+    """
+    super().reset()
+    if state is None:
+      state = self.reset_sample_sapce.sample()
+      state[:2], slope = self.track.local2global(state[:2], return_slope=True)
+      direction = 1
+      if self.rng.random() > 0.5:
+        direction = -1
+      state[3] = np.mod(direction*slope + state[3], 2 * np.pi)
+    self.state = state.copy()
+
+    obs = self.get_obs(state)
+    if cast_torch:
+      obs = torch.FloatTensor(obs)
+    return obs
+
+  def get_obs(self, state: np.ndarray) -> np.ndarray:
+    """Gets the observation given the state.
+
+    Args:
+        state (np.ndarray): state of the shape (dim_x, ).
+
+    Returns:
+        np.ndarray: observation. It can be the state or uses cos theta and
+            sin theta to represent yaw.
+    """
+    if self.obs_type == 'perfect':
+      return state.copy()
+    else:
+      _state = np.zeros(self.state_dim)
+      _state[:3] = state[:3].copy()  # x, y, v
+      _state[3] = np.cos(state[3].copy())
+      _state[4] = np.sin(state[3].copy())
+      _state[5:] = state[4:].copy()
+      return _state
 
   def get_samples(self, nx: int, ny: int) -> Tuple[np.ndarray, np.ndarray]:
     """Gets state samples for value function plotting.
@@ -498,9 +546,10 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
     c_uu[:, :, -1] = 0.
     return c_u, c_uu
 
+  @abstractmethod
   def _get_ref_path_transform(
       self, close_pts: np.ndarray, slopes: np.ndarray
-  ) -> Tuple[np.ndarray, np.ndarray]:
+  ) -> np.ndarray:
     """
     Gets the reference path and the transformation form the global frame to the
     local frame with the origin at the closest points.
@@ -512,22 +561,11 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
             This vector should be of the shape (1, N).
 
     Returns:
-        np.ndarray: _description_
+        np.ndarray: reference path (x position, y position, and velocity)
+        np.ndarray: transformation matrix from state error to contour and
+            velocity error
     """
-    num_pts = close_pts.shape[1]
-    zeros = np.zeros((num_pts))
-    ones = np.ones((num_pts))
-    slopes = slopes.reshape(-1)
-
-    transform = np.array([[np.sin(slopes), -np.cos(slopes), zeros, zeros],
-                          [zeros, zeros, ones, zeros]])
-
-    ref_states = np.zeros((self.agent.dyn.dim_x, num_pts))
-    ref_states[0, :] = close_pts[0, :] + np.sin(slopes) * self.track_offset
-    ref_states[1, :] = close_pts[1, :] - np.cos(slopes) * self.track_offset
-    ref_states[2, :] = self.v_ref
-
-    return ref_states, transform
+    raise NotImplementedError
 
   def _reshape(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray

@@ -5,14 +5,10 @@ Authors:  Zixu Zhang ( zixuz@princeton.edu )
 """
 
 from __future__ import annotations
-from typing import List, Any, Optional, Tuple
+from typing import Any, Tuple
 import numpy as np
 
 from .base_constraints import BaseConstraints
-from ..ell_reach.ellipse import Ellipse
-from ..utils import barrier_function
-
-# TODO: We currently only support Ellipse obstacles.
 
 
 class ConstraintsBicycleV1(BaseConstraints):
@@ -30,10 +26,10 @@ class ConstraintsBicycleV1(BaseConstraints):
 
   def _lat_accel_cons(self, states: np.ndarray,
                       controls: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """Computes the road boundary constraint.
+    """Computes the lateral acceleration constraint.
 
     Args:
-        states (np.ndarray): of the shape (dim_x, N).
+        states (np.ndarray): of the shape (4, N).
         controls (np.ndarray): of the shape (2, N).
 
     Returns:
@@ -54,7 +50,7 @@ class ConstraintsBicycleV1(BaseConstraints):
         cost.
 
     Args:
-        states (np.ndarray): of the shape (dim_x, N).
+        states (np.ndarray): of the shape (4, N).
         controls (np.ndarray): of the shape (2, N).
         cons_a_lat_min (np.ndarray): constarint value of the minimum lateral
             acceleration.
@@ -62,11 +58,11 @@ class ConstraintsBicycleV1(BaseConstraints):
             acceleration.
 
     Returns:
-        np.ndarray: c_x of the shape (dim_x, N).
-        np.ndarray: c_xx of the shape (dim_x, dim_x, N).
+        np.ndarray: c_x of the shape (4, N).
+        np.ndarray: c_xx of the shape (4, 4, N).
         np.ndarray: c_u of the shape (2, N).
         np.ndarray: c_uu of the shape (2, 2, N).
-        np.ndarray: c_ux of the shape (2, dim_x, N).
+        np.ndarray: c_ux of the shape (2, 4, N).
     """
     cost_a_lat_min = self.q1_lat * (
         np.exp(np.clip(self.q2_lat * cons_a_lat_min, None, self.barrier_thr))

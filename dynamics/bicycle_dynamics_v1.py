@@ -82,6 +82,7 @@ class BicycleDynamicsV1(BaseDynamics):
 
       # Adds noises.
       if noise is not None:
+        assert noise.shape[0] == self.dim_x, ("Noise dim. is incorrect!")
         cos = np.cos(state_nxt[-1])
         sin = np.sin(state_nxt[-1])
         transform_mtx = np.array([[cos, sin, 0, 0], [-sin, cos, 0, 0],

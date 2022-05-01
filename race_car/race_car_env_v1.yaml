@@ -8,7 +8,7 @@ environment:
   TRACK_WIDTH_LEFT: 0.3
   TRACK_OFFSET: 0.15
   # LOOP: true
-  TIMEOUT: 150
+  TIMEOUT: 100
   # CONSTRAINT PARAM
   Q1_V: 2.
   Q2_V: 10.
@@ -67,8 +67,6 @@ agent:
   # CONSTRAINT
   V_MIN: -0.01
   V_MAX: 2.
-  DELTA_MIN: -0.35  # rad
-  DELTA_MAX: 0.35
   A_MIN: -3.5
   A_MAX: 3.5
   ALAT_MAX: 5.
@@ -76,4 +74,5 @@ agent:
 solver:
   N: 11
   MAX_ITER: 50
-  MAX_ITER_RECEDING: 150
+  MAX_ITER_RECEDING: 80
+  OUT_FOLDER: /Users/kaichieh/Desktop/LINC/experiments/liqr_v1/

@@ -152,7 +152,8 @@ class BaseConstraints(ABC):
   def get_soft_cons_cost(
       self, footprint: Ellipse, states: np.ndarray, controls: np.ndarray,
       close_pts: Optional[np.ndarray] = None,
-      slopes: Optional[np.ndarray] = None, cons_dict: Optional[dict] = None
+      slopes: Optional[np.ndarray] = None, cons_dict: Optional[dict] = None,
+      return_cons_dict: Optional[bool] = False
   ) -> np.ndarray:
     """
     Gets the barrier cost of constraint function values given the interested
@@ -203,11 +204,14 @@ class BaseConstraints(ABC):
       c_obs = np.sum(barrier, axis=0)
       c_obs = c_obs * discount
 
+    if return_cons_dict:
+      return c_road + c_vel + c_lat + c_obs, cons_dict
     return c_road + c_vel + c_lat + c_obs
 
   def get_derivatives(
       self, footprint: Ellipse, states: np.ndarray, controls: np.ndarray,
-      close_pts: np.ndarray, slopes: np.ndarray
+      close_pts: np.ndarray, slopes: np.ndarray,
+      return_cons_dict: Optional[bool] = False
   ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Calculates the Jacobian and Hessian of soft constraint cost given the
@@ -222,6 +226,8 @@ class BaseConstraints(ABC):
             centerline. This array is of the shape (2, N).
         slopes (np.ndarray): the slope of of trangent line on those points.
             This vector is of the shape (1, N).
+        return_cons_dict (bool, optional): returns cons dict if True. Defaults
+            to False.
 
     Returns:
         np.ndarray: c_x of the shape (dim_x, N).
@@ -229,6 +235,7 @@ class BaseConstraints(ABC):
         np.ndarray: c_u of the shape (2, N).
         np.ndarray: c_uu of the shape (2, 2, N).
         np.ndarray: c_ux of the shape (2, dim_x, N).
+        dict: constraint dictionary.
     """
     self._check_input(states, controls, close_pts, slopes)
 
@@ -238,12 +245,12 @@ class BaseConstraints(ABC):
 
     # Road bound constraints.
     c_x_rd, c_xx_rd = self._road_boundary_derivative(
-        states, slopes, cons_dict['cons_road_l'], cons_dict['cons_road_r']
+        slopes, cons_dict['cons_road_l'], cons_dict['cons_road_r']
     )
 
     # Velocity constraints.
     c_x_vel, c_xx_vel = self._velocity_bound_derivative(
-        states, cons_dict['cons_v_min'], cons_dict['cons_v_max']
+        cons_dict['cons_v_min'], cons_dict['cons_v_max']
     )
 
     # Lateral acceleration constraints.
@@ -269,6 +276,8 @@ class BaseConstraints(ABC):
     c_uu_cons = c_uu_lat
     c_ux_cons = c_ux_lat
 
+    if return_cons_dict:
+      return c_x_cons, c_xx_cons, c_u_cons, c_uu_cons, c_ux_cons, cons_dict
     return c_x_cons, c_xx_cons, c_u_cons, c_uu_cons, c_ux_cons
 
   def _road_boundary_cons(
@@ -412,16 +421,13 @@ class BaseConstraints(ABC):
     return barrier
 
   def _road_boundary_derivative(
-      self, states: np.ndarray, slopes: np.ndarray, cons_road_l: np.ndarray,
+      self, slopes: np.ndarray, cons_road_l: np.ndarray,
       cons_road_r: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Calculates the Jacobian and Hessian of road boundary soft constraint cost.
 
     Args:
-        states (np.ndarray): of the shape (dim_x, N).
-        close_pts (np.ndarray): the position of the closest points on the
-            centerline. This array is of the shape (2, N).
         slopes (np.ndarray): the slope of of trangent line on those points.
             This vector is of the shape (1, N).
         cons_road_l (np.ndarray): constarint value of the left road boundary.
@@ -434,7 +440,7 @@ class BaseConstraints(ABC):
     cons_road_l = cons_road_l.reshape(-1)
     cons_road_r = cons_road_r.reshape(-1)
 
-    N = states.shape[-1]
+    N = slopes.shape[-1]
     sr = np.sin(slopes).reshape(-1)
     cr = np.cos(slopes).reshape(-1)
     transform = np.array([sr, -cr])  # (2, N).
@@ -480,13 +486,11 @@ class BaseConstraints(ABC):
     return c_x_r + c_x_l, c_xx_r + c_xx_l
 
   def _velocity_bound_derivative(
-      self, states: np.ndarray, cons_v_min: np.ndarray, cons_v_max: np.ndarray
+      self, cons_v_min: np.ndarray, cons_v_max: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Calculates the Jacobian and Hessian of velocity soft constraint cost.
+    """Calculates the Jacobian and Hessian of velocity soft constraint cost.
 
     Args:
-        states (np.ndarray): of the shape (dim_x, N).
         cons_v_min (np.ndarray): constarint value of the minimum velocity.
         cons_v_max (np.ndarray): constarint value of the maximum velocity.
 
@@ -494,7 +498,7 @@ class BaseConstraints(ABC):
         np.ndarray: c_x of the shape (dim_x, N).
         np.ndarray: c_xx of the shape (dim_x, dim_x, N).
     """
-    N = states.shape[1]
+    N = cons_v_min.shape[1]
     transform = np.ones((1, N))
     c_x = np.zeros((self.dim_x, N))
     c_xx = np.zeros((self.dim_x, self.dim_x, N))
@@ -573,6 +577,32 @@ class BaseConstraints(ABC):
       c_xx[:, :, i] = np.sum(_c_xx[:, :, start:end], axis=-1)
 
     return c_x, c_xx
+
+  @abstractmethod
+  def _lat_accel_bound_derivative(
+      self, states: np.ndarray, controls: np.ndarray,
+      cons_a_lat_min: np.ndarray, cons_a_lat_max: np.ndarray
+  ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Calculates the Jacobian and Hessian of Lateral Acceleration soft constraint
+        cost.
+
+    Args:
+        states (np.ndarray): of the shape (dim_x, N).
+        controls (np.ndarray): of the shape (2, N). Not used in bicycle V2.
+        cons_a_lat_min (np.ndarray): constarint value of the minimum lateral
+            acceleration.
+        cons_a_lat_max (np.ndarray): constarint value of the maximum lateral
+            acceleration.
+
+    Returns:
+        np.ndarray: c_x of the shape (dim_x, N).
+        np.ndarray: c_xx of the shape (dim_x, dim_x, N).
+        np.ndarray: c_u of the shape (2, N).
+        np.ndarray: c_uu of the shape (2, 2, N).
+        np.ndarray: c_ux of the shape (2, dim_x, N).
+    """
+    raise NotImplementedError
 
   def _check_input(
       self, states: np.ndarray, controls: np.ndarray, close_pts: np.ndarray,
