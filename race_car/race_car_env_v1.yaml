@@ -4,24 +4,24 @@ environment:
   NUM_AGENTS: 1
   # TRACK
   TRACK_FILE: /Users/kaichieh/Desktop/LINC/simulators/race_car/outerloop_center_smooth.csv
-  TRACK_WIDTH_RIGHT: 0.3
-  TRACK_WIDTH_LEFT: 0.3
-  TRACK_OFFSET: 0.15
+  TRACK_WIDTH_RIGHT: 0.6
+  TRACK_WIDTH_LEFT: 0.6
+  TRACK_OFFSET: 0.4
   # LOOP: true
   TIMEOUT: 100
   # CONSTRAINT PARAM
   Q1_V: 2.
   Q2_V: 10.
-  Q1_ROAD: 2.
-  Q2_ROAD: 10.
-  Q1_LAT: 5.
+  Q1_ROAD: 10.
+  Q2_ROAD: 20.
+  Q1_LAT: 2.
   Q2_LAT: 10.
   Q1_OBS: 5.
-  Q2_OBS: 10.
-  OBS_COST_GAMMA: 0.9
+  Q2_OBS: 20.
+  OBS_COST_GAMMA: 1.
   # COST PARAM
-  W_VEL: 4.
-  W_CONTOUR: 30.
+  W_VEL: 1.
+  W_CONTOUR: 2.
   W_THETA: 0.
   W_ACCEL: 0.1
   W_DELTA: 0.1
@@ -72,7 +72,7 @@ agent:
   ALAT_MAX: 5.
 
 solver:
-  N: 11
+  N: 16
   MAX_ITER: 50
-  MAX_ITER_RECEDING: 80
+  MAX_ITER_RECEDING: 100
   OUT_FOLDER: /Users/kaichieh/Desktop/LINC/experiments/liqr_v1/

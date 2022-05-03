@@ -30,9 +30,20 @@ def main(config_file):
   # Constructs a static obstacle.
   ego_a = config_agent.LENGTH / 2.0
   ego_b = config_agent.WIDTH / 2.0
-  ego_q = np.array([0, 5.6])[:, np.newaxis]
   ego_Q = np.diag([ego_a**2, ego_b**2])
-  static_obs = Ellipse(q=ego_q, Q=ego_Q)
+
+  ego_q1 = np.array([0, 5.6])[:, np.newaxis]
+  static_obs1 = Ellipse(q=ego_q1, Q=ego_Q)
+
+  ego_q2 = np.array([1.5, 5.2])[:, np.newaxis]
+  static_obs2 = Ellipse(q=ego_q2, Q=ego_Q)
+
+  ego_q3 = np.array([-2.7, 4.])[:, np.newaxis]
+  ego_Q3 = np.diag([(ego_b * 0.8)**2, ego_a**2])
+  static_obs3 = Ellipse(q=ego_q3, Q=ego_Q3)
+
+  obs_object = [static_obs1, static_obs2, static_obs3]
+  num_obs = len(obs_object)
 
   if config_agent.DYN == "BicycleV1":
     env_class = RaceCarSingleEnvV1
@@ -45,14 +56,21 @@ def main(config_file):
   env.report()
 
   pos0, psi0 = env.track.interp([2])  # The position and yaw on the track.
+  pos0 = pos0[:, 0]
+  psi0 = psi0[0]
+  psi0 = np.mod(psi0 + np.pi, 2 * np.pi)
   if config_agent.DYN == "BicycleV1":
-    x_cur = np.array([pos0[0], pos0[1], 0., psi0[-1]])
+    x_cur = np.array([pos0[0], pos0[1], 0., psi0])
   elif config_agent.DYN == "BicycleV2":
-    x_cur = np.array([pos0[0], pos0[1], 0., psi0[-1], 0.])
+    x_cur = np.array([pos0[0], pos0[1], 0., psi0, 0.])
   env.reset(x_cur)
 
-  static_obs_list = [static_obs for _ in range(2)]
-  env.constraints.update_obstacle([static_obs_list])
+  obs_list = []
+  obs_list_2 = []
+  for i in range(num_obs):
+    obs_list.append([obs_object[i], obs_object[i]])
+    obs_list_2.append([obs_object[i] for _ in range(config_solver.N)])
+  env.constraints.update_obstacle(obs_list)
   # endregion
 
   # region: Constructs placeholder and initializes iLQR
@@ -60,8 +78,7 @@ def main(config_file):
   config_env_imag.INTEGRATE_KWARGS = config_agent.AGENT_INTEGRATE_KWARGS
   config_env_imag.USE_SOFT_CONS_COST = config_agent.AGENT_USE_SOFT_CONS_COST
   env_imaginary = env_class(config_env_imag, config_agent)
-  static_obs_list = [static_obs for _ in range(config_solver.N)]
-  env_imaginary.constraints.update_obstacle([static_obs_list])
+  env_imaginary.constraints.update_obstacle(obs_list_2)
   env.agent.init_policy(
       policy_type="iLQR", env=env_imaginary, config=config_solver
   )
@@ -85,9 +102,13 @@ def main(config_file):
 
     # track.
     env.track.plot_track(ax, c=c_track)
+    obs_to_plot = []
+    if env.constraints.obs_list is not None:
+      for obs_list_j in env.constraints.obs_list:
+        obs_to_plot.append(obs_list_j[0])
     plot_ellipsoids(
-        ax, static_obs_list[0:1], arg_list=[dict(c=c_obs, linewidth=1.)],
-        dims=[0, 1], N=50, plot_center=False, use_alpha=True
+        ax, obs_to_plot, arg_list=[dict(c=c_obs, linewidth=1.)], dims=[0, 1],
+        N=50, plot_center=False
     )
 
     # agent.
@@ -133,9 +154,13 @@ def main(config_file):
     for ax in axes:
       # track.
       env.track.plot_track(ax, c=c_track)
+      obs_to_plot = []
+      if env.constraints.obs_list is not None:
+        for obs_list_j in env.constraints.obs_list:
+          obs_to_plot.append(obs_list_j[0])
       plot_ellipsoids(
-          ax, static_obs_list[0:1], arg_list=[dict(c=c_obs, linewidth=1.)],
-          dims=[0, 1], N=50, plot_center=False, use_alpha=True
+          ax, obs_to_plot, arg_list=[dict(c=c_obs, linewidth=1.)], dims=[0, 1],
+          N=50, plot_center=False
       )
 
       # agent.

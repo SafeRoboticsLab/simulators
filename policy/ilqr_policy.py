@@ -22,11 +22,11 @@ class iLQR(BasePolicy):
     self.env = copy.deepcopy(env)
 
     self.tol = 1e-3  # ILQR update tolerance.
-    self.eps = 10  # Numerical stability for Q inverse.
-    self.eps_max = 100
+    self.eps = 0.01  # Numerical stability for Q inverse.
+    self.eps_max = 10
     self.eps_min = 1e-3
 
-    self.alphas = 1.1**(-np.arange(10)**2)  # Stepsize scheduler.
+    self.alphas = 1.1**(-np.arange(20)**2)  # Stepsize scheduler.
 
   def get_action(
       self, state: np.ndarray, controls: Optional[np.ndarray] = None, **kwargs
