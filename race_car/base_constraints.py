@@ -552,7 +552,7 @@ class BaseConstraints(ABC):
           continue
         obs_j_i = obs_list_j[i]
 
-        self_circ_idx, obs_j_circ_idx = obs_circ_idx[:, j, i]
+        obs_j_circ_idx, self_circ_idx = obs_circ_idx[:, j, i]
         pos_along_major_axis = centers_with_wheelbase[self_circ_idx]
         self_center = (
             pos_along_major_axis * np.array([cos_theta, sin_theta]) + state[:2]
