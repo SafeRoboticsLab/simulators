@@ -32,6 +32,7 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
         loop=getattr(config_env, 'LOOP', True)
     )
     self.track_offset = config_env.TRACK_OFFSET
+    self.reset_thr = getattr(config_env, "RESET_THR", 0.)
 
     # Cost.
     self.w_vel = config_env.W_VEL
@@ -57,9 +58,8 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
         self.visual_bounds[0, 0], self.visual_bounds[0, 1],
         self.visual_bounds[1, 0], self.visual_bounds[1, 1]
     ])
-    self.build_obs_rst_space(config_env, config_agent)
-    self.seed(config_env.SEED)
-    self.reset()
+    self.step_keep_constraints = False
+    self.step_keep_targets = False
 
   @abstractmethod
   def build_obs_rst_space(self, config_env: Any, config_agent: Any):
@@ -77,17 +77,25 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
     Resets the environment and returns the new state.
 
     Args:
-        state (Optional[np.ndarray], optional): reset to this state if
-            provided. Defaults to None.
-        cast_torch (bool): cast state to torch if True.
+        state (np.ndarray, optional): reset to this state if provided. Defaults
+            to None.
+        cast_torch (bool, optional): cast state to torch if True. Defaults to
+            False.
 
     Returns:
         np.ndarray: the new state of the shape (dim_x, ).
     """
     super().reset()
     if state is None:
-      state = self.reset_sample_sapce.sample()
-      state[:2], slope = self.track.local2global(state[:2], return_slope=True)
+      reset_flag = True
+      while reset_flag:
+        state = self.reset_sample_sapce.sample()
+        state[:2], slope = self.track.local2global(
+            state[:2], return_slope=True
+        )
+        reset_flag = not (
+            self.check_on_track(state[:2, np.newaxis], thr=self.reset_thr)[0]
+        )
       direction = 1
       if self.rng.random() > 0.5:
         direction = -1
@@ -135,11 +143,12 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
     ys = np.linspace(self.visual_bounds[1, 0], self.visual_bounds[1, 1], ny)
     return xs, ys
 
-  def check_on_track(self, states: np.ndarray) -> np.ndarray:
+  def check_on_track(self, states: np.ndarray, thr: float = 0.) -> np.ndarray:
     """Checks if the state is on the track (considering footprint).
 
     Args:
         states (np.ndarray): (x, y) positions, should be (2, N).
+        thr(float, optional): threshold to boundary. Defaults to 0.
 
     Returns:
         np.ndarray: a bool array of shape (N, ). True if the agent is on the
@@ -155,7 +164,7 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
         self.agent.footprint, states, close_pts, slopes
     )
 
-    flags = np.logical_and(cons_road_l <= 0, cons_road_r <= 0)
+    flags = np.logical_and(cons_road_l <= thr, cons_road_r <= thr)
     return flags.reshape(-1)
 
   def render(
@@ -326,17 +335,23 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
 
     # reference yaw
     if self.target_yaw is not None:
-      slopes2 = np.mod(slopes + np.pi, np.pi * 2)
-      yaw_error1 = states_with_final[3:4, :] - slopes  # counter-clockwise
-      yaw_error2 = states_with_final[3:4, :] - slopes2  # clockwise
+      # slopes2 = np.mod(slopes + np.pi, np.pi * 2)
+      # yaw_error1 = states_with_final[3:4, :] - slopes  # counter-clockwise
+      # yaw_error2 = states_with_final[3:4, :] - slopes2  # clockwise
 
-      yaw_margin1 = np.maximum(  # [slopes+target[0], slopes+target[1]]
-          yaw_error1 - self.target_yaw[1], self.target_yaw[0] - yaw_error1
+      # yaw_margin1 = np.maximum(  # [slopes+target[0], slopes+target[1]]
+      #     yaw_error1 - self.target_yaw[1], self.target_yaw[0] - yaw_error1
+      # )
+      # yaw_margin2 = np.maximum(  # [-slopes-target[1], -slopes-target[0]]
+      #     yaw_error2 + self.target_yaw[0], -self.target_yaw[1] - yaw_error2
+      # )
+      # yaw_margin = np.minimum(yaw_margin1, yaw_margin2)
+      tan_yaw = np.tan(states_with_final[3:4, :])
+      tan_slopes = np.tan(slopes)
+      theta_diff = np.abs(
+          np.arctan((tan_yaw-tan_slopes) / (1 + tan_yaw*tan_slopes))
       )
-      yaw_margin2 = np.maximum(  # [-slopes-target[1], -slopes-target[0]]
-          yaw_error2 + self.target_yaw[0], -self.target_yaw[1] - yaw_error2
-      )
-      yaw_margin = np.minimum(yaw_margin1, yaw_margin2)
+      yaw_margin = theta_diff - self.target_yaw
       yaw_margin[yaw_margin < 0] *= self.target_yaw_amp
       targets['yaw'] = yaw_margin
 
@@ -446,6 +461,10 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
         "l_x": l_x,
         "binary_cost": binary_cost
     }
+    if self.step_keep_constraints:
+      info['constraints'] = constraints
+    if self.step_keep_targets:
+      info['targets'] = targets
     return done, info
 
   def get_derivatives(

@@ -25,18 +25,23 @@ class RaceCarSingleEnvV1(BaseRaceCarSingleEnv):
     self.W_control[0, 0] = self.w_accel
     self.W_control[1, 1] = self.w_delta
 
+    self.build_obs_rst_space(config_env, config_agent)
+    self.seed(config_env.SEED)
+    self.reset()
+
   def build_obs_rst_space(self, config_env: Any, config_agent: Any):
     # Reset Sample Space. Note that the first two dimension is in the local
     # frame and it needs to call track.local2global() to get the (x, y)
     # position in the global frame.
     low = np.zeros((self.state_dim,))
     low[1] = -config_env.TRACK_WIDTH_LEFT + config_agent.WIDTH * 3 / 4
-    low[3] = -np.pi / 4
+    low[2] = config_agent.V_MIN / 0.8
+    low[3] = -np.pi * 20 / 180
     high = np.zeros((self.state_dim,))
     high[0] = 1.
     high[1] = config_env.TRACK_WIDTH_RIGHT - config_agent.WIDTH * 3 / 4
-    high[2] = config_agent.V_MAX
-    high[3] = np.pi / 4
+    high[2] = config_agent.V_MAX * 0.8
+    high[3] = np.pi * 20 / 180
     self.reset_sample_sapce = spaces.Box(
         low=np.float32(low), high=np.float32(high)
     )
@@ -49,6 +54,7 @@ class RaceCarSingleEnvV1(BaseRaceCarSingleEnv):
       low = np.zeros((self.state_dim,))
       low[0] = x_min
       low[1] = y_min
+      low[2] = config_agent.V_MIN
       high = np.zeros((self.state_dim,))
       high[0] = x_max
       high[1] = y_max
@@ -58,6 +64,7 @@ class RaceCarSingleEnvV1(BaseRaceCarSingleEnv):
       low = np.zeros((self.state_dim + 1,))
       low[0] = x_min
       low[1] = y_min
+      low[2] = config_agent.V_MIN
       low[3] = -1.
       low[4] = -1.
       high = np.zeros((self.state_dim + 1,))
