@@ -111,7 +111,7 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
     """Gets the observation given the state.
 
     Args:
-        state (np.ndarray): state of the shape (dim_x, ).
+        state (np.ndarray): state of the shape (dim_x, ) or  (dim_x, N).
 
     Returns:
         np.ndarray: observation. It can be the state or uses cos theta and
@@ -121,11 +121,18 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
     if self.obs_type == 'perfect':
       return state.copy()
     else:
-      _state = np.zeros(self.state_dim + 1)
-      _state[:3] = state[:3].copy()  # x, y, v
-      _state[3] = np.cos(state[3].copy())
-      _state[4] = np.sin(state[3].copy())
-      _state[5:] = state[4:].copy()
+      if state.ndim == 1:
+        _state = np.zeros(self.state_dim + 1)
+        _state[:3] = state[:3].copy()  # x, y, v
+        _state[3] = np.cos(state[3].copy())
+        _state[4] = np.sin(state[3].copy())
+        _state[5:] = state[4:].copy()
+      else:
+        _state = np.zeros((self.state_dim + 1, state.shape[1]))
+        _state[:3, :] = state[:3, :].copy()  # x, y, v
+        _state[3, :] = np.cos(state[3, :].copy())
+        _state[4, :] = np.sin(state[3, :].copy())
+        _state[5:, :] = state[4:, :].copy()
       return _state
 
   def get_samples(self, nx: int, ny: int) -> Tuple[np.ndarray, np.ndarray]:
