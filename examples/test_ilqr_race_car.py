@@ -248,7 +248,7 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument(
       "-cf", "--config_file", help="config file path", type=str,
-      default=os.path.join("simulators", "race_car", "race_car_env_v1.yaml")
+      default=os.path.join("simulators", "race_car", "race_car_env_v2.yaml")
   )
   args = parser.parse_args()
   main(args.config_file)
