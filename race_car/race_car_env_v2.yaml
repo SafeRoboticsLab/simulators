@@ -4,45 +4,54 @@ environment:
   NUM_AGENTS: 1
   # TRACK
   TRACK_FILE: /Users/kaichieh/Desktop/LINC/simulators/race_car/outerloop_center_smooth.csv
-  TRACK_WIDTH_RIGHT: 0.3
-  TRACK_WIDTH_LEFT: 0.3
-  TRACK_OFFSET: 0.15
+  TRACK_WIDTH_RIGHT: 0.6
+  TRACK_WIDTH_LEFT: 0.6
+  TRACK_OFFSET: 0.4
   # LOOP: true
-  TIMEOUT: 150
+  TIMEOUT: 100
   # CONSTRAINT PARAM
-  Q1_V: 2.
+  Q1_V: 1.
   Q2_V: 10.
-  Q1_ROAD: 2.
+  Q1_ROAD: 5.
   Q2_ROAD: 10.
-  Q1_LAT: 5.
+  Q1_LAT: 1.
   Q2_LAT: 10.
   Q1_OBS: 5.
   Q2_OBS: 10.
-  GAMMA: 0.9
+  Q1_DELTA: 1.
+  Q2_DELTA: 10.
+  OBS_COST_GAMMA: 1.
   # COST PARAM
-  W_VEL: 4.
-  W_CONTOUR: 30.
+  W_VEL: 2.
+  W_CONTOUR: 4.
   W_THETA: 0.
   W_ACCEL: 0.1
-  W_DELTA: 0.1
+  W_OMEGA: 0.1
   V_REF: 2.
   USE_SOFT_CONS_COST: False
   # DONE FLAG PARAM
   END_CRITERION: failure
   G_X_FAIL: 0.25
-  TARGET_AMP: 25
-  TARGET_VEL: 0.01
+  TARGET_VEL_AMP: 4
+  TARGET_VEL: 0.1
+  TARGET_PATH_AMP: null
+  TARGET_PATH: null
+  TARGET_YAW_AMP: 1
+  TARGET_YAW:
+    - -0.2
+    - 0.4
   INTEGRATE_KWARGS:  # keywords for integrate_forward used in the `real` env.
     num_segment: 10
-    noise: [0., 0., 0., 0.]
+    noise: [0., 0., 0., 0., 0.]
     noise_type: unif
+  OBS_TYPE: perfect
 
 agent:
-  DYN: Bicycle
+  DYN: BicycleV2
   FOOTPRINT: Ellipse
   ACTION_RANGE:
     - [-3.5, 3.5]
-    - [-0.35, 0.35]
+    - [-5., 5.]
   # CAR FOOTPRINT
   CENTER: 0.1285  # WHEELBASE/2
   WIDTH: 0.2
@@ -52,13 +61,13 @@ agent:
   WHEELBASE: 0.257
   DT: 0.1
   # for imaginary env
-  USE_SOFT_CONS_COST: True
-  INTEGRATE_KWARGS:  # keywords for integrate_forward used in the `imaginary` env.
+  AGENT_USE_SOFT_CONS_COST: True
+  AGENT_INTEGRATE_KWARGS:  # keywords for integrate_forward used in the `imaginary` env.
     num_segment: 10
-    noise: [0., 0., 0., 0.]
+    noise: [0., 0., 0., 0., 0.]
     noise_type: unif
   # CONSTRAINT
-  V_MIN: 0.
+  V_MIN: -0.01
   V_MAX: 2.
   DELTA_MIN: -0.35  # rad
   DELTA_MAX: 0.35
@@ -67,6 +76,7 @@ agent:
   ALAT_MAX: 5.
 
 solver:
-  N: 11
+  N: 21
   MAX_ITER: 50
-  MAX_ITER_RECEDING: 150
+  MAX_ITER_RECEDING: 100
+  OUT_FOLDER: /Users/kaichieh/Desktop/LINC/experiments/liqr_v2/

@@ -7,13 +7,13 @@ from typing import Optional, Tuple, Any
 import numpy as np
 
 # Dynamics.
-from .dynamics.bicycle_dynamics import BicycleDynamics
+from .dynamics.bicycle_dynamics_v1 import BicycleDynamicsV1
+from .dynamics.bicycle_dynamics_v2 import BicycleDynamicsV2
 
 # Footprint.
 from .ell_reach.ellipse import Ellipse
 
 # Policy.
-from .policy.base_policy import BasePolicy
 from .policy.ilqr_policy import iLQR
 from .policy.nn_policy import NeuralNetworkControlSystem
 
@@ -28,8 +28,12 @@ class Agent:
   """
 
   def __init__(self, config, action_space: np.ndarray) -> None:
-    if config.DYN == "Bicycle":
-      self.dyn = BicycleDynamics(config, action_space)
+    if config.DYN == "BicycleV1":
+      self.dyn = BicycleDynamicsV1(config, action_space)
+    elif config.DYN == "BicycleV2":
+      self.dyn = BicycleDynamicsV2(config, action_space)
+    else:
+      raise ValueError("Dynamics type not supported!")
 
     if config.FOOTPRINT == "Ellipse":
       ego_a = config.LENGTH / 2.0
