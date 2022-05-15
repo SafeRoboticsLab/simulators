@@ -27,6 +27,7 @@ class BaseSingleEnv(BaseEnv):
     self.action_space = spaces.Box(
         low=action_space[:, 0], high=action_space[:, 1]
     )
+    self.state_dim = self.agent.dyn.dim_x
 
     self.integrate_kwargs = getattr(config_env, "INTEGRATE_KWARGS", {})
     if "noise" in self.integrate_kwargs:
@@ -65,11 +66,15 @@ class BaseSingleEnv(BaseEnv):
 
     self.state = np.copy(state_nxt)
 
-    state = np.copy(state_nxt)
+    obs = self.get_obs(state_nxt)
     if cast_torch:
-      state = torch.FloatTensor(state)
+      obs = torch.FloatTensor(obs)
 
-    return state, -cost, done, info
+    return obs, -cost, done, info
+
+  @abstractmethod
+  def get_obs(self, state: np.ndarray) -> np.ndarray:
+    raise NotImplementedError
 
   @abstractmethod
   def get_cost(
@@ -202,27 +207,27 @@ class BaseSingleEnv(BaseEnv):
     if self.agent.policy.policy_type == "iLQR":
       init_control = np.zeros((self.action_dim, self.agent.policy.N - 1))
     result = 0
-    x_cur = self.reset(**reset_kwargs)
-    state_hist.append(x_cur)
+    obs = self.reset(**reset_kwargs)
+    state_hist.append(self.state)
 
     for t in range(T_rollout):
       # Gets action.
       if self.agent.policy.policy_type == "iLQR":
         action, solver_info = self.agent.policy.get_action(
-            state=x_cur, controls=init_control, **action_kwargs
+            state=self.state, controls=init_control, **action_kwargs
         )
       elif self.agent.policy.policy_type == "NNCS":
         with torch.no_grad():
-          x_cur_tensor = torch.FloatTensor(x_cur).to(self.agent.policy.device)
+          obs_tensor = torch.FloatTensor(obs).to(self.agent.policy.device)
           action, solver_info = self.agent.policy.get_action(
-              state=x_cur_tensor, **action_kwargs
+              state=obs_tensor, **action_kwargs
           )
 
       # Applies action: `done` and `info` are evaluated at the next state.
-      x_cur, reward, done, step_info = self.step(action)
+      obs, reward, done, step_info = self.step(action)
 
       # Executes step callback and stores history.
-      state_hist.append(x_cur)
+      state_hist.append(self.state)
       action_hist.append(action)
       plan_hist.append(solver_info)
       reward_hist.append(reward)
@@ -285,6 +290,8 @@ class BaseSingleEnv(BaseEnv):
       )
 
     results = np.empty(shape=(num_trajectories,), dtype=int)
+    length = np.empty(shape=(num_trajectories,), dtype=int)
+
     trajectories = []
     for trial in range(num_trajectories):
       if isinstance(reset_kwargs_list, list):
@@ -304,4 +311,6 @@ class BaseSingleEnv(BaseEnv):
       )
       trajectories.append(state_hist)
       results[trial] = result
-    return trajectories, results
+      length[trial] = len(state_hist)
+
+    return trajectories, results, length

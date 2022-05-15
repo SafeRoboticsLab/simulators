@@ -55,8 +55,9 @@ class Track:
             is of the shape (N, ).
     """
     n = len(s)
-
     interp_pt = self.center_line.getValue(s)
+    if n == 1:
+      interp_pt = interp_pt[np.newaxis, :]
     slope = np.zeros(n)
 
     for i in range(n):
@@ -129,6 +130,8 @@ class Track:
         np.ndarray: the progress along the centerline.
     """
     s, _ = self.center_line.projectPoint(points.T, eps=1e-3)
+    if points.shape[1] == 1:
+      s = np.array([s])
     closest_pt, slope = self._interp_s(s)
     slope = slope[np.newaxis, :]
 

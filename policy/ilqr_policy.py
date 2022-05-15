@@ -22,11 +22,11 @@ class iLQR(BasePolicy):
     self.env = copy.deepcopy(env)
 
     self.tol = 1e-3  # ILQR update tolerance.
-    self.eps = 10  # Numerical stability for Q inverse.
-    self.eps_max = 100
+    self.eps = 0.01  # Numerical stability for Q inverse.
+    self.eps_max = 10
     self.eps_min = 1e-3
 
-    self.alphas = 1.1**(-np.arange(10)**2)  # Stepsize scheduler.
+    self.alphas = 1.1**(-np.arange(20)**2)  # Stepsize scheduler.
 
   def get_action(
       self, state: np.ndarray, controls: Optional[np.ndarray] = None, **kwargs
@@ -38,7 +38,7 @@ class iLQR(BasePolicy):
       controls = np.zeros((self.env.action_dim, self.N - 1))
 
     # Rolls out.
-    states = np.zeros((self.env.observation_dim, self.N - 1))
+    states = np.zeros((self.env.state_dim, self.N - 1))
     states[:, 0] = state
     for i in range(self.N - 1):
       state_nxt, _ = self.env.agent.integrate_forward(
@@ -107,7 +107,7 @@ class iLQR(BasePolicy):
             K_closed_loop=K_closed_loop, k_open_loop=k_open_loop
         )
     )
-    X = np.zeros_like(nominal_states)  # (observation_dim, N-1)
+    X = np.zeros_like(nominal_states)  # (state_dim, N-1)
     U = np.zeros_like(nominal_controls)  # (action_dim, N-1)
 
     X[:, 0] = nominal_states[:, 0]
@@ -148,7 +148,7 @@ class iLQR(BasePolicy):
     # Placeholders.
     k_open_loop = np.zeros((self.env.action_dim, self.N - 1))
     K_closed_loop = np.zeros(
-        (self.env.action_dim, self.env.observation_dim, self.N - 1)
+        (self.env.action_dim, self.env.state_dim, self.N - 1)
     )
     Q_u_hist = np.zeros([self.env.action_dim, self.N - 1])
     Q_uu_hist = np.zeros([

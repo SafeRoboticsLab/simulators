@@ -5,7 +5,7 @@ Authors:  Zixu Zhang ( zixuz@princeton.edu )
 """
 
 from __future__ import annotations
-import time
+from abc import ABC, abstractmethod
 from typing import List, Any, Optional, Tuple
 import numpy as np
 
@@ -15,7 +15,7 @@ from ..utils import barrier_function
 # TODO: We currently only support Ellipse obstacles.
 
 
-class Constraints:
+class BaseConstraints(ABC):
   """
   A constraint class that computes the constraint function values after every
   step. The obstacles and footprint are assumed to be ellipses (2D).
@@ -53,7 +53,12 @@ class Constraints:
     self.q2_obs = config_env.Q2_OBS
     self.gamma = getattr(config_env, "OBS_COST_GAMMA", 1.)
 
-  def update_obs(self, obs_list: List[List[Ellipse]]):
+  @property
+  @abstractmethod
+  def dim_x(self) -> int:
+    raise NotImplementedError
+
+  def update_obstacle(self, obs_list: List[List[Ellipse]]):
     """Updates the obstacles.
 
     Args:
@@ -76,7 +81,7 @@ class Constraints:
 
     Args:
         footprint (Ellipse): the footprint of the ego agent.
-        states (np.ndarray): of the shape (4, N).
+        states (np.ndarray): of the shape (dim_x, N).
         controls (np.ndarray): of the shape (2, N).
         close_pts (np.ndarray): the position of the closest points on the
             centerline. This array is of the shape (2, N).
@@ -106,9 +111,7 @@ class Constraints:
     cons_v_max = states[2:3, :] - self.v_max
 
     # Lateral acceleration constraint
-    accel = states[2:3, :]**2 * np.tan(controls[1, :]) / self.wheelbase
-    cons_a_lat_max = accel - self.alat_max
-    cons_a_lat_min = self.alat_min - accel
+    cons_a_lat_min, cons_a_lat_max = self._lat_accel_cons(states, controls)
 
     cons_dict = dict(
         cons_road_l=cons_road_l, cons_road_r=cons_road_r,
@@ -149,7 +152,8 @@ class Constraints:
   def get_soft_cons_cost(
       self, footprint: Ellipse, states: np.ndarray, controls: np.ndarray,
       close_pts: Optional[np.ndarray] = None,
-      slopes: Optional[np.ndarray] = None, cons_dict: Optional[dict] = None
+      slopes: Optional[np.ndarray] = None, cons_dict: Optional[dict] = None,
+      return_cons_dict: Optional[bool] = False
   ) -> np.ndarray:
     """
     Gets the barrier cost of constraint function values given the interested
@@ -158,7 +162,7 @@ class Constraints:
 
     Args:
         footprint (Ellipse): the footprint of the ego agent.
-        states (np.ndarray): of the shape (4, N).
+        states (np.ndarray): of the shape (dim_x, N).
         controls (np.ndarray): of the shape (2, N).
         close_pts (np.ndarray): the position of the closest points on the
             centerline. This array is of the shape (2, N).
@@ -188,7 +192,7 @@ class Constraints:
     )
     c_vel = c_vel_min + c_vel_max
 
-    c_lat_min, c_lat_max = self._lat_accec_cost(
+    c_lat_min, c_lat_max = self._lat_accel_cost(
         cons_dict['cons_a_lat_min'], cons_dict['cons_a_lat_max']
     )
     c_lat = c_lat_min + c_lat_max
@@ -200,11 +204,14 @@ class Constraints:
       c_obs = np.sum(barrier, axis=0)
       c_obs = c_obs * discount
 
+    if return_cons_dict:
+      return c_road + c_vel + c_lat + c_obs, cons_dict
     return c_road + c_vel + c_lat + c_obs
 
   def get_derivatives(
       self, footprint: Ellipse, states: np.ndarray, controls: np.ndarray,
-      close_pts: np.ndarray, slopes: np.ndarray
+      close_pts: np.ndarray, slopes: np.ndarray,
+      return_cons_dict: Optional[bool] = False
   ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Calculates the Jacobian and Hessian of soft constraint cost given the
@@ -213,19 +220,22 @@ class Constraints:
 
     Args:
         footprint (Ellipse): the footprint of the ego agent.
-        states (np.ndarray): of the shape (4, N).
+        states (np.ndarray): of the shape (dim_x, N).
         controls (np.ndarray): of the shape (2, N).
         close_pts (np.ndarray): the position of the closest points on the
             centerline. This array is of the shape (2, N).
         slopes (np.ndarray): the slope of of trangent line on those points.
             This vector is of the shape (1, N).
+        return_cons_dict (bool, optional): returns cons dict if True. Defaults
+            to False.
 
     Returns:
-        np.ndarray: c_x of the shape (4, N).
-        np.ndarray: c_xx of the shape (4, 4, N).
+        np.ndarray: c_x of the shape (dim_x, N).
+        np.ndarray: c_xx of the shape (dim_x, dim_x, N).
         np.ndarray: c_u of the shape (2, N).
         np.ndarray: c_uu of the shape (2, 2, N).
-        np.ndarray: c_ux of the shape (2, 4, N).
+        np.ndarray: c_ux of the shape (2, dim_x, N).
+        dict: constraint dictionary.
     """
     self._check_input(states, controls, close_pts, slopes)
 
@@ -235,17 +245,17 @@ class Constraints:
 
     # Road bound constraints.
     c_x_rd, c_xx_rd = self._road_boundary_derivative(
-        states, slopes, cons_dict['cons_road_l'], cons_dict['cons_road_r']
+        slopes, cons_dict['cons_road_l'], cons_dict['cons_road_r']
     )
 
     # Velocity constraints.
     c_x_vel, c_xx_vel = self._velocity_bound_derivative(
-        states, cons_dict['cons_v_min'], cons_dict['cons_v_max']
+        cons_dict['cons_v_min'], cons_dict['cons_v_max']
     )
 
     # Lateral acceleration constraints.
     c_x_lat, c_xx_lat, c_u_lat, c_uu_lat, c_ux_lat = (
-        self._lat_accec_bound_derivative(
+        self._lat_accel_bound_derivative(
             states, controls, cons_dict['cons_a_lat_min'],
             cons_dict['cons_a_lat_max']
         )
@@ -266,6 +276,8 @@ class Constraints:
     c_uu_cons = c_uu_lat
     c_ux_cons = c_ux_lat
 
+    if return_cons_dict:
+      return c_x_cons, c_xx_cons, c_u_cons, c_uu_cons, c_ux_cons, cons_dict
     return c_x_cons, c_xx_cons, c_u_cons, c_uu_cons, c_ux_cons
 
   def _road_boundary_cons(
@@ -276,7 +288,7 @@ class Constraints:
 
     Args:
         footprint (Ellipse): the footprint of the ego agent.
-        states (np.ndarray): of the shape (4, N).
+        states (np.ndarray): of the shape (dim_x, N).
         close_pts (np.ndarray): the position of the closest points on the
             centerline. This array is of the shape (2, N).
         slopes (np.ndarray): the slope of of trangent line on those points.
@@ -297,6 +309,21 @@ class Constraints:
     cons_road_r = dis - (self.track_width_R - footprint.b)  # right bound
 
     return cons_road_l, cons_road_r
+
+  @abstractmethod
+  def _lat_accel_cons(self, states: np.ndarray,
+                      controls: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Computes the road boundary constraint.
+
+    Args:
+        states (np.ndarray): of the shape (dim_x, N).
+        controls (np.ndarray): of the shape (2, N).
+
+    Returns:
+        np.ndarray: constarint fucntion value of the lateral accel minimum.
+        np.ndarray: constarint fucntion value of the lateral accel maximum.
+    """
+    raise NotImplementedError
 
   def _road_boundary_cost(
       self, cons_road_l: np.ndarray, cons_road_r: np.ndarray
@@ -349,7 +376,7 @@ class Constraints:
     )
     return barrier_v_min, barrier_v_max
 
-  def _lat_accec_cost(
+  def _lat_accel_cost(
       self, cons_a_lat_min: np.ndarray, cons_a_lat_max: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -394,29 +421,26 @@ class Constraints:
     return barrier
 
   def _road_boundary_derivative(
-      self, states: np.ndarray, slopes: np.ndarray, cons_road_l: np.ndarray,
+      self, slopes: np.ndarray, cons_road_l: np.ndarray,
       cons_road_r: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Calculates the Jacobian and Hessian of road boundary soft constraint cost.
 
     Args:
-        states (np.ndarray): of the shape (4, N).
-        close_pts (np.ndarray): the position of the closest points on the
-            centerline. This array is of the shape (2, N).
         slopes (np.ndarray): the slope of of trangent line on those points.
             This vector is of the shape (1, N).
         cons_road_l (np.ndarray): constarint value of the left road boundary.
         cons_road_r (np.ndarray): constarint value of the right road boundary.
 
     Returns:
-        np.ndarray: c_x of the shape (4, N).
-        np.ndarray: c_xx of the shape (4, 4, N).
+        np.ndarray: c_x of the shape (dim_x, N).
+        np.ndarray: c_xx of the shape (dim_x, dim_x, N).
     """
     cons_road_l = cons_road_l.reshape(-1)
     cons_road_r = cons_road_r.reshape(-1)
 
-    N = states.shape[-1]
+    N = slopes.shape[-1]
     sr = np.sin(slopes).reshape(-1)
     cr = np.cos(slopes).reshape(-1)
     transform = np.array([sr, -cr])  # (2, N).
@@ -425,8 +449,8 @@ class Constraints:
     idx_ignore = cons_road_r < self.road_thr
 
     # Jacobian
-    c_x_r = np.zeros((4, N))
-    c_xx_r = np.zeros((4, 4, N))
+    c_x_r = np.zeros((self.dim_x, N))
+    c_xx_r = np.zeros((self.dim_x, self.dim_x, N))
     _c_x_r, _c_xx_r = barrier_function(
         q1=self.q1_road, q2=self.q2_road, cons=cons_road_r, cons_dot=transform,
         cons_min=self.road_thr * self.q2_road, cons_max=self.barrier_thr
@@ -443,8 +467,8 @@ class Constraints:
     idx_ignore = cons_road_l < self.road_thr
 
     # Jacobian
-    c_x_l = np.zeros((4, N))
-    c_xx_l = np.zeros((4, 4, N))
+    c_x_l = np.zeros((self.dim_x, N))
+    c_xx_l = np.zeros((self.dim_x, self.dim_x, N))
     _c_x_l, _c_xx_l = barrier_function(
         q1=self.q1_road, q2=self.q2_road, cons=cons_road_l,
         cons_dot=-transform, cons_min=self.road_thr * self.q2_road,
@@ -462,24 +486,22 @@ class Constraints:
     return c_x_r + c_x_l, c_xx_r + c_xx_l
 
   def _velocity_bound_derivative(
-      self, states: np.ndarray, cons_v_min: np.ndarray, cons_v_max: np.ndarray
+      self, cons_v_min: np.ndarray, cons_v_max: np.ndarray
   ) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Calculates the Jacobian and Hessian of velocity soft constraint cost.
+    """Calculates the Jacobian and Hessian of velocity soft constraint cost.
 
     Args:
-        states (np.ndarray): of the shape (4, N).
         cons_v_min (np.ndarray): constarint value of the minimum velocity.
         cons_v_max (np.ndarray): constarint value of the maximum velocity.
 
     Returns:
-        np.ndarray: c_x of the shape (4, N).
-        np.ndarray: c_xx of the shape (4, 4, N).
+        np.ndarray: c_x of the shape (dim_x, N).
+        np.ndarray: c_xx of the shape (dim_x, dim_x, N).
     """
-    N = states.shape[1]
+    N = cons_v_min.shape[1]
     transform = np.ones((1, N))
-    c_x = np.zeros((4, N))
-    c_xx = np.zeros((4, 4, N))
+    c_x = np.zeros((self.dim_x, N))
+    c_xx = np.zeros((self.dim_x, self.dim_x, N))
 
     _c_x_min, _c_xx_min = barrier_function(
         self.q1_v, self.q2_v, cons_v_min, -transform, cons_max=self.barrier_thr
@@ -492,70 +514,6 @@ class Constraints:
 
     return c_x, c_xx
 
-  def _lat_accec_bound_derivative(
-      self, states: np.ndarray, controls: np.ndarray,
-      cons_a_lat_min: np.ndarray, cons_a_lat_max: np.ndarray
-  ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Calculates the Jacobian and Hessian of Lateral Acceleration soft constraint
-        cost.
-
-    Args:
-        states (np.ndarray): of the shape (4, N).
-        controls (np.ndarray): of the shape (2, N).
-        cons_a_lat_min (np.ndarray): constarint value of the minimum lateral
-            acceleration.
-        cons_a_lat_max (np.ndarray): constarint value of the maximum lateral
-            acceleration.
-
-    Returns:
-        np.ndarray: c_x of the shape (4, N).
-        np.ndarray: c_xx of the shape (4, 4, N).
-        np.ndarray: c_u of the shape (2, N).
-        np.ndarray: c_uu of the shape (2, 2, N).
-        np.ndarray: c_ux of the shape (2, 4, N).
-    """
-    cost_a_lat_min = self.q1_lat * (
-        np.exp(np.clip(self.q2_lat * cons_a_lat_min, None, self.barrier_thr))
-    )
-    cost_a_lat_max = self.q1_lat * (
-        np.exp(np.clip(self.q2_lat * cons_a_lat_max, None, self.barrier_thr))
-    )
-    num_steps = states.shape[1]
-    c_x = np.zeros((4, num_steps))
-    c_xx = np.zeros((4, 4, num_steps))
-    c_u = np.zeros((2, num_steps))
-    c_uu = np.zeros((2, 2, num_steps))
-    c_ux = np.zeros((2, 4, num_steps))
-
-    da_dx = 2 * states[2, :] * np.tan(controls[1, :]) / self.wheelbase
-    da_dxx = 2 * np.tan(controls[1, :]) / self.wheelbase
-
-    da_du = states[2, :]**2 / (np.cos(controls[1, :])**2 * self.wheelbase)
-    da_duu = (
-        states[2, :]**2 * np.sin(controls[1, :]) /
-        (np.cos(controls[1, :])**3 * self.wheelbase)
-    )
-
-    da_dux = 2 * states[2, :] / (np.cos(controls[1, :])**2 * self.wheelbase)
-
-    c_x[2, :] = self.q2_lat * (cost_a_lat_max-cost_a_lat_min) * da_dx
-    c_u[1, :] = self.q2_lat * (cost_a_lat_max-cost_a_lat_min) * da_du
-
-    c_xx[2, 2, :] = self.q2_lat**2 * (
-        cost_a_lat_max+cost_a_lat_min
-    ) * da_dx**2 + self.q2_lat * (cost_a_lat_max-cost_a_lat_min) * da_dxx
-    c_uu[1, 1, :] = self.q2_lat**2 * (
-        cost_a_lat_max+cost_a_lat_min
-    ) * da_du**2 + self.q2_lat * (cost_a_lat_max-cost_a_lat_min) * da_duu
-
-    c_ux[1, 2, :] = (
-        self.q2_lat**2 *
-        (cost_a_lat_max+cost_a_lat_min) * da_dx * da_du + self.q2_lat *
-        (cost_a_lat_max-cost_a_lat_min) * da_dux
-    )
-    return c_x, c_xx, c_u, c_uu, c_ux
-
   def _obs_derivative(
       self, footprint: Ellipse, states: np.ndarray, cons_obs: np.ndarray,
       obs_circ_idx: np.ndarray
@@ -565,24 +523,24 @@ class Constraints:
 
     Args:
         footprint (Ellipse): the footprint of the ego agent.
-        states (np.ndarray): of the shape (4, N).
+        states (np.ndarray): of the shape (dim_x, N).
         cons_obs (np.ndarray): of the shape (#obstacles, N).
         obs_circ_idx (np.ndarray): the index of the closest circles of ego and
             obstacle. For example, x[:, i, j] = (idx_ego_circ, idx_obs_circ).
 
     Returns:
-        np.ndarray: c_x of the shape (4, N).
-        np.ndarray: c_xx of the shape (4, 4, N).
+        np.ndarray: c_x of the shape (dim_x, N).
+        np.ndarray: c_xx of the shape (dim_x, dim_x, N).
     """
     centers_with_wheelbase = footprint.center_local + self.wheelbase
     num_steps = states.shape[1]
     num_obs = len(self.obs_list)
 
-    c_x = np.zeros(shape=(4, num_steps))
-    c_xx = np.zeros(shape=(4, 4, num_steps))
+    c_x = np.zeros(shape=(self.dim_x, num_steps))
+    c_xx = np.zeros(shape=(self.dim_x, self.dim_x, num_steps))
 
     cons_flatten = cons_obs.reshape(-1, order='F')  # column-by-column
-    cons_dot_concat = np.zeros(shape=(4, num_steps * num_obs))
+    cons_dot_concat = np.zeros(shape=(self.dim_x, num_steps * num_obs))
 
     for i in range(num_steps):
       state = states[:, i]
@@ -594,7 +552,7 @@ class Constraints:
           continue
         obs_j_i = obs_list_j[i]
 
-        self_circ_idx, obs_j_circ_idx = obs_circ_idx[:, j, i]
+        obs_j_circ_idx, self_circ_idx = obs_circ_idx[:, j, i]
         pos_along_major_axis = centers_with_wheelbase[self_circ_idx]
         self_center = (
             pos_along_major_axis * np.array([cos_theta, sin_theta]) + state[:2]
@@ -620,6 +578,32 @@ class Constraints:
 
     return c_x, c_xx
 
+  @abstractmethod
+  def _lat_accel_bound_derivative(
+      self, states: np.ndarray, controls: np.ndarray,
+      cons_a_lat_min: np.ndarray, cons_a_lat_max: np.ndarray
+  ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Calculates the Jacobian and Hessian of Lateral Acceleration soft constraint
+        cost.
+
+    Args:
+        states (np.ndarray): of the shape (dim_x, N).
+        controls (np.ndarray): of the shape (2, N). Not used in bicycle V2.
+        cons_a_lat_min (np.ndarray): constarint value of the minimum lateral
+            acceleration.
+        cons_a_lat_max (np.ndarray): constarint value of the maximum lateral
+            acceleration.
+
+    Returns:
+        np.ndarray: c_x of the shape (dim_x, N).
+        np.ndarray: c_xx of the shape (dim_x, dim_x, N).
+        np.ndarray: c_u of the shape (2, N).
+        np.ndarray: c_uu of the shape (2, 2, N).
+        np.ndarray: c_ux of the shape (2, dim_x, N).
+    """
+    raise NotImplementedError
+
   def _check_input(
       self, states: np.ndarray, controls: np.ndarray, close_pts: np.ndarray,
       slopes: np.ndarray
@@ -627,7 +611,7 @@ class Constraints:
     """Checks the shape of the input arrays.
 
     Args:
-        states (np.ndarray): of the shape (4, N).
+        states (np.ndarray): of the shape (dim_x, N).
         controls (np.ndarray): of the shape (2, N).
         close_pts (np.ndarray): the position of the closest points on the
             centerline. This array is of the shape (2, N).
