@@ -14,9 +14,8 @@ import argparse
 
 from simulators import (
     RaceCarSingleEnvV1, RaceCarSingleEnvV2, load_config, Ellipse,
-    plot_ellipsoids
+    plot_ellipsoids, save_obj
 )
-from utils import save_obj
 
 
 def main(config_file):
