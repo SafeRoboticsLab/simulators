@@ -453,7 +453,7 @@ class SpiritRLEnv(gym.Env):
         
         return torch.Tensor(ob), cost, done, info
 
-    def step(self, action, safety_action = True, cast_torch = False):
+    def step(self, action, safety_action = True, cast_torch = True):
         # Feed action to robot and get observation of robot's state
         # if the action is from safety enforcer, overwrite immediately, elif the action is from a performance policy, follow the self.control_period
         # TODO: rm safety_action
@@ -607,7 +607,7 @@ class SpiritRLEnv(gym.Env):
 
         return np.array(self.robot.get_joint_position()) + np.array(increment)
 
-    def reset(self, cast_torch=False):
+    def reset(self, cast_torch=True):
         self.i = 0
         p.resetSimulation(physicsClientId = self.client)
         p.setGravity(0, 0, self.GRAVITY, physicsClientId = self.client)
