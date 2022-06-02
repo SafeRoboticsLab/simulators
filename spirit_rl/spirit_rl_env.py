@@ -582,7 +582,7 @@ class SpiritRLEnv(gym.Env):
         #     np.random.uniform(0, math.pi)
         # )
 
-    def reset(self):
+    def reset(self, cast_torch=False):
         self.i = 0
         p.resetSimulation(physicsClientId = self.client)
         p.setGravity(0, 0, self.GRAVITY, physicsClientId = self.client)
@@ -638,7 +638,10 @@ class SpiritRLEnv(gym.Env):
 
         self._init_frames()
 
-        return torch.Tensor(initial_value)
+        if cast_torch:
+            initial_value = torch.FloatTensor(initial_value)
+
+        return initial_value
 
     def render(self):
         if self.rendered_img is None:
