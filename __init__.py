@@ -10,3 +10,5 @@ from .race_car.race_car_single_v2 import RaceCarSingleEnvV2
 
 from .ell_reach.ellipse import Ellipse
 from .ell_reach.plot_ellipsoids import plot_ellipsoids
+
+from .spirit_rl.spirit_rl_env import SpiritRLEnv

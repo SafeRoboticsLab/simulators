@@ -1,1 +1,0 @@
-from spirit_rl.envs.spirit_rl_env import SpiritRLEnv
