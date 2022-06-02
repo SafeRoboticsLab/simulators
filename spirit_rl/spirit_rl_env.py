@@ -453,7 +453,7 @@ class SpiritRLEnv(gym.Env):
         
         return torch.Tensor(ob), cost, done, info
 
-    def step(self, action, safety_action = False):
+    def step(self, action, safety_action = True, cast_torch = False):
         # Feed action to robot and get observation of robot's state
         # if the action is from safety enforcer, overwrite immediately, elif the action is from a performance policy, follow the self.control_period
         # TODO: rm safety_action
@@ -549,7 +549,10 @@ class SpiritRLEnv(gym.Env):
         if self.verbose:
             print("\rg_x:\t{:.2f}\tl_x:\t{:.2f}".format(g_x, l_x), end = "")
 
-        return torch.Tensor(ob), cost, done, info
+        if cast_torch:
+            ob = torch.FloatTensor(ob)
+        
+        return ob, cost, done, info
 
     def get_random_joint_value(self, target_set = False):
         """
