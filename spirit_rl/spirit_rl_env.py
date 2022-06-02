@@ -18,7 +18,7 @@ class SpiritRLEnv(gym.Env):
 
     def __init__(self, device="cpu", mode='normal', doneType='toEnd', 
                 seed=0, gui = False, verbose = False, force = 0.0, forceResetTime = 20, forceRandom = False, rotateReset = False, heightReset = False, payload = 0.0, envtype = None, control_dt = 0.05, 
-                episode_len = 3., dt = 1./240., video_output_file = None, terrain = "normal", terrainHeight = 0.05, terrainFriction = 1.0, max_train_steps = 1000.0):
+                episode_len = 3., dt = 1./125., video_output_file = None, terrain = "normal", terrainHeight = 0.05, terrainFriction = 1.0, max_train_steps = 1000.0):
         
         self.np_random, _ = gym.utils.seeding.np_random()
 
@@ -60,7 +60,7 @@ class SpiritRLEnv(gym.Env):
         self.envtype = envtype     
 
         self.GRAVITY = -9.81
-        self.dt = 1./240.
+        self.dt = 1./125.
         self.i = 0
         self.dt = dt
         self.control_dt = control_dt
@@ -99,6 +99,7 @@ class SpiritRLEnv(gym.Env):
         p.setTimeStep(self.dt, self.client)
         p.setPhysicsEngineParameter(fixedTimeStep = self.dt)
         p.setRealTimeSimulation(0)
+
         self.debugger = pybulletDebug()
 
         # rollout
@@ -148,7 +149,7 @@ class SpiritRLEnv(gym.Env):
 
         terrainShape = p.createCollisionShape(
             shapeType=p.GEOM_HEIGHTFIELD,
-            meshScale=[.1, .1, 1.0],
+            meshScale=[0.08, 0.08, 1.0], # [x, y, z]
             heightfieldTextureScaling=(numHeightfieldRows - 1) / 2,
             heightfieldData = heightfieldData,
             numHeightfieldRows=numHeightfieldRows,
@@ -189,18 +190,18 @@ class SpiritRLEnv(gym.Env):
         Plane(self.test_client)
 
         if self.heightReset:
-            height = 0.4 + np.random.rand()
+            height = 0.4 + np.random.rand()*0.2
         else:
             height = 0.4
 
         if self.rotateReset:
-            rotate = p.getQuaternionFromEuler(np.random.rand(3) * np.pi * 2.0)
+            rotate = p.getQuaternionFromEuler((np.random.rand(3)-0.5) * np.pi * 0.125)
         else:
             rotate = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
 
         self.test_robot = Spirit(self.test_client, height, rotate, self.envtype, self.payload, self.payload_max)
         
-        random_joint_value = self.get_random_joint_value()
+        random_joint_value = self.get_random_joint_value(target_set=True)
 
         # jointFrictionForce = 1
         # # reset joint state
@@ -217,9 +218,9 @@ class SpiritRLEnv(gym.Env):
         self.test_robot.reset(random_joint_value)
         self.test_robot.apply_position(random_joint_value)
 
-        # for t in range(0, 100):
-        #     p.stepSimulation(physicsClientId = self.test_client)
-        #     p.setGravity(0, 0, self.GRAVITY, physicsClientId = self.test_client)
+        # render 100 steps so that the robot will reach the ground
+        for t in range(0, 100):
+            p.stepSimulation(physicsClientId = self.test_client)
 
         spirit_observation = self.test_robot.get_observation()
 
@@ -455,6 +456,7 @@ class SpiritRLEnv(gym.Env):
     def step(self, action, safety_action = False):
         # Feed action to robot and get observation of robot's state
         # if the action is from safety enforcer, overwrite immediately, elif the action is from a performance policy, follow the self.control_period
+        # TODO: rm safety_action
         if safety_action:
             self.angles = action
         elif self.i % self.control_period == 0:
@@ -546,41 +548,61 @@ class SpiritRLEnv(gym.Env):
         info['binary_cost'] = binary_cost
         if self.verbose:
             print("\rg_x:\t{:.2f}\tl_x:\t{:.2f}".format(g_x, l_x), end = "")
-            
+
         return torch.Tensor(ob), cost, done, info
 
-    def get_random_joint_value(self):
+    def get_random_joint_value(self, target_set = False):
         """
         Generate 
         """
-        return (
-            0.0 + np.random.uniform(-math.pi * 0.125, math.pi * 0.125),
-            0.75 + np.random.uniform(-math.pi * 0.125, math.pi * 0.125),
-            1.45 + np.random.uniform(-math.pi * 0.125, math.pi * 0.125),
-            0.0 + np.random.uniform(-math.pi * 0.125, math.pi * 0.125),
-            0.75 + np.random.uniform(-math.pi * 0.125, math.pi * 0.125),
-            1.45 + np.random.uniform(-math.pi * 0.125, math.pi * 0.125),
-            0.0 + np.random.uniform(-math.pi * 0.125, math.pi * 0.125),
-            0.75 + np.random.uniform(-math.pi * 0.125, math.pi * 0.125),
-            1.45 + np.random.uniform(-math.pi * 0.125, math.pi * 0.125),
-            0.0 + np.random.uniform(-math.pi * 0.125, math.pi * 0.125),
-            0.75 + np.random.uniform(-math.pi * 0.125, math.pi * 0.125),
-            1.45 + np.random.uniform(-math.pi * 0.125, math.pi * 0.125)
+        if target_set:
+            return (
+                0.0 + np.random.uniform(-0.3, 0.3),
+                0.6 + np.random.uniform(-0.3, 0.3),
+                1.45 + np.random.uniform(-0.25, 0.25),
+                0.0 + np.random.uniform(-0.3, 0.3),
+                0.6 + np.random.uniform(-0.3, 0.3),
+                1.45 + np.random.uniform(-0.25, 0.25),
+                0.0 + np.random.uniform(-0.3, 0.3),
+                0.6 + np.random.uniform(-0.3, 0.3),
+                1.45 + np.random.uniform(-0.25, 0.25),
+                0.0 + np.random.uniform(-0.3, 0.3),
+                0.6 + np.random.uniform(-0.3, 0.3),
+                1.45 + np.random.uniform(-0.25, 0.25)
+            )
+        else:
+            return (
+                np.random.uniform(-0.5, 0.5),
+                np.random.uniform(0.5, 2.64),
+                np.random.uniform(0.5, 2.64),
+                np.random.uniform(-0.5, 0.5),
+                np.random.uniform(0.5, 2.64),
+                np.random.uniform(0.5, 2.64),
+                np.random.uniform(-0.5, 0.5),
+                np.random.uniform(0.5, 2.64),
+                np.random.uniform(0.5, 2.64),
+                np.random.uniform(-0.5, 0.5),
+                np.random.uniform(0.5, 2.64),
+                np.random.uniform(0.5, 2.64)
+            )
+    
+    def get_random_joint_increment_from_current(self):
+        increment = (
+            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
+            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
+            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
+            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
+            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
+            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
+            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
+            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
+            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
+            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
+            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
+            np.random.uniform(-np.pi * 0.05, np.pi * 0.05)
         )
-        # return (
-        #     np.random.uniform(-math.pi * 0.5, math.pi * 0.5),
-        #     np.random.uniform(0, math.pi),
-        #     np.random.uniform(0, math.pi),
-        #     np.random.uniform(-math.pi * 0.5, math.pi * 0.5),
-        #     np.random.uniform(0, math.pi),
-        #     np.random.uniform(0, math.pi),
-        #     np.random.uniform(-math.pi * 0.5, math.pi * 0.5),
-        #     np.random.uniform(0, math.pi),
-        #     np.random.uniform(0, math.pi),
-        #     np.random.uniform(-math.pi * 0.5, math.pi * 0.5),
-        #     np.random.uniform(0, math.pi),
-        #     np.random.uniform(0, math.pi)
-        # )
+
+        return np.array(self.robot.get_joint_position()) + np.array(increment)
 
     def reset(self, cast_torch=False):
         self.i = 0
@@ -593,21 +615,23 @@ class SpiritRLEnv(gym.Env):
         if self.terrain == "rough":
             self._gen_terrain(self.client)
 
-        if self.heightReset:
-            height = 0.4 + np.random.rand()
+        if self.heightReset:  # Drops from the air.
+            height = 0.4 + np.random.rand()*0.2
         else:
-            height = 0.4
+            height = 0.6
 
-        if self.rotateReset:
-            rotate = p.getQuaternionFromEuler(np.random.rand(3) * np.pi * 2.0)
+        if self.rotateReset:  # Resets the yaw, pitch, roll.
+            rotate = p.getQuaternionFromEuler((np.random.rand(3)-0.5) * np.pi * 0.125)
         else:
             rotate = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
 
         self.robot = Spirit(self.client, height, rotate, self.envtype, self.payload, self.payload_max)
         
-        random_joint_value = self.get_random_joint_value()
+        # get random joint value that is within the target set
+        # TODO: use rejection sampling to sample outside of the failure set
+        random_joint_value = self.get_random_joint_value(target_set=True)
 
-        # Put the hexapod on the ground (gently)
+        # Put the robot on the ground (gently)
         p.setRealTimeSimulation(0)
         # jointFrictionForce = 1
         # for joint in range(p.getNumJoints(self.robot.robot)):
@@ -620,10 +644,10 @@ class SpiritRLEnv(gym.Env):
         self.robot.reset(random_joint_value)
         self.robot.apply_position(random_joint_value)
 
-        # for t in range(0, 100):
-        #     p.stepSimulation()
-        #     p.setGravity(0, 0, self.GRAVITY)
-                    
+        # render 100 steps so that the robot will reach the ground
+        for t in range(0, 100):
+            p.stepSimulation()
+
         spirit_observation = self.robot.get_observation()
 
         # create a random force applied on the robot
@@ -634,14 +658,18 @@ class SpiritRLEnv(gym.Env):
             self.force_applied_force_vector = np.array([np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-50, 5)]) * self.force
         self.force_applied_position_vector = np.array([np.random.uniform(-0.1, 0.1), np.random.uniform(-0.1, 0.1), np.random.uniform(0, 0.5)])
 
+        # initial_value = (ob, ob_old, spirit_new_joint_position, spirit_old_joint_position)
         initial_value = np.concatenate((np.array(spirit_observation, dtype=np.float32), np.array(spirit_observation, dtype=np.float32), random_joint_value, random_joint_value), axis = 0)
-
-        self._init_frames()
+        self.robot.prev_position = self.robot.get_joint_position()
 
         if cast_torch:
             initial_value = torch.FloatTensor(initial_value)
 
-        return initial_value
+        if self.safety_margin(self.robot) < 0:
+            self._init_frames()
+            return initial_value
+        else:
+            return self.reset()
 
     def render(self):
         if self.rendered_img is None:
@@ -721,10 +749,10 @@ class SpiritRLEnv(gym.Env):
     def _save_frames(self):
         """
         Write frame at each step.
-        24 FPS dt =1/240 : every 10 frames
+        30 FPS
         """
         if self.video_output_file is not None and \
-                self.i % (int(1. / (self.dt * 24))) == 0:
+                self.i % (int(1. / (self.dt * 30))) == 0:
             camera = p.getDebugVisualizerCamera()
             img = p.getCameraImage(
                 camera[0], camera[1],
@@ -748,7 +776,7 @@ class SpiritRLEnv(gym.Env):
 
     def simulate_one_trajectory(self, agent, **kwargs):
         # rollout one trajectory to see the effect
-        test_steps = 300 # TODO: define this in config file
+        test_steps = 1000 # TODO: define this in config file
         test_state = self.test_reset()
 
         with torch.no_grad():
