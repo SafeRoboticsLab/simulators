@@ -3,26 +3,25 @@ Please contact the author(s) of this library if you have any questions.
 Authors: Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import Dict, Tuple, List, Any, Optional, Union
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
 import matplotlib
+from gym.spaces.space import Space
 
-from ..base_single_env import BaseSingleEnv
 from ..ell_reach.ellipse import Ellipse
 from .track import Track
 from .utils import get_centerline_from_traj
 
 
-class BaseRaceCarSingleEnv(BaseSingleEnv):
+class BaseRaceCarEnv(ABC):
   """Implements an environment of a single Princeton Race Car.
   """
+  reset_sample_sapce: Space
 
   def __init__(self, config_env: Any, config_agent: Any) -> None:
-    assert config_env.NUM_AGENTS == 1, "This environment only has one agent!"
-    super().__init__(config_env, config_agent)
 
     # Environment.
     self.track = Track(
@@ -66,7 +65,6 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
     raise NotImplementedError
 
   def seed(self, seed: int = 0):
-    super().seed(seed)
     self.reset_sample_sapce.seed(seed)
 
   def reset(
@@ -85,7 +83,6 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
     Returns:
         np.ndarray: the new state of the shape (dim_x, ).
     """
-    super().reset()
     if state is None:
       reset_flag = True
       while reset_flag:
@@ -107,7 +104,7 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
       obs = torch.FloatTensor(obs)
     return obs
 
-  def get_obs(self, state: np.ndarray) -> np.ndarray:
+  def _get_obs(self, state: np.ndarray) -> np.ndarray:
     """Gets the observation given the state.
 
     Args:
@@ -174,7 +171,7 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
     flags = np.logical_and(cons_road_l <= thr, cons_road_r <= thr)
     return flags.reshape(-1)
 
-  def render(
+  def _render(
       self, ax: Optional[matplotlib.axes.Axes] = None, c_track: str = 'k',
       c_obs: str = 'r', c_ego: str = 'b', s: float = 12
   ):
@@ -208,7 +205,7 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
     """
     self.constraints.update_obstacle(obs_list)
 
-  def get_cost(
+  def _get_cost(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray,
       constraints: Optional[dict] = None
   ) -> float:
@@ -270,7 +267,7 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
 
     return np.sum(c_contour + c_control + c_soft_cons) + c_progress
 
-  def get_constraints(
+  def _get_constraints(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray
   ) -> Dict:
     """
@@ -297,7 +294,7 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
         controls=actions_with_final, close_pts=close_pts, slopes=slopes
     )
 
-  def get_target_margin(
+  def _get_target_margin(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray
   ) -> Dict:
     """
@@ -364,7 +361,7 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
 
     return targets
 
-  def get_done_and_info(
+  def _get_done_and_info(
       self, constraints: Dict, targets: Optional[Dict] = None,
       final_only: bool = True, end_criterion: Optional[str] = None
   ) -> Tuple[bool, Dict]:
@@ -628,7 +625,7 @@ class BaseRaceCarSingleEnv(BaseSingleEnv):
     )
     return states_with_final, actions_with_final
 
-  def report(self):
+  def _report(self):
     target_criterion = ''
     has_prev = False
 
