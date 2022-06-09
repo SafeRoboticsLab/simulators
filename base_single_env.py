@@ -11,6 +11,7 @@ import torch
 
 from .agent import Agent
 from .base_env import BaseEnv
+from .utils import cast_numpy
 
 
 class BaseSingleEnv(BaseEnv):
@@ -39,7 +40,7 @@ class BaseSingleEnv(BaseEnv):
     """Implements the step function in the environment.
 
     Args:
-        action (np.ndarray): current actions of the shape (2, ).
+        action (np.ndarray).
         cast_torch (bool): cast state to torch if True.
 
     Returns:
@@ -50,10 +51,7 @@ class BaseSingleEnv(BaseEnv):
         Dict[str, Any]]: additional information of the step, such as target
             margin and safety margin used in reachability analysis.
     """
-    if torch.is_tensor(action):
-      action = action.cpu().numpy()
-    else:
-      assert isinstance(action, np.ndarray), "Invalid action type!"
+    action = cast_numpy(action)
 
     self.cnt += 1
     state_nxt, _ = self.agent.integrate_forward(
@@ -71,10 +69,6 @@ class BaseSingleEnv(BaseEnv):
       obs = torch.FloatTensor(obs)
 
     return obs, -cost, done, info
-
-  @abstractmethod
-  def get_obs(self, state: np.ndarray) -> np.ndarray:
-    raise NotImplementedError
 
   @abstractmethod
   def get_cost(

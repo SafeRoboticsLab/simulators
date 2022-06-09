@@ -6,11 +6,12 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 from abc import abstractmethod
 from typing import Dict, Tuple, Any
 import numpy as np
+import torch
 from gym import spaces
 
 from .agent import Agent
 from .base_env import BaseEnv
-from .utils import ActionZS, build_obs_space
+from .utils import ActionZS, build_obs_space, cast_numpy
 
 
 class BaseZeroSumEnv(BaseEnv):
@@ -54,7 +55,8 @@ class BaseZeroSumEnv(BaseEnv):
     self.observation_dim = self.observation_space.low.shape
     self.state = self.observation_space.sample()  # Overriden by reset later.
 
-  def step(self, action: ActionZS) -> Tuple[np.ndarray, float, bool, Dict]:
+  def step(self, action: ActionZS,
+           cast_torch: bool = False) -> Tuple[np.ndarray, float, bool, Dict]:
     """Implements the step function in the environment.
 
     Args:
@@ -69,16 +71,26 @@ class BaseZeroSumEnv(BaseEnv):
         Dict[str, Any]]: additional information of the step, such as target
             margin and safety margin used in reachability analysis.
     """
-    state_nxt, _ = self.agent.integrate_forward(
-        state=self.state, control=action['ctrl'], adversary=action['dstb'],
-        **self.integrate_kwargs
-    )
-    cost = self.get_cost(self.state, action, state_nxt)
-    constraints = self.get_constraints(self.state, action, state_nxt)
-    done = self.get_done_flag(self.state, action, state_nxt, constraints)
-    info = self.get_info(self.state, action, state_nxt, cost, constraints)
+    ctrl = action['ctrl']
+    dstb = action['dstb']
+    ctrl = cast_numpy(ctrl)
+    dstb = cast_numpy(dstb)
 
-    return np.copy(state_nxt), -cost, done, info
+    state_nxt, _ = self.agent.integrate_forward(
+        state=self.state, control=ctrl, adversary=dstb, **self.integrate_kwargs
+    )
+    cost = self.get_cost(self.state, ctrl, state_nxt)
+    constraints = self.get_constraints(self.state, ctrl, state_nxt)
+    done = self.get_done_flag(self.state, ctrl, state_nxt, constraints)
+    info = self.get_info(self.state, ctrl, state_nxt, cost, constraints)
+
+    self.state = np.copy(state_nxt)
+
+    obs = self.get_obs(state_nxt)
+    if cast_torch:
+      obs = torch.FloatTensor(obs)
+
+    return obs, -cost, done, info
 
   @abstractmethod
   def get_cost(

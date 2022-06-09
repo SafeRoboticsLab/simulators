@@ -26,6 +26,10 @@ class BaseEnv(gym.Env, ABC):
            action: GenericAction) -> Tuple[GenericState, float, bool, Dict]:
     raise NotImplementedError
 
+  @abstractmethod
+  def get_obs(self, state: np.ndarray) -> np.ndarray:
+    raise NotImplementedError
+
   def reset(
       self, state: Optional[GenericState] = None, cast_torch: bool = False,
       **kwargs
