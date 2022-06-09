@@ -11,7 +11,7 @@ from gym import spaces
 
 from .agent import Agent
 from .base_env import BaseEnv
-from .utils import ActionZS, build_obs_space, cast_numpy
+from .utils import ActionZS, build_obs_space
 
 
 class BaseZeroSumEnv(BaseEnv):
@@ -72,18 +72,15 @@ class BaseZeroSumEnv(BaseEnv):
         Dict[str, Any]]: additional information of the step, such as target
             margin and safety margin used in reachability analysis.
     """
-    ctrl = action['ctrl']
-    dstb = action['dstb']
-    ctrl = cast_numpy(ctrl)
-    dstb = cast_numpy(dstb)
 
     self.cnt += 1
     state_nxt, _ = self.agent.integrate_forward(
-        state=self.state, control=ctrl, adversary=dstb, **self.integrate_kwargs
+        state=self.state, control=action['ctrl'], adversary=action['dstb'],
+        **self.integrate_kwargs
     )
-    constraints = self.get_constraints(self.state, ctrl, state_nxt)
-    cost = self.get_cost(self.state, ctrl, state_nxt, constraints)
-    targets = self.get_target_margin(self.state, ctrl, state_nxt)
+    constraints = self.get_constraints(self.state, action, state_nxt)
+    cost = self.get_cost(self.state, action, state_nxt, constraints)
+    targets = self.get_target_margin(self.state, action, state_nxt)
     done, info = self.get_done_and_info(constraints, targets)
 
     self.state = np.copy(state_nxt)

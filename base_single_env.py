@@ -11,7 +11,6 @@ import torch
 
 from .agent import Agent
 from .base_env import BaseEnv
-from .utils import cast_numpy
 
 
 class BaseSingleEnv(BaseEnv):
@@ -51,7 +50,6 @@ class BaseSingleEnv(BaseEnv):
         Dict[str, Any]]: additional information of the step, such as target
             margin and safety margin used in reachability analysis.
     """
-    action = cast_numpy(action)
 
     self.cnt += 1
     state_nxt, _ = self.agent.integrate_forward(

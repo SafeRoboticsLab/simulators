@@ -76,6 +76,13 @@ class Agent:
     )
     if control is None:
       control = self.policy.get_action(state, **kwargs)[0]
+    else:
+      assert isinstance(control, np.ndarray)
+    if noise is not None:
+      assert isinstance(noise, np.ndarray)
+    if adversary is not None:
+      assert isinstance(adversary, np.ndarray)
+
     return self.dyn.integrate_forward(
         state=state, control=control, num_segment=num_segment, noise=noise,
         noise_type=noise_type, adversary=adversary, **kwargs
