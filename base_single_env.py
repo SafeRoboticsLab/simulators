@@ -21,7 +21,7 @@ class BaseSingleEnv(BaseEnv):
     super().__init__(config_env)
 
     # Action Space.
-    action_space = np.array(config_agent.ACTION_RANGE, dtype=np.float32)
+    action_space = np.array(config_agent.ACTION_LIMIT, dtype=np.float32)
     self.action_dim = action_space.shape[0]
     self.agent = Agent(config_agent, action_space)
     self.action_space = spaces.Box(
@@ -31,7 +31,10 @@ class BaseSingleEnv(BaseEnv):
 
     self.integrate_kwargs = getattr(config_env, "INTEGRATE_KWARGS", {})
     if "noise" in self.integrate_kwargs:
-      self.integrate_kwargs['noise'] = np.array(self.integrate_kwargs['noise'])
+      if self.integrate_kwargs['noise'] is not None:
+        self.integrate_kwargs['noise'] = np.array(
+            self.integrate_kwargs['noise']
+        )
 
   def step(
       self, action: np.ndarray, cast_torch: bool = False

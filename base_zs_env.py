@@ -28,17 +28,22 @@ class BaseZeroSumEnv(BaseEnv):
     super().__init__(config_env)
 
     # Action Space.
-    ctrl_space = np.array(config_agent.ACTION_RANGE['CTRL'])
+    ctrl_space = np.array(config_agent.ACTION_LIMIT['CTRL'])
     self.action_space_ctrl = spaces.Box(
         low=ctrl_space[:, 0], high=ctrl_space[:, 1]
     )
     self.action_dim_ctrl = ctrl_space.shape[0]
     self.agent = Agent(config_agent, ctrl_space)
-    # Other keyword arguments for integrate_forward, such as step, noise,
-    # noise_type.
-    self.integrate_kwargs = config_agent.INTEGRATE_KWARGS
+    self.state_dim = self.agent.dyn.dim_x
 
-    dstb_space = np.array(config_agent.ACTION_RANGE['DSTB'])
+    self.integrate_kwargs = getattr(config_env, "INTEGRATE_KWARGS", {})
+    if "noise" in self.integrate_kwargs:
+      if self.integrate_kwargs['noise'] is not None:
+        self.integrate_kwargs['noise'] = np.array(
+            self.integrate_kwargs['noise']
+        )
+
+    dstb_space = np.array(config_agent.ACTION_LIMIT['DSTB'])
     self.action_space_dstb = spaces.Box(
         low=dstb_space[:, 0], high=dstb_space[:, 1]
     )
@@ -46,14 +51,6 @@ class BaseZeroSumEnv(BaseEnv):
     self.action_space = spaces.Dict(
         dict(ctrl=self.action_space_ctrl, dstb=self.action_space_dstb)
     )
-
-    # Observation Space.
-    obs_spec = np.array(config_agent.OBS_RANGE)
-    self.observation_space = build_obs_space(
-        obs_spec=obs_spec, obs_dim=config_agent.OBS_DIM
-    )
-    self.observation_dim = self.observation_space.low.shape
-    self.state = self.observation_space.sample()  # Overriden by reset later.
 
   def step(
       self, action: ActionZS, cast_torch: bool = False
