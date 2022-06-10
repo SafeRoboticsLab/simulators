@@ -6,8 +6,8 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 from abc import abstractmethod
 from typing import Any, Tuple, Optional, Callable, List, Dict, Union
 import numpy as np
-from gym import spaces
 import torch
+from gym import spaces
 
 from .agent import Agent
 from .base_env import BaseEnv
@@ -254,3 +254,57 @@ class BaseSingleEnv(BaseEnv):
         action_hist=np.array(action_hist), plan_hist=plan_hist,
         reward_hist=np.array(reward_hist), step_hist=step_hist
     )
+
+  def simulate_trajectories(
+      self,
+      num_trajectories: int,
+      T_rollout: int,
+      end_criterion: str,
+      reset_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
+      action_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
+      rollout_step_callback: Optional[Callable] = None,
+      rollout_episode_callback: Optional[Callable] = None,
+  ):
+    """
+    Rolls out multiple trajectories given the horizon, termination criterion,
+    reset keyword arguments, callback afeter every step, and callback after the
+    rollout. Need to call env.reset() after this function to revert back to the
+    training mode.
+    """
+
+    if isinstance(reset_kwargs_list, list):
+      assert num_trajectories == len(reset_kwargs_list), (
+          "The length of reset_kwargs_list does not match with",
+          "the number of rollout trajectories"
+      )
+    if isinstance(action_kwargs_list, list):
+      assert num_trajectories == len(action_kwargs_list), (
+          "The length of action_kwargs_list does not match with",
+          "the number of rollout trajectories"
+      )
+
+    results = np.empty(shape=(num_trajectories,), dtype=int)
+    length = np.empty(shape=(num_trajectories,), dtype=int)
+
+    trajectories = []
+    for trial in range(num_trajectories):
+      if isinstance(reset_kwargs_list, list):
+        reset_kwargs = reset_kwargs_list[trial]
+      else:
+        reset_kwargs = reset_kwargs_list
+      if isinstance(action_kwargs_list, list):
+        action_kwargs = action_kwargs_list[trial]
+      else:
+        action_kwargs = action_kwargs_list
+
+      state_hist, result, _ = self.simulate_one_trajectory(
+          T_rollout=T_rollout, end_criterion=end_criterion,
+          reset_kwargs=reset_kwargs, action_kwargs=action_kwargs,
+          rollout_step_callback=rollout_step_callback,
+          rollout_episode_callback=rollout_episode_callback
+      )
+      trajectories.append(state_hist)
+      results[trial] = result
+      length[trial] = len(state_hist)
+
+    return trajectories, results, length
