@@ -24,7 +24,7 @@ class RaceCarZeroSumEnvV2(BaseZeroSumEnv, RaceCarEnvV2):
   """
 
   def __init__(self, config_env: Any, config_agent: Any) -> None:
-    assert config_env.NUM_AGENTS == 1, "This environment only has one agent!"
+    assert config_env.NUM_AGENTS == 2, "This is a zero-sum game!"
     BaseZeroSumEnv.__init__(self, config_env, config_agent)
     RaceCarEnvV2.__init__(self, config_env, config_agent)
 
