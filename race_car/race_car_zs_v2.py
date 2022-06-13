@@ -84,3 +84,6 @@ class RaceCarZeroSumEnvV2(BaseZeroSumEnv, RaceCarEnvV2):
         + "on bicycle dynamics version 2 and ellipse footprint."
     )
     RaceCarEnvV2._report(self)
+    print("target velocity:", self.target_vel)
+    print("target path:", self.target_path)
+    print("target yaw:", self.target_yaw)

@@ -43,11 +43,14 @@ class BaseRaceCarEnv(ABC):
     self.W_control = np.zeros((2, 2))
     self.g_x_fail = config_env.G_X_FAIL
     self.target_vel_amp = getattr(config_env, "TARGET_VEL_AMP", 1.)
-    self.target_vel = getattr(config_env, "TARGET_VEL", 0.01)
+    self.target_vel = config_env.TARGET_VEL
     self.target_path_amp = getattr(config_env, "TARGET_PATH_AMP", 1.)
-    self.target_path = getattr(config_env, "TARGET_PATH", 0.01)
+    self.target_path = config_env.TARGET_PATH
     self.target_yaw_amp = getattr(config_env, "TARGET_YAW_AMP", 1.)
-    self.target_yaw = np.array(getattr(config_env, "TARGET_YAW", [-0.1, 0.1]))
+    if config_env.TARGET_YAW is not None:
+      self.target_yaw = np.array(config_env.TARGET_YAW)
+    else:
+      self.target_yaw = None
 
     # Visualization.
     x_min, y_min = np.min(self.track.track_bound[2:, :], axis=1)
