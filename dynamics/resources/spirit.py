@@ -165,7 +165,7 @@ class Spirit:
         current_stance = self.get_joint_position()
         stance_error = np.array(current_stance)  - np.array(target_stance)
 
-        robot_observation = self.get_observation()
+        robot_observation = self.get_obs()
         vel_z = robot_observation[-1]
 
         return {
