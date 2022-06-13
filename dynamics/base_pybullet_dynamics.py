@@ -102,7 +102,7 @@ class BasePybulletDynamics(BaseDynamics):
             self._gen_force()
         else:
             self.elapsed_force_applied += 1
-        p.applyExternalForce(self.robot, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME)
+        p.applyExternalForce(self.robot.id, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME)
     
     def _gen_terrain(self):
         """

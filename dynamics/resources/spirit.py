@@ -26,22 +26,22 @@ class Spirit:
             
         f_name = os.path.join(os.path.dirname(__file__), self.urdf)
 
-        self.robot = p.loadURDF(fileName = f_name, basePosition=[ox, oy, self.height], baseOrientation = orientation, physicsClientId = client)
+        self.id = p.loadURDF(fileName = f_name, basePosition=[ox, oy, self.height], baseOrientation = orientation, physicsClientId = client)
         
-        # self.joint_index = range(p.getNumJoints(self.robot))
+        # self.joint_index = range(p.getNumJoints(self.id))
         self.joint_index = self.make_joint_list()
         self.torque_gain = 10.0
 
     def get_ids(self):
-        return self.robot, self.client
+        return self.id, self.client
 
     def reset(self, position):
         for i in range(len(self.joint_index)):
-            p.resetJointState(self.robot, self.joint_index[i], position[i], physicsClientId = self.client)
+            p.resetJointState(self.id, self.joint_index[i], position[i], physicsClientId = self.client)
 
     def apply_position(self, action):
         for i in range(len(self.joint_index)):
-            info = p.getJointInfo(self.robot, self.joint_index[i], physicsClientId = self.client)
+            info = p.getJointInfo(self.id, self.joint_index[i], physicsClientId = self.client)
             lower_limit = info[8]
             upper_limit = info[9]
             max_force = info[10]
@@ -49,7 +49,7 @@ class Spirit:
             pos = min(max(lower_limit, action[i]), upper_limit)
 
             p.setJointMotorControl2(
-                self.robot, 
+                self.id, 
                 self.joint_index[i],
                 p.POSITION_CONTROL, 
                 targetPosition = pos, 
@@ -62,13 +62,13 @@ class Spirit:
 
     def get_obs(self):
         # Get the position and orientation of robot in the simulation
-        pos, ang = p.getBasePositionAndOrientation(self.robot, self.client)
+        pos, ang = p.getBasePositionAndOrientation(self.id, self.client)
         ang = p.getEulerFromQuaternion(ang, physicsClientId = self.client)
         
         # ori = (math.cos(ang[0]), math.sin(ang[0]), math.cos(ang[1]), math.sin(ang[1]), math.cos(ang[2]), math.sin(ang[2]))
         
         # Get the velocity of robot
-        vel = p.getBaseVelocity(self.robot, self.client)[0][:]
+        vel = p.getBaseVelocity(self.id, self.client)[0][:]
 
         # self.previous_position = pos[0:2]
 
@@ -89,12 +89,12 @@ class Spirit:
         return observation # return observation size of 12
 
     def get_joint_position(self):
-        joint_state = p.getJointStates(self.robot, jointIndices = self.joint_index, physicsClientId = self.client)
+        joint_state = p.getJointStates(self.id, jointIndices = self.joint_index, physicsClientId = self.client)
         position = [state[0] for state in joint_state]
         return position
 
     def get_joint_torque(self):
-        joint_state = p.getJointStates(self.robot, jointIndices = self.joint_index, physicsClientId = self.client)
+        joint_state = p.getJointStates(self.id, jointIndices = self.joint_index, physicsClientId = self.client)
         torque = [state[3] for state in joint_state]
         return torque
 
@@ -155,8 +155,8 @@ class Spirit:
         joint_list = []
         for n in joint_names:
             joint_found = False
-            for joint in range(p.getNumJoints(self.robot, physicsClientId = self.client)):
-                name = p.getJointInfo(self.robot, joint, physicsClientId = self.client)[12]
+            for joint in range(p.getNumJoints(self.id, physicsClientId = self.client)):
+                name = p.getJointInfo(self.id, joint, physicsClientId = self.client)[12]
                 if name == n and name not in damaged_legs:
                     joint_list += [joint]
                     joint_found = True
@@ -177,7 +177,7 @@ class Spirit:
         # in bullet (see make_joint_list)
         for joint in self.joint_index:
             if joint != 1000:
-                pos[i] = p.getJointState(self.robot, joint, physicsClientId = self.client)[0]
+                pos[i] = p.getJointState(self.id, joint, physicsClientId = self.client)[0]
                 i += 1
         return pos
 
@@ -187,7 +187,7 @@ class Spirit:
         4 floats in [x,y,z,w] order. Use pb.getEulerFromQuaternion to convert
         the quaternion to Euler if needed.
         """
-        return p.getBasePositionAndOrientation(self.robot, physicsClientId = self.client)
+        return p.getBasePositionAndOrientation(self.id, physicsClientId = self.client)
     
     def linc_get_ground_contacts(self):
         leg_link_ids = [17, 14, 2, 5, 8, 11]
@@ -195,7 +195,7 @@ class Spirit:
         ground_contacts = np.zeros_like(leg_link_ids)
 
         # Get contact points between robot and world plane
-        contact_points = p.getContactPoints(self.robot, physicsClientId = self.client)
+        contact_points = p.getContactPoints(self.id, physicsClientId = self.client)
         link_ids = []  # list of links in contact with the ground plane
         if len(contact_points) > 0:
             for cn in contact_points:

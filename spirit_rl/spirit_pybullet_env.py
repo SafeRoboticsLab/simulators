@@ -3,7 +3,7 @@ import numpy as np
 from gym import spaces
 import torch
 
-from base_single_env import BaseSingleEnv
+from ..base_single_env import BaseSingleEnv
 
 class SpiritPybulletEnv(BaseSingleEnv):
     def __init__(self, config_env: Any, config_agent: Any) -> None:
@@ -13,7 +13,9 @@ class SpiritPybulletEnv(BaseSingleEnv):
     def reset(self, state: Optional[np.ndarray] = None, cast_torch: bool = False, **kwargs) -> Union[np.ndarray, torch.FloatTensor]:
         super().reset()
         self.agent.dyn.reset()
-        obs = self.get_obs()
+        obs = self.get_obs(None)
+
+        self.state = obs.copy()
         
         if cast_torch:
             obs = torch.FloatTensor(obs)
@@ -124,3 +126,9 @@ class SpiritPybulletEnv(BaseSingleEnv):
         if self.step_keep_targets:
             info['targets'] = targets
         return done, info
+    
+    def render(self):
+        return super().render()
+    
+    def report(self):
+        return super().report()

@@ -6,14 +6,14 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 from typing import Optional, Tuple, Any
 import numpy as np
 
-from dynamics.spirit_dynamics_pybullet import SpiritDynamicsPybullet
+from .dynamics.spirit_dynamics_pybullet import SpiritDynamicsPybullet
 
 # Dynamics.
 from .dynamics.bicycle_dynamics_v1 import BicycleDynamicsV1
 from .dynamics.bicycle_dynamics_v2 import BicycleDynamicsV2
 
 # Footprint.
-from .ell_reach.ellipse import Ellipse
+# from .ell_reach.ellipse import Ellipse
 
 # Policy.
 from .policy.ilqr_policy import iLQR
