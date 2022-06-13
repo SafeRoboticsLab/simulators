@@ -26,13 +26,14 @@ class SpiritPybulletEnv(BaseSingleEnv):
     
     def get_cost(self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray, constraints: Optional[Dict] = None) -> float:
         # TODO: Write this function
-        return super().get_cost(state, action, state_nxt, constraints)
+        # NOTE: in the old spirit_rl_env, costType is sparse and so the cost return is o
+        return 0
 
     def get_constraints(self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray) -> Dict:
-        return self.agent.get_constraints()
+        return self.agent.dyn.get_constraints()
 
     def get_target_margin(self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray) -> Dict:
-        return super().get_target_margin()
+        return self.agent.dyn.get_target_margin()
 
     def get_done_and_info(self, constraints: Dict, targets: Dict, final_only: bool = True, end_criterion: Optional[str] = None) -> Tuple[bool, Dict]:
         

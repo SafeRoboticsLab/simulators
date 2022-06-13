@@ -133,7 +133,7 @@ class Spirit:
         Safety margin of the robot. 
         If the robot gets too close to the ground, or if any of the knee touches the ground (within an error margin)
         """
-        robot_observation = self.get_observation()
+        robot_observation = self.get_obs()
         # height, roll, pitch
         return {
             "height_lower": 0.2 - robot_observation[2],
