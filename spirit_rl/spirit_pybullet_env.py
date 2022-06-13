@@ -57,7 +57,15 @@ class SpiritPybulletEnv(BaseSingleEnv):
                 done = True
                 done_type = "failure"
         elif end_criterion == 'reach-avoid':
-            pass
+            failure = g_x > 0.
+            success = not failure and l_x <= 0.
+            
+            if success:
+                done = True
+                done_type = "success"
+            elif failure:
+                done = True
+                done_type = "failure"
         elif end_criterion == 'timeout':
             pass
         else:
