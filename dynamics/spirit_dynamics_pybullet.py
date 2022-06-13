@@ -1,10 +1,9 @@
 import numpy as np 
 import pybullet as p
 from .base_pybullet_dynamics import BasePybulletDynamics
-
 from typing import Optional, Tuple, Any
-
 from .resources.spirit import Spirit
+import time
 
 class SpiritDynamicsPybullet(BasePybulletDynamics):
     def __init__(self, config: Any, action_space: np.ndarray) -> None:
@@ -23,6 +22,15 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         self.hip_increment_max = action_space[1, 1]
         self.knee_increment_min = action_space[2, 0]
         self.knee_increment_max = action_space[2, 1]
+
+        # TODO: Read this value from URDF, or pass from config
+        #! This is hardware constraints, different from action range
+        self.abduction_min = -0.5
+        self.abduction_max = 0.5
+        self.hip_min = 0.5
+        self.hip_max = 2.64
+        self.knee_min = 0.5
+        self.knee_max = 2.64
 
         self.reset()        
     
@@ -127,14 +135,42 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         spirit_old_obs = self.robot.get_obs()
         spirit_old_joint_pos = np.array(self.robot.get_joint_position(), dtype = np.float32)
 
-        self.robot.apply_action(control)
+        # check clipped control
+        clipped_control = []
+        for i, j in enumerate(control):
+            if i % 3 == 0:
+                if self.abduction_min <= spirit_old_joint_pos[i] + j <= self.abduction_max:
+                    clipped_control.append(np.clip(j, self.abduction_increment_min, self.abduction_increment_max))
+                else:
+                    clipped_control.append(
+                        np.clip(spirit_old_joint_pos[i] + j, self.abduction_min, self.abduction_max) - spirit_old_joint_pos[i]
+                    )
+            elif i % 3 == 1:
+                if self.hip_min <= spirit_old_joint_pos[i] + j <= self.hip_max:
+                    clipped_control.append(np.clip(j, self.hip_increment_min, self.hip_increment_max))
+                else:
+                    clipped_control.append(
+                        np.clip(spirit_old_joint_pos[i] + j, self.hip_min, self.hip_max) - spirit_old_joint_pos[i]
+                    )
+            elif i % 3 == 2:
+                if self.knee_min <= spirit_old_joint_pos[i] + j <= self.knee_max:
+                    clipped_control.append(np.clip(j, self.knee_increment_min, self.knee_increment_max))
+                else:
+                    clipped_control.append(
+                        np.clip(spirit_old_joint_pos[i] + j, self.knee_min, self.knee_max) - spirit_old_joint_pos[i]
+                    )
+
+        self.robot.apply_action(clipped_control)
         self._apply_force()
 
         p.stepSimulation(physicsClientId = self.client)
+
+        if self.gui:
+            time.sleep(self.dt)
 
         spirit_new_obs = np.array(self.robot.get_obs(), dtype = np.float32)
         spirit_new_joint_pos = np.array(self.robot.get_joint_position(), dtype = np.float32)
 
         self.state = np.concatenate((spirit_new_obs, spirit_old_obs, spirit_new_joint_pos, spirit_old_joint_pos), axis=0)
         
-        return self.state, control
+        return self.state, clipped_control
