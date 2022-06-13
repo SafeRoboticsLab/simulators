@@ -1,10 +1,10 @@
 import numpy as np 
 import pybullet as p
-from dynamics.base_pybullet_dynamics import BasePybulletDynamics
+from .base_pybullet_dynamics import BasePybulletDynamics
 
 from typing import Optional, Tuple, Any
 
-from dynamics.resources.spirit import Spirit
+from .resources.spirit import Spirit
 
 class SpiritDynamicsPybullet(BasePybulletDynamics):
     def __init__(self, config: Any, action_space: np.ndarray) -> None:

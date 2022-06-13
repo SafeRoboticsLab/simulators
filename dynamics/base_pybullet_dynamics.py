@@ -1,7 +1,7 @@
 from typing import Optional, Tuple, Any
 import numpy as np
 
-from dynamics.resources.plane import Plane
+from .resources.plane import Plane
 from .base_dynamics import BaseDynamics
 import pybullet as p
 
