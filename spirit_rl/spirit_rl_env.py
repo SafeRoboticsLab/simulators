@@ -536,7 +536,7 @@ class SpiritRLEnv(gym.Env):
         spirit_new_joint_position = np.array(self.robot.get_joint_position(), dtype = np.float32)
 
         ob = np.concatenate((ob, ob_old, spirit_new_joint_position, spirit_old_joint_position), axis=0)
-
+        
         # set camera
         self.debugger.cam_and_robotstates(self.robot.robot)
 

@@ -60,7 +60,7 @@ class Spirit:
                 physicsClientId = self.client
             )
 
-    def get_observation(self):
+    def get_obs(self):
         # Get the position and orientation of robot in the simulation
         pos, ang = p.getBasePositionAndOrientation(self.robot, self.client)
         ang = p.getEulerFromQuaternion(ang, physicsClientId = self.client)

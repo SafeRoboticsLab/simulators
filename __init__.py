@@ -11,4 +11,4 @@ from .config.utils import load_config
 # from .ell_reach.ellipse import Ellipse
 # from .ell_reach.plot_ellipsoids import plot_ellipsoids
 
-from .spirit_rl.spirit_rl_env import SpiritRLEnv
+from .dynamics.spirit_dynamics_pybullet import SpiritDynamicsPybullet
