@@ -24,6 +24,10 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         self.knee_increment_min = action_space[2, 0]
         self.knee_increment_max = action_space[2, 1]
 
+        self.reset()        
+    
+    def reset(self):
+        super().reset()
         # add the robot to the Pybullet engine
         if self.height_reset:  # Drops from the air.
             height = 0.4 + np.random.rand()*0.2
@@ -48,6 +52,12 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         spirit_initial_obs = self.robot.get_obs()
         self.state = np.concatenate((np.array(spirit_initial_obs, dtype=np.float32), np.array(spirit_initial_obs, dtype=np.float32), random_joint_value, random_joint_value), axis = 0)
     
+    def get_constraints(self):
+        return self.robot.safety_margin()
+
+    def get_target_margin(self):
+        return self.robot.target_margin()
+
     def get_random_joint_value(self, target_set = False):
         if target_set:
             return (

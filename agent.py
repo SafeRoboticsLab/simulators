@@ -6,6 +6,8 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 from typing import Optional, Tuple, Any
 import numpy as np
 
+from dynamics.spirit_dynamics_pybullet import SpiritDynamicsPybullet
+
 # Dynamics.
 from .dynamics.bicycle_dynamics_v1 import BicycleDynamicsV1
 from .dynamics.bicycle_dynamics_v2 import BicycleDynamicsV2
@@ -32,6 +34,8 @@ class Agent:
       self.dyn = BicycleDynamicsV1(config, action_space)
     elif config.DYN == "BicycleV2":
       self.dyn = BicycleDynamicsV2(config, action_space)
+    elif config.DYN == "SpiritPybullet":
+      self.dyn = SpiritDynamicsPybullet(config, action_space)
     else:
       raise ValueError("Dynamics type not supported!")
 

@@ -64,13 +64,15 @@ class BasePybulletDynamics(BaseDynamics):
         else:
             self.client = p.connect(p.DIRECT)
 
-        # add a plane to the Pybullet engine
-        Plane(self.client)
+        self.reset()
 
-        p.setGravity(0, 0, self.gravity, physicsClientId = self.client)
+    def reset(self):
+        p.resetSimulation(physicsClientId = self.client)
+        p.setGravity(0, 0, self.GRAVITY, physicsClientId = self.client)
         p.setTimeStep(self.dt, physicsClientId = self.client)
         p.setPhysicsEngineParameter(fixedTimeStep = self.dt, physicsClientId = self.client)
         p.setRealTimeSimulation(0)
+        Plane(self.client)
 
         if self.terrain == "rough":
             self._gen_terrain()

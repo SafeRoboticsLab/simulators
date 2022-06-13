@@ -105,7 +105,12 @@ class Spirit:
         """
         robot_observation = self.get_observation()
         # height, roll, pitch
-        return max(0.2 - robot_observation[2], robot_observation[2] - 0.5, abs(robot_observation[3]) - math.pi * 0.0625, abs(robot_observation[4]) - math.pi * 0.0625)
+        return {
+            "height_lower": 0.2 - robot_observation[2],
+            "height_upper": robot_observation[2] - 0.5,
+            "roll": abs(robot_observation[3]) - math.pi * 0.0625, 
+            "pitch": abs(robot_observation[4]) - math.pi * 0.0625
+        }
 
     def target_margin(self):
         """
@@ -133,7 +138,10 @@ class Spirit:
         robot_observation = self.get_observation()
         vel_z = robot_observation[-1]
 
-        return max(max(abs(stance_error) - target_margin), abs(vel_z) - 1.0)
+        return {
+            "stance_error": max(abs(stance_error) - target_margin), 
+            "vel_z": abs(vel_z) - 1.0
+        }
         # return max(abs(stance_error) - target_margin)
 
     def make_joint_list(self):
