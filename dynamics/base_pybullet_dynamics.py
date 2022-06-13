@@ -68,7 +68,7 @@ class BasePybulletDynamics(BaseDynamics):
 
     def reset(self):
         p.resetSimulation(physicsClientId = self.client)
-        p.setGravity(0, 0, self.GRAVITY, physicsClientId = self.client)
+        p.setGravity(0, 0, self.gravity, physicsClientId = self.client)
         p.setTimeStep(self.dt, physicsClientId = self.client)
         p.setPhysicsEngineParameter(fixedTimeStep = self.dt, physicsClientId = self.client)
         p.setRealTimeSimulation(0)
