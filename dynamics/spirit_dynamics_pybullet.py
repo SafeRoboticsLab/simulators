@@ -127,7 +127,7 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         spirit_old_obs = self.robot.get_obs()
         spirit_old_joint_pos = np.array(self.robot.get_joint_position(), dtype = np.float32)
 
-        self.robot.apply_position(control)
+        self.robot.apply_action(control)
         self._apply_force()
 
         p.stepSimulation(physicsClientId = self.client)

@@ -95,13 +95,14 @@ class BasePybulletDynamics(BaseDynamics):
             self.force_applied_force_vector = np.array([np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)]) * self.force
         else:
             self.force_applied_force_vector = np.array([np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-50, 5)]) * self.force
-        self.test_force_applied_position_vector = np.array([np.random.uniform(-0.1, 0.1), np.random.uniform(-0.1, 0.1), np.random.uniform(0, 0.5)])
+        self.force_applied_position_vector = np.array([np.random.uniform(-0.1, 0.1), np.random.uniform(-0.1, 0.1), np.random.uniform(0, 0.5)])
     
     def _apply_force(self):
         if self.elapsed_force_applied > self.force_applied_reset:
             self._gen_force()
         else:
             self.elapsed_force_applied += 1
+
         p.applyExternalForce(self.robot.id, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME)
     
     def _gen_terrain(self):

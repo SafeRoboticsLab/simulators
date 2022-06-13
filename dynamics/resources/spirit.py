@@ -38,6 +38,36 @@ class Spirit:
     def reset(self, position):
         for i in range(len(self.joint_index)):
             p.resetJointState(self.id, self.joint_index[i], position[i], physicsClientId = self.client)
+    
+    
+    def apply_action(self, action):
+        """
+        Action is the angular increase for each of the joint wrt to the current position
+
+        Args:
+            action (_type_): angular positional increase
+        """
+        new_angle = np.array(self.get_joint_position()) + np.array(action)
+
+        for i in range(len(self.joint_index)):
+            info = p.getJointInfo(self.id, self.joint_index[i], physicsClientId = self.client)
+            lower_limit = info[8]
+            upper_limit = info[9]
+            max_force = info[10]
+            max_velocity = info[11]
+            pos = min(max(lower_limit, new_angle[i]), upper_limit)
+
+            p.setJointMotorControl2(
+                self.id, 
+                self.joint_index[i],
+                p.POSITION_CONTROL, 
+                targetPosition = pos, 
+                positionGain=1./12.,
+                velocityGain=0.4,
+                force=max_force,
+                maxVelocity=max_velocity, 
+                physicsClientId = self.client
+            )
 
     def apply_position(self, action):
         for i in range(len(self.joint_index)):
