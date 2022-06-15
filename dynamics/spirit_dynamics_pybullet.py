@@ -160,9 +160,7 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
                         np.clip(spirit_old_joint_pos[i] + j, self.knee_min, self.knee_max) - spirit_old_joint_pos[i]
                     )
 
-        new_joint_pos = np.array(self.robot.get_joint_position()) + np.array(clipped_control)
-        # self.robot.apply_action(clipped_control)
-        self.robot.apply_position(new_joint_pos)
+        self.robot.apply_action(clipped_control)
         self._apply_force()
 
         p.stepSimulation(physicsClientId = self.client)
