@@ -14,9 +14,8 @@ import argparse
 
 from simulators import (
     RaceCarSingleEnvV1, RaceCarSingleEnvV2, load_config, Ellipse,
-    plot_ellipsoids
+    plot_ellipsoids, save_obj
 )
-from utils import save_obj
 
 
 def main(config_file):
@@ -172,7 +171,7 @@ def main(config_file):
 
     states = np.array(state_hist).T
     ctrls = np.array(action_hist).T
-    action_space = np.array(config_agent.ACTION_RANGE, dtype=np.float32)
+    action_space = np.array(config_agent.ACTION_LIMIT, dtype=np.float32)
 
     ax = axes[0]
     sc = ax.scatter(
@@ -248,7 +247,7 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument(
       "-cf", "--config_file", help="config file path", type=str,
-      default=os.path.join("simulators", "race_car", "race_car_env_v1.yaml")
+      default=os.path.join("simulators", "race_car", "race_car_env_v2.yaml")
   )
   args = parser.parse_args()
   main(args.config_file)

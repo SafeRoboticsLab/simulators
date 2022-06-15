@@ -4,7 +4,7 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, List, Union, Callable
 import random
 import numpy as np
 import gym
@@ -16,7 +16,7 @@ from .utils import GenericAction, GenericState
 class BaseEnv(gym.Env, ABC):
 
   def __init__(self, config_env) -> None:
-    super().__init__()
+    gym.Env.__init__(self)
     self.cnt = 0
     self.timeout = config_env.TIMEOUT
     self.end_criterion = config_env.END_CRITERION
@@ -24,6 +24,10 @@ class BaseEnv(gym.Env, ABC):
   @abstractmethod
   def step(self,
            action: GenericAction) -> Tuple[GenericState, float, bool, Dict]:
+    raise NotImplementedError
+
+  @abstractmethod
+  def get_obs(self, state: np.ndarray) -> np.ndarray:
     raise NotImplementedError
 
   def reset(
@@ -39,7 +43,7 @@ class BaseEnv(gym.Env, ABC):
         cast_torch (bool): cast state to torch if True.
 
     Returns:
-        np.ndarray: the new state of the shape (4, ).
+        np.ndarray: the new state.
     """
     self.cnt = 0
 

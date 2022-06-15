@@ -8,6 +8,28 @@ from typing import TypeVar, TypedDict, List, Any, Optional, Union, Tuple
 import numpy as np
 from gym import spaces
 import torch
+import pickle
+
+
+def save_obj(obj, filename, protocol=None):
+  if protocol is None:
+    protocol = pickle.HIGHEST_PROTOCOL
+  with open(filename + '.pkl', 'wb') as f:
+    pickle.dump(obj, f, protocol=protocol)
+
+
+def load_obj(filename):
+  with open(filename + '.pkl', 'rb') as f:
+    return pickle.load(f)
+
+
+def cast_numpy(x: np.ndarray | torch.Tensor) -> np.ndarray:
+  if torch.is_tensor(x):
+    x = x.cpu().numpy()
+  else:
+    assert isinstance(x, np.ndarray), "Invalid action type!"
+
+  return x
 
 
 # Type Hints

@@ -16,9 +16,8 @@ class NeuralNetworkControlSystem(BasePolicy):
   def __init__(
       self, env, critic: torch.nn.Module, actor: torch.nn.Module, config: Any
   ) -> None:
-    super().__init__()
+    super().__init__(env, config)
     self.policy_type = "NNCS"
-    self.env = copy.deepcopy(env)
     self.device = config.DEVICE
     self.critic_has_act_ind = config.CRITIC_HAS_ACT_IND
     if self.critic_has_act_ind:
@@ -56,7 +55,8 @@ class NeuralNetworkControlSystem(BasePolicy):
     if actor is not None:
       self.actor.load_state_dict(actor.state_dict())
 
-  def get_action(self, state: np.ndarray, **kwargs) -> Tuple[np.ndarray, dict]:
+  def _get_action(self, state: np.ndarray,
+                  **kwargs) -> Tuple[np.ndarray, dict]:
     """Gets the action to execute.
 
     Args:

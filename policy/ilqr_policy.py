@@ -3,7 +3,6 @@ Please contact the author(s) of this library if you have any questions.
 Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 from typing import Tuple, Optional
-import copy
 import time
 import numpy as np
 
@@ -13,13 +12,11 @@ from .base_policy import BasePolicy
 class iLQR(BasePolicy):
 
   def __init__(self, env, config) -> None:
-    super().__init__()
+    super().__init__(env, config)
     self.policy_type = "iLQR"
 
     self.N = config.N
     self.max_iter = config.MAX_ITER
-
-    self.env = copy.deepcopy(env)
 
     self.tol = 1e-3  # ILQR update tolerance.
     self.eps = 0.01  # Numerical stability for Q inverse.
@@ -28,7 +25,7 @@ class iLQR(BasePolicy):
 
     self.alphas = 1.1**(-np.arange(20)**2)  # Stepsize scheduler.
 
-  def get_action(
+  def _get_action(
       self, state: np.ndarray, controls: Optional[np.ndarray] = None, **kwargs
   ) -> np.ndarray:
     status = 0

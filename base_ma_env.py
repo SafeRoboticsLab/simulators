@@ -4,13 +4,15 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 
 from abc import abstractmethod
-from typing import Dict, Tuple, Any, List
+import copy
+from typing import Dict, Tuple, Any, List, Union
 import numpy as np
+import torch
 from gym import spaces
 
 from .agent import Agent
 from .base_env import BaseEnv
-from .utils import build_obs_space
+from .utils import build_obs_space, cast_numpy
 
 
 class BaseMultiAgentEnv(BaseEnv):
@@ -21,6 +23,7 @@ class BaseMultiAgentEnv(BaseEnv):
       (1) Centralized Training for Decentralized Execution (CTDE).
       (2) Global Observation Broadcast.
   """
+  agent: List[Agent]
 
   def __init__(self, config_env: Any, config_agent: List[Any]) -> None:
     super().__init__()
@@ -37,7 +40,7 @@ class BaseMultiAgentEnv(BaseEnv):
     for i in range(self.num_agents):
       agent_name = 'agent_' + str(i)
       # Action Space.
-      tmp_action_space = np.array(config_agent[i].ACTION_RANGE[agent_name])
+      tmp_action_space = np.array(config_agent[i].ACTION_LIMIT[agent_name])
       _action_space[agent_name] = spaces.Box(
           low=tmp_action_space[:, 0], high=tmp_action_space[:, 1]
       )
@@ -58,7 +61,8 @@ class BaseMultiAgentEnv(BaseEnv):
     self.state = self.observation_space.sample()  # Overriden by reset later.
 
   def step(
-      self, action: List[np.ndarray]
+      self, action: List[Union[np.ndarray, torch.Tensor]],
+      cast_torch: bool = False
   ) -> Tuple[List[np.ndarray], List[float], List[bool], List[Dict]]:
     """
     Implements the step function in the environment. We assume each agent's
@@ -67,9 +71,11 @@ class BaseMultiAgentEnv(BaseEnv):
     Args:
         action (List[np.ndarray]): a list consisting of the action of each
             agent.
+        cast_torch (bool): cast state to torch if True.
 
     Returns:
-        List[np.ndarray]: a list consisting of the next state of each agent.
+        List[np.ndarray, torch.Tensor]: a list consisting of the next state of
+            each agent.
         List[float]: a list consisting of the reward (cost*-1) of each agent.
         List[bool]: a list consisting of the done flag of each agent. True if
             the episode of that agent ends.
@@ -80,6 +86,7 @@ class BaseMultiAgentEnv(BaseEnv):
     state_nxt = [None for _ in range(self.num_agents)]
 
     for i, (state_i, action_i) in enumerate(zip(self.state, action)):
+      action_i = cast_numpy(action_i)
       state_nxt_i, _ = self.agent[i].integrate_forward(
           state=state_i, control=action_i, **self.integrate_kwargs[i]
       )
@@ -90,7 +97,12 @@ class BaseMultiAgentEnv(BaseEnv):
     done = self.get_done_flag(self.state, action, state_nxt, constraints)
     info = self.get_info(self.state, action, state_nxt, cost, constraints)
 
-    return state_nxt, -cost, done, info
+    self.state = copy.deepcopy(state_nxt)
+    obs = self.get_obs(state_nxt)
+    if cast_torch:
+      obs = torch.FloatTensor(obs)
+
+    return obs, -cost, done, info
 
   @abstractmethod
   def get_cost(
