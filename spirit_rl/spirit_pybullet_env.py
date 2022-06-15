@@ -2,7 +2,7 @@ from typing import Any, Tuple, Optional, Callable, List, Dict, Union
 import numpy as np
 from gym import spaces
 import torch
-
+from simulators.pybullet_debugger import pybulletDebug
 from ..base_single_env import BaseSingleEnv
 
 class SpiritPybulletEnv(BaseSingleEnv):

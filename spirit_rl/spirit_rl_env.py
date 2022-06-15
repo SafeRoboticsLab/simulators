@@ -9,7 +9,7 @@ from matplotlib.widgets import Slider
 import time
 from scipy.stats import truncnorm
 
-from pybullet_debugger import pybulletDebug
+from simulators.pybullet_debugger import pybulletDebug
 import subprocess
 import torch
 

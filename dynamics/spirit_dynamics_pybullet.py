@@ -160,7 +160,9 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
                         np.clip(spirit_old_joint_pos[i] + j, self.knee_min, self.knee_max) - spirit_old_joint_pos[i]
                     )
 
-        self.robot.apply_action(clipped_control)
+        new_joint_pos = np.array(self.robot.get_joint_position()) + np.array(clipped_control)
+        # self.robot.apply_action(clipped_control)
+        self.robot.apply_position(new_joint_pos)
         self._apply_force()
 
         p.stepSimulation(physicsClientId = self.client)
@@ -173,4 +175,6 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
 
         self.state = np.concatenate((spirit_new_obs, spirit_old_obs, spirit_new_joint_pos, spirit_old_joint_pos), axis=0)
         
+        self.debugger.cam_and_robotstates(self.robot.id)
+
         return self.state, clipped_control

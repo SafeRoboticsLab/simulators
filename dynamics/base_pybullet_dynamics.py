@@ -1,6 +1,6 @@
 from typing import Optional, Tuple, Any
 import numpy as np
-
+from simulators.pybullet_debugger import pybulletDebug
 from .resources.plane import Plane
 from .base_dynamics import BaseDynamics
 import pybullet as p
@@ -63,6 +63,8 @@ class BasePybulletDynamics(BaseDynamics):
                 cameraTargetPosition=[1, -0.5, 0.8])
         else:
             self.client = p.connect(p.DIRECT)
+        
+        self.debugger = pybulletDebug()
 
         self.reset()
 
