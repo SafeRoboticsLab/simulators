@@ -1,3 +1,4 @@
+from turtle import position
 import numpy as np 
 import pybullet as p
 from .base_pybullet_dynamics import BasePybulletDynamics
@@ -167,9 +168,14 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         
         # TODO: check clipped adversarial control
         
-
         self.robot.apply_action(clipped_control)
-        self._apply_force()
+        if has_adversarial:
+            force = adversary[0]
+            force_vector = adversary[1:4]
+            position_vector = adversary[4:]
+            self._apply_adversarial_force(force=force, force_vector=force_vector, position_vector=position_vector)
+        else:
+            self._apply_force()
 
         p.stepSimulation(physicsClientId = self.client)
 
