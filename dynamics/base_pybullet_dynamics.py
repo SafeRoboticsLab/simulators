@@ -1,3 +1,4 @@
+from turtle import pos
 from typing import Optional, Tuple, Any
 import numpy as np
 from simulators.pybullet_debugger import pybulletDebug
@@ -99,6 +100,12 @@ class BasePybulletDynamics(BaseDynamics):
             self.force_applied_force_vector = np.array([np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-50, 5)]) * self.force
         self.force_applied_position_vector = np.array([np.random.uniform(-0.1, 0.1), np.random.uniform(-0.1, 0.1), np.random.uniform(0, 0.5)])
     
+    def _apply_adversarial_force(self, force, force_vector, position_vector):
+        self.force = force
+        self.force_applied_force_vector = force_vector * self.force
+        self.force_applied_position_vector = position_vector 
+        p.applyExternalForce(self.robot.id, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME)
+
     def _apply_force(self):
         if self.elapsed_force_applied > self.force_applied_reset:
             self._gen_force()
@@ -107,11 +114,17 @@ class BasePybulletDynamics(BaseDynamics):
 
         p.applyExternalForce(self.robot.id, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME)
     
-    def _gen_terrain(self):
+    def _gen_terrain(self, terrain_height: Optional[int]=None, mesh_scale: Optional[np.ndarray]=None):
         """
         Create a randomized terrain to be applied into the dynamics
         The terrain will be applied from the beginning
         """
+        if terrain_height is not None:
+            self.terrain_height = terrain_height
+        
+        if mesh_scale is None:
+            mesh_scale = [0.08, 0.08, 1.0] # [x, y, z]
+            
         heightPerturbationRange = self.terrain_height
         numHeightfieldRows = 256
         numHeightfieldColumns = 256
@@ -134,7 +147,8 @@ class BasePybulletDynamics(BaseDynamics):
 
         terrainShape = p.createCollisionShape(
             shapeType=p.GEOM_HEIGHTFIELD,
-            meshScale=[0.08, 0.08, 1.0], # [x, y, z]
+            # meshScale=[0.08, 0.08, 1.0], # [x, y, z]
+            meshScale=mesh_scale,
             heightfieldTextureScaling=(numHeightfieldRows - 1) / 2,
             heightfieldData = heightfieldData,
             numHeightfieldRows=numHeightfieldRows,
