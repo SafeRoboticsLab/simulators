@@ -1,3 +1,4 @@
+from turtle import position
 import numpy as np 
 import pybullet as p
 from .base_pybullet_dynamics import BasePybulletDynamics
@@ -126,11 +127,16 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
             num_segment (Optional[int], optional): _description_. Defaults to 1.
             noise (Optional[np.ndarray], optional): _description_. Defaults to None.
             noise_type (Optional[str], optional): _description_. Defaults to 'unif'.
-            adversary (Optional[np.ndarray], optional): _description_. Defaults to None.
+            adversary (Optional[np.ndarray], optional): The adversarial action, this is the force vector, force applied position, and terrain information. Defaults to None.
 
         Returns:
             Tuple[np.ndarray, np.ndarray]: _description_
         """
+        if adversary is not None:
+            has_adversarial = True
+        else:
+            has_adversarial = False
+
         # get the current state of the robot
         spirit_old_obs = self.robot.get_obs()
         spirit_old_joint_pos = np.array(self.robot.get_joint_position(), dtype = np.float32)
@@ -159,9 +165,17 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
                     clipped_control.append(
                         np.clip(spirit_old_joint_pos[i] + j, self.knee_min, self.knee_max) - spirit_old_joint_pos[i]
                     )
-
+        
+        # TODO: check clipped adversarial control
+        
         self.robot.apply_action(clipped_control)
-        self._apply_force()
+        if has_adversarial:
+            force = adversary[0]
+            force_vector = adversary[1:4]
+            position_vector = adversary[4:]
+            self._apply_adversarial_force(force=force, force_vector=force_vector, position_vector=position_vector)
+        else:
+            self._apply_force()
 
         p.stepSimulation(physicsClientId = self.client)
 
