@@ -3,6 +3,7 @@ from .config.utils import load_config
 from .agent import Agent
 
 from .spirit_rl.spirit_pybullet_env import SpiritPybulletEnv
+from .spirit_rl.spirit_pybullet_zs import SpiritPybulletZeroSumEnv
 from .base_single_env import BaseSingleEnv
 from .base_zs_env import BaseZeroSumEnv
 
