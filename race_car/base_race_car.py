@@ -99,7 +99,8 @@ class BaseRaceCarEnv(ABC):
       direction = 1
       if self.rng.random() > 0.5:
         direction = -1
-      state[3] = np.mod(direction*slope + state[3], 2 * np.pi)
+      # Adds small random angle to centerline slope.
+      state[3] = np.mod(direction*slope + state[3] + np.pi, 2 * np.pi) - np.pi
     self.state = state.copy()
 
     obs = self.get_obs(state)
