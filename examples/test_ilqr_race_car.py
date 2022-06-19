@@ -56,8 +56,8 @@ def main(config_file):
 
   pos0, psi0 = env.track.interp([2])  # The position and yaw on the track.
   pos0 = pos0[:, 0]
-  psi0 = psi0[0]
-  psi0 = np.mod(psi0 + np.pi, 2 * np.pi) - np.pi
+  psi0 = np.pi
+  # psi0 = np.mod(psi0 + np.pi, 2 * np.pi) - np.pi
   if config_agent.DYN == "BicycleV1":
     x_cur = np.array([pos0[0], pos0[1], 0., psi0])
   elif config_agent.DYN == "BicycleV2":
