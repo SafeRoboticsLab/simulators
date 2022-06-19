@@ -49,7 +49,7 @@ environment:
 agent:
   DYN: BicycleV2
   FOOTPRINT: Ellipse
-  ACTION_RANGE:
+  ACTION_LIMIT:
     - [-3.5, 3.5]
     - [-5., 5.]
   # CAR FOOTPRINT
@@ -71,8 +71,7 @@ agent:
   V_MAX: 2.
   DELTA_MIN: -0.35  # rad
   DELTA_MAX: 0.35
-  A_MIN: -3.5
-  A_MAX: 3.5
+  ALAT_MIN: -5
   ALAT_MAX: 5.
 
 solver:
