@@ -78,7 +78,7 @@ class BasePybulletDynamics(BaseDynamics):
         Plane(self.client)
 
         if self.terrain == "rough":
-            self._gen_terrain()
+            self._gen_terrain(mesh_scale=[0.25, 0.25, 2.0])
         self._gen_force()
 
     def integrate_forward(self, state: np.ndarray, control: np.ndarray, num_segment: Optional[int] = 1, noise: Optional[np.ndarray] = None, noise_type: Optional[str] = 'unif', adversary: Optional[np.ndarray] = None, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
