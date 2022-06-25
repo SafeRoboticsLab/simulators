@@ -21,7 +21,7 @@ class SpiritPybulletSingleEnv(BaseSingleEnv, SpiritPybulletEnv):
         **kwargs
     ) -> Union[np.ndarray, torch.FloatTensor]:
         BaseSingleEnv.reset(self, state, cast_torch, **kwargs)
-        self.agent.dyn.reset()
+        self.agent.dyn.reset(**kwargs)
         obs = self.get_obs(None)
 
         self.state = obs.copy()

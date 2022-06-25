@@ -26,7 +26,7 @@ class SpiritPybulletZeroSumEnv(BaseZeroSumEnv, SpiritPybulletEnv):
     
     def reset(self, state: Optional[np.ndarray] = None, cast_torch: bool = False, **kwargs) -> Union[np.ndarray, torch.FloatTensor]:
         BaseZeroSumEnv.reset(self, state, cast_torch, **kwargs)
-        self.agent.dyn.reset()
+        self.agent.dyn.reset(**kwargs)
         obs = self.get_obs(None)
 
         self.state = obs.copy()

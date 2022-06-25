@@ -33,24 +33,50 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         self.knee_min = 0.5
         self.knee_max = 2.64
 
-        self.reset()        
-    
-    def reset(self):
-        super().reset()
-        # add the robot to the Pybullet engine
-        if self.height_reset:  # Drops from the air.
-            height = 0.4 + np.random.rand()*0.2
-        else:
-            height = 0.6
+        self.initial_height = None
+        self.initial_rotation = None
+        self.initial_joint_value = None
 
-        if self.rotate_reset:  # Resets the yaw, pitch, roll.
-            rotate = p.getQuaternionFromEuler((np.random.rand(3)-0.5) * np.pi * 0.125)
+        self.reset()
+    
+    def reset(self, **kwargs):
+        super().reset(**kwargs)
+        # add the robot to the Pybullet engine
+
+        if "initial_height" in kwargs.keys():
+            height = kwargs["initial_height"]
         else:
-            rotate = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
+            height = None
         
+        if "initial_rotation" in kwargs.keys():
+            rotate = kwargs["initial_rotation"]
+        else:
+            rotate = None
+        
+        if "initial_joint_value" in kwargs.keys():
+            random_joint_value = kwargs["initial_joint_value"]
+        else:
+            random_joint_value = None
+        
+        if height is None:
+            if self.height_reset:  # Drops from the air.
+                height = 0.4 + np.random.rand()*0.2
+            else:
+                height = 0.6
+        self.initial_height = height
+
+        if rotate is None:
+            if self.rotate_reset:  # Resets the yaw, pitch, roll.
+                rotate = p.getQuaternionFromEuler((np.random.rand(3)-0.5) * np.pi * 0.125)
+            else:
+                rotate = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
+        self.initial_rotation = rotate
+         
         self.robot = Spirit(self.client, height, rotate)
 
-        random_joint_value = self.get_random_joint_value(target_set=True)
+        if random_joint_value is None:
+            random_joint_value = self.get_random_joint_value(target_set=True)
+        self.initial_joint_value = random_joint_value
         
         self.robot.reset(random_joint_value)
         self.robot.apply_position(random_joint_value)

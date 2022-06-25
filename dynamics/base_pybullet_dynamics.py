@@ -39,6 +39,8 @@ class BasePybulletDynamics(BaseDynamics):
         self.terrain_height = config.TERRAIN_HEIGHT
         self.terrain_friction = config.TERRAIN_FRICTION
 
+        self.terrain_data = None
+
         # initialize a pybullet client (GUI/DIRECT)
         if self.gui:
             # Setup the GUI (disable the useless windows)
@@ -69,7 +71,7 @@ class BasePybulletDynamics(BaseDynamics):
 
         self.reset()
 
-    def reset(self):
+    def reset(self, **kwargs):
         p.resetSimulation(physicsClientId = self.client)
         p.setGravity(0, 0, self.gravity, physicsClientId = self.client)
         p.setTimeStep(self.dt, physicsClientId = self.client)
@@ -77,8 +79,17 @@ class BasePybulletDynamics(BaseDynamics):
         p.setRealTimeSimulation(0)
         Plane(self.client)
 
+        if "terrain_data" in kwargs.keys():
+            terrain_data = kwargs["terrain_data"]
+        else:
+            terrain_data = None
+
         if self.terrain == "rough":
-            self._gen_terrain(mesh_scale=[0.2, 0.2, 2.0])
+            if terrain_data is None:
+                self._gen_terrain(mesh_scale=[0.2, 0.2, 2.0])
+            else:
+                self._set_terrain(terrain_data, mesh_scale=[0.2, 0.2, 2.0])
+        
         self._gen_force()
 
     def integrate_forward(self, state: np.ndarray, control: np.ndarray, num_segment: Optional[int] = 1, noise: Optional[np.ndarray] = None, noise_type: Optional[str] = 'unif', adversary: Optional[np.ndarray] = None, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
@@ -162,3 +173,41 @@ class BasePybulletDynamics(BaseDynamics):
         
         p.changeDynamics(terrain, -1, lateralFriction=self.terrain_friction, physicsClientId = self.client)
         p.changeVisualShape(terrain, -1, rgbaColor=[0.2, 0.8, 0.8, 1], physicsClientId = self.client)
+
+        self.terrain_data = heightfieldData
+
+    def _set_terrain(self, terrain_data, terrain_height: Optional[int]=None, mesh_scale: Optional[np.ndarray]=None):
+        """
+        Create a randomized terrain to be applied into the dynamics
+        The terrain will be applied from the beginning
+        """
+        if terrain_height is not None:
+            self.terrain_height = terrain_height
+        
+        if mesh_scale is None:
+            mesh_scale = [0.08, 0.08, 1.0] # [x, y, z]
+            
+        numHeightfieldRows = 256
+        numHeightfieldColumns = 256
+
+        terrainShape = 0
+        heightfieldData = terrain_data
+        
+        terrainShape = p.createCollisionShape(
+            shapeType=p.GEOM_HEIGHTFIELD,
+            meshScale=mesh_scale,
+            heightfieldTextureScaling=(numHeightfieldRows - 1) / 2,
+            heightfieldData = heightfieldData,
+            numHeightfieldRows=numHeightfieldRows,
+            numHeightfieldColumns=numHeightfieldColumns,
+            physicsClientId = self.client)
+        
+        terrain = p.createMultiBody(0, terrainShape, physicsClientId = self.client)
+
+        p.resetBasePositionAndOrientation(
+            terrain, [0, 0, 0.0], [0, 0, 0, 1], physicsClientId = self.client)
+        
+        p.changeDynamics(terrain, -1, lateralFriction=self.terrain_friction, physicsClientId = self.client)
+        p.changeVisualShape(terrain, -1, rgbaColor=[0.2, 0.8, 0.8, 1], physicsClientId = self.client)
+
+        self.terrain_data = heightfieldData
