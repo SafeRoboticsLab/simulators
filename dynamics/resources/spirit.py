@@ -167,10 +167,14 @@ class Spirit:
 
         robot_observation = self.get_obs()
         vel_z = robot_observation[-1]
+        vel_y = robot_observation[-2]
+        vel_x = robot_observation[-3]
+        ground_velocity = math.sqrt(vel_x**2+vel_y**2)
 
         return {
             "stance_error": max(abs(stance_error) - target_margin), 
-            "vel_z": abs(vel_z) - 1.0
+            "vel_z": abs(vel_z) - 1.0,
+            "ground_velocity": max(0.5 - ground_velocity, ground_velocity - 1.0)
         }
         # return max(abs(stance_error) - target_margin)
 
