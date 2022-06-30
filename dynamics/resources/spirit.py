@@ -39,7 +39,6 @@ class Spirit:
         for i in range(len(self.joint_index)):
             p.resetJointState(self.id, self.joint_index[i], position[i], physicsClientId = self.client)
     
-    
     def apply_action(self, action):
         """
         Action is the angular increase for each of the joint wrt to the current position
@@ -128,55 +127,39 @@ class Spirit:
         torque = [state[3] for state in joint_state]
         return torque
 
-    def safety_margin(self):
+    def safety_margin(self, state):
         """
         Safety margin of the robot. 
         If the robot gets too close to the ground, or if any of the knee touches the ground (within an error margin)
         """
-        robot_observation = self.get_obs()
         # height, roll, pitch
         return {
-            "height_lower": 0.2 - robot_observation[2],
-            "height_upper": robot_observation[2] - 0.5,
-            "roll": abs(robot_observation[3]) - math.pi * 0.0625, 
-            "pitch": abs(robot_observation[4]) - math.pi * 0.0625
+            "height_lower": 0.2 - state[2],
+            "height_upper": state[2] - 0.5,
+            "roll": abs(state[3]) - math.pi * 0.0625, 
+            "pitch": abs(state[4]) - math.pi * 0.0625
         }
 
-    def target_margin(self):
-        """
-        Comparing the current stance of the robot with respect to the target stance, which is:
-            joint_positions = [
-                0, 1, 1.9, 
-                0, 1, 1.9, 
-                0, 1, 1.9, 
-                0, 1, 1.9
-            ]
-            the index is w.r.t self.joint_index
-        """
-        target_stance = [
-            0, 0.6, 1.45,
-            0, 0.6, 1.45,
-            0, 0.6, 1.45,
-            0, 0.6, 1.45
-        ]
+    def target_margin(self, state):
+        rotate_margin = np.array([0.16, 0.16, 0.16]) * np.pi
+        dt = 0.008
+        new_obs = state[:9]
+        old_obs = state[9:18]
+        accel = (new_obs - old_obs)/dt
+        rotate_accel = accel[3:6]
+        rotate_error = abs(np.array(rotate_accel))  - np.array(rotate_margin)
 
-        target_margin = np.array([0.3, 0.3, 0.25] * 4)
-        
-        current_stance = self.get_joint_position()
-        stance_error = np.array(current_stance)  - np.array(target_stance)
-
-        robot_observation = self.get_obs()
-        vel_z = robot_observation[-1]
-        vel_y = robot_observation[-2]
-        vel_x = robot_observation[-3]
+        vel_z = state[8]
+        vel_y = state[7]
+        vel_x = state[6]
         ground_velocity = math.sqrt(vel_x**2+vel_y**2)
 
         return {
-            "stance_error": max(abs(stance_error) - target_margin), 
+            "rotate_error": max(rotate_error), 
             "vel_z": abs(vel_z) - 1.0,
-            "ground_velocity": max(0.5 - ground_velocity, ground_velocity - 1.0)
+            "ground_velocity": max(0.2 - ground_velocity, ground_velocity - 1.0),
+            "height": max(0.28 - state[2], state[2] - 0.32)
         }
-        # return max(abs(stance_error) - target_margin)
 
     def make_joint_list(self):
         damaged_legs = []
