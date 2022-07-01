@@ -133,14 +133,6 @@ class Spirit:
         If the robot gets too close to the ground, or if any of the knee touches the ground (within an error margin)
         """
         # height, roll, pitch
-        return {
-            "height_lower": 0.2 - state[2],
-            "height_upper": state[2] - 0.5,
-            "roll": abs(state[3]) - math.pi * 0.0625, 
-            "pitch": abs(state[4]) - math.pi * 0.0625
-        }
-
-    def target_margin(self, state):
         rotate_margin = np.array([0.16, 0.16, 0.16]) * np.pi
         dt = 0.008
         new_obs = state[:9]
@@ -149,15 +141,23 @@ class Spirit:
         rotate_accel = accel[3:6]
         rotate_error = abs(np.array(rotate_accel))  - np.array(rotate_margin)
 
+        return {
+            "height_lower": 0.2 - state[2],
+            "height_upper": state[2] - 0.5,
+            "roll": abs(state[3]) - math.pi * 0.0625, 
+            "pitch": abs(state[4]) - math.pi * 0.0625,
+            "rotate_error": max(rotate_error)
+        }
+
+    def target_margin(self, state):
         vel_z = state[8]
         vel_y = state[7]
         vel_x = state[6]
         ground_velocity = math.sqrt(vel_x**2+vel_y**2)
 
         return {
-            "rotate_error": max(rotate_error), 
             "vel_z": abs(vel_z) - 1.0,
-            "ground_velocity": max(0.2 - ground_velocity, ground_velocity - 1.0),
+            "ground_velocity": max(0.15 - ground_velocity, ground_velocity - 1.0),
             "height": max(0.28 - state[2], state[2] - 0.32)
         }
 
