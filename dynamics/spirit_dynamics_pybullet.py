@@ -171,25 +171,28 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         clipped_control = []
         for i, j in enumerate(control):
             if i % 3 == 0:
-                if self.abduction_min <= spirit_old_joint_pos[i] + j <= self.abduction_max:
-                    clipped_control.append(np.clip(j, self.abduction_increment_min, self.abduction_increment_max))
+                increment = np.clip(j, self.abduction_increment_min, self.abduction_increment_max)
+                if self.abduction_min <= spirit_old_joint_pos[i] + increment <= self.abduction_max:
+                    clipped_control.append(increment)
                 else:
                     clipped_control.append(
-                        np.clip(spirit_old_joint_pos[i] + j, self.abduction_min, self.abduction_max) - spirit_old_joint_pos[i]
+                        np.clip(spirit_old_joint_pos[i] + increment, self.abduction_min, self.abduction_max) - spirit_old_joint_pos[i]
                     )
             elif i % 3 == 1:
-                if self.hip_min <= spirit_old_joint_pos[i] + j <= self.hip_max:
-                    clipped_control.append(np.clip(j, self.hip_increment_min, self.hip_increment_max))
+                increment = np.clip(j, self.hip_increment_min, self.hip_increment_max)
+                if self.hip_min <= spirit_old_joint_pos[i] + increment <= self.hip_max:
+                    clipped_control.append(increment)
                 else:
                     clipped_control.append(
-                        np.clip(spirit_old_joint_pos[i] + j, self.hip_min, self.hip_max) - spirit_old_joint_pos[i]
+                        np.clip(spirit_old_joint_pos[i] + increment, self.hip_min, self.hip_max) - spirit_old_joint_pos[i]
                     )
             elif i % 3 == 2:
-                if self.knee_min <= spirit_old_joint_pos[i] + j <= self.knee_max:
-                    clipped_control.append(np.clip(j, self.knee_increment_min, self.knee_increment_max))
+                increment = np.clip(j, self.knee_increment_min, self.knee_increment_max)
+                if self.knee_min <= spirit_old_joint_pos[i] + increment <= self.knee_max:
+                    clipped_control.append(increment)
                 else:
                     clipped_control.append(
-                        np.clip(spirit_old_joint_pos[i] + j, self.knee_min, self.knee_max) - spirit_old_joint_pos[i]
+                        np.clip(spirit_old_joint_pos[i] + increment, self.knee_min, self.knee_max) - spirit_old_joint_pos[i]
                     )
         
         # TODO: check clipped adversarial control
