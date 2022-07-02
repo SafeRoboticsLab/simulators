@@ -156,9 +156,9 @@ class Spirit:
         ground_velocity = math.sqrt(vel_x**2+vel_y**2)
 
         return {
-            "vel_z": abs(vel_z) - 1.0,
+            "vel_z": abs(vel_z) - 0.5,
             "ground_velocity": max(0.15 - ground_velocity, ground_velocity - 1.0),
-            "height": max(0.28 - state[2], state[2] - 0.32)
+            "height": max(0.25 - state[2], state[2] - 0.35)
         }
 
     def make_joint_list(self):
