@@ -142,7 +142,7 @@ class Spirit:
         rotate_error = abs(np.array(rotate_accel))  - np.array(rotate_margin)
 
         return {
-            "height_lower": 0.25 - state[2],
+            "height_lower": 0.1 - state[2],
             "roll": abs(state[3]) - math.pi * 0.0625, 
             "pitch": abs(state[4]) - math.pi * 0.0625,
             "rotate_error": max(rotate_error)
@@ -157,7 +157,7 @@ class Spirit:
         return {
             "vel_z": abs(vel_z) - 0.5,
             "ground_velocity": max(0.1 - ground_velocity, ground_velocity - 1.0),
-            "height": max(0.28 - state[2], state[2] - 0.32)
+            "height": max(0.25 - state[2], state[2] - 0.35)
         }
 
     def make_joint_list(self):

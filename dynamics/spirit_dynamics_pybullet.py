@@ -75,7 +75,7 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         self.robot = Spirit(self.client, height, rotate)
 
         if random_joint_value is None:
-            random_joint_value = self.get_random_joint_value(target_set=True)
+            random_joint_value = self.get_random_joint_value(target_set=False)
         self.initial_joint_value = random_joint_value
         
         self.robot.reset(random_joint_value)
