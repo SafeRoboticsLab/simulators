@@ -308,8 +308,6 @@ class Spirit:
 
         current_joint = self.get_joint_position()
 
-        print(current_joint[1], current_joint[4], current_joint[7], current_joint[10])
-
         FL_elbow = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(L*0.5) + rotate_x(-np.pi * 0.5) @ (translate_z(W*0.5) + rotate_z(-(np.pi - current_joint[1])) @ (translate_x(0.206) + initial_pos)))
         FR_elbow = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(L*0.5) + rotate_x(np.pi * 0.5) @ (translate_z(W*0.5) + rotate_z(np.pi - current_joint[7]) @ (translate_x(0.206) + initial_pos)))
         BL_elbow = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(-L*0.5) + rotate_x(-np.pi * 0.5) @ (translate_z(W*0.5) + rotate_z(-(np.pi - current_joint[4])) @ (translate_x(0.206) + initial_pos)))
