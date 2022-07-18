@@ -273,3 +273,77 @@ class Spirit:
         leg3h1, leg3h2 = self.get_joint_position_wrt_body(joints[10], joints[11])
 
         return leg0h1, leg0h2, leg1h1, leg1h2, leg2h1, leg2h2, leg3h1, leg3h2
+    
+    def get_body_corners(self):
+        def rotate_x(theta):
+            return np.array([
+                [1, 0, 0],
+                [0, math.cos(theta), -math.sin(theta)],
+                [0, math.sin(theta), math.cos(theta)]
+            ])
+
+        def translate_z(d):
+            return np.array([
+                [0],
+                [0],
+                [d]
+            ])
+
+        def rotate_z(theta):
+            return np.array([
+                [math.cos(theta), -math.sin(theta), 0],
+                [math.sin(theta), math.cos(theta), 0],
+                [0, 0, 1]
+            ])
+
+        def translate_x(d):
+            return np.array([
+                [d],
+                [0],
+                [0]
+            ])
+
+        def rotate_y(theta):
+            return np.array([
+                [math.cos(theta), 0, math.sin(theta)],
+                [0, 1, 0],
+                [-math.sin(theta), 0, math.cos(theta)]
+            ])
+
+        def translate_y(d):
+            return np.array([
+                [0],
+                [d],
+                [0]
+            ])
+
+        obs = self.get_obs()
+        
+        initial_pos = np.array([0, 0, obs[2]]).reshape((3, 1))
+
+        # rotate_z
+        yaw = obs[5]
+        # rotate_y
+        pitch = obs[4]
+        # rotate_x
+        roll = obs[3]
+
+        # 0.335 0.24 0.104
+
+        L = 0.36
+        W = 0.35
+        H = 0.104
+
+        FL_top = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(L*0.5) + rotate_x(-np.pi * 0.5) @ (translate_z(W*0.5) + rotate_x(np.pi * 0.5) @ (translate_z(H*0.5) + initial_pos)))
+        FL_bot = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(L*0.5) + rotate_x(-np.pi * 0.5) @ (translate_z(W*0.5) + rotate_x(np.pi * 0.5) @ (translate_z(-H*0.5) + initial_pos)))
+
+        FR_top = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(L*0.5) + rotate_x(np.pi * 0.5) @ (translate_z(W*0.5) + rotate_x(-np.pi * 0.5) @ (translate_z(H*0.5) + initial_pos)))
+        FR_bot = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(L*0.5) + rotate_x(np.pi * 0.5) @ (translate_z(W*0.5) + rotate_x(-np.pi * 0.5) @ (translate_z(-H*0.5) + initial_pos)))
+
+        BL_top = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(-L*0.5) + rotate_x(-np.pi * 0.5) @ (translate_z(W*0.5) + rotate_x(np.pi * 0.5) @ (translate_z(H*0.5) + initial_pos)))
+        BL_bot = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(-L*0.5) + rotate_x(-np.pi * 0.5) @ (translate_z(W*0.5) + rotate_x(np.pi * 0.5) @ (translate_z(-H*0.5) + initial_pos)))
+
+        BR_top = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(-L*0.5) + rotate_x(np.pi * 0.5) @ (translate_z(W*0.5) + rotate_x(-np.pi * 0.5) @ (translate_z(H*0.5) + initial_pos)))
+        BR_bot = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(-L*0.5) + rotate_x(np.pi * 0.5) @ (translate_z(W*0.5) + rotate_x(-np.pi * 0.5) @ (translate_z(-H*0.5) + initial_pos)))
+
+        return np.concatenate([FL_top, FL_bot, FR_top, FR_bot, BL_top, BL_bot, BR_top, BR_bot], axis=1)
