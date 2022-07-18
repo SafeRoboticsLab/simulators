@@ -2,6 +2,7 @@ import pybullet as p
 import os
 import math
 import numpy as np
+from simulators.dynamics.resources.utils import *
 
 class Spirit:
     def __init__(self, client, height, orientation, 
@@ -149,9 +150,14 @@ class Spirit:
         # NEW SAFETY MARGIN
         # If any of the corners gets too close to the ground
         corners = self.get_body_corners()
-        corner_height = corners[2,:]
+        corner_height = corners[2, :]
+
+        elbows = self.get_elbows()
+        elbow_height = elbows[2, :]
+
         return {
-            "corner_height": 0.1 - min(corner_height)
+            "corner_height": 0.1 - min(corner_height),
+            "elbow_height": 0.1 - min(elbow_height)
         }
 
     def target_margin(self, state):
@@ -282,49 +288,36 @@ class Spirit:
 
         return leg0h1, leg0h2, leg1h1, leg1h2, leg2h1, leg2h2, leg3h1, leg3h2
     
+    def get_elbows(self):
+        obs = self.get_obs()
+        
+        initial_pos = np.array([0, 0, obs[2]]).reshape((3, 1))
+
+        # rotate_z
+        yaw = obs[5]
+        # rotate_y
+        pitch = obs[4]
+        # rotate_x
+        roll = obs[3]
+
+        # 0.335 0.24 0.104
+
+        L = 0.36
+        W = 0.35
+        H = 0.104
+
+        current_joint = self.get_joint_position()
+
+        print(current_joint[1], current_joint[4], current_joint[7], current_joint[10])
+
+        FL_elbow = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(L*0.5) + rotate_x(-np.pi * 0.5) @ (translate_z(W*0.5) + rotate_z(-(np.pi - current_joint[1])) @ (translate_x(0.206) + initial_pos)))
+        FR_elbow = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(L*0.5) + rotate_x(np.pi * 0.5) @ (translate_z(W*0.5) + rotate_z(np.pi - current_joint[7]) @ (translate_x(0.206) + initial_pos)))
+        BL_elbow = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(-L*0.5) + rotate_x(-np.pi * 0.5) @ (translate_z(W*0.5) + rotate_z(-(np.pi - current_joint[4])) @ (translate_x(0.206) + initial_pos)))
+        BR_elbow = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(-L*0.5) + rotate_x(np.pi * 0.5) @ (translate_z(W*0.5) + rotate_z(np.pi - current_joint[10]) @ (translate_x(0.206) + initial_pos)))
+
+        return np.concatenate([FL_elbow, FR_elbow, BL_elbow, BR_elbow], axis=1)
+    
     def get_body_corners(self):
-        def rotate_x(theta):
-            return np.array([
-                [1, 0, 0],
-                [0, math.cos(theta), -math.sin(theta)],
-                [0, math.sin(theta), math.cos(theta)]
-            ])
-
-        def translate_z(d):
-            return np.array([
-                [0],
-                [0],
-                [d]
-            ])
-
-        def rotate_z(theta):
-            return np.array([
-                [math.cos(theta), -math.sin(theta), 0],
-                [math.sin(theta), math.cos(theta), 0],
-                [0, 0, 1]
-            ])
-
-        def translate_x(d):
-            return np.array([
-                [d],
-                [0],
-                [0]
-            ])
-
-        def rotate_y(theta):
-            return np.array([
-                [math.cos(theta), 0, math.sin(theta)],
-                [0, 1, 0],
-                [-math.sin(theta), 0, math.cos(theta)]
-            ])
-
-        def translate_y(d):
-            return np.array([
-                [0],
-                [d],
-                [0]
-            ])
-
         obs = self.get_obs()
         
         initial_pos = np.array([0, 0, obs[2]]).reshape((3, 1))
