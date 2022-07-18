@@ -133,17 +133,25 @@ class Spirit:
         If the robot gets too close to the ground, or if any of the knee touches the ground (within an error margin)
         """
         # height, roll, pitch
-        rotate_margin = np.array([0.16, 0.16, 0.16]) * np.pi
-        dt = 0.008
-        new_obs = state[:9]
-        old_obs = state[9:18]
-        accel = (new_obs - old_obs)/dt
-        rotate_accel = accel[3:6]
-        rotate_error = abs(np.array(rotate_accel))  - np.array(rotate_margin)
+        # rotate_margin = np.array([0.16, 0.16, 0.16]) * np.pi
+        # dt = 0.008
+        # new_obs = state[:9]
+        # old_obs = state[9:18]
+        # accel = (new_obs - old_obs)/dt
+        # rotate_accel = accel[3:6]
+        # rotate_error = abs(np.array(rotate_accel))  - np.array(rotate_margin)
 
+        # return {
+        #     "height_lower": 0.1 - state[2],
+        #     "rotate_error": max(rotate_error)
+        # }
+
+        # NEW SAFETY MARGIN
+        # If any of the corners gets too close to the ground
+        corners = self.get_body_corners()
+        corner_height = corners[2,:]
         return {
-            "height_lower": 0.1 - state[2],
-            "rotate_error": max(rotate_error)
+            "corner_height": 0.1 - min(corner_height)
         }
 
     def target_margin(self, state):
@@ -156,7 +164,7 @@ class Spirit:
             "vel_z": abs(vel_z) - 0.5,
             "roll": abs(state[3]) - math.pi * 0.125, 
             "pitch": abs(state[4]) - math.pi * 0.125,
-            "ground_velocity": max(0.1 - ground_velocity, ground_velocity - 1.0),
+            "ground_velocity": max(0.2 - ground_velocity, ground_velocity - 1.0),
             "height": max(0.25 - state[2], state[2] - 0.35)
         }
 
