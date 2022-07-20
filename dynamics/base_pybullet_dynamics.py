@@ -69,8 +69,6 @@ class BasePybulletDynamics(BaseDynamics):
         
         self.debugger = pybulletDebug()
 
-        self.reset()
-
     def reset(self, **kwargs):
         p.resetSimulation(physicsClientId = self.client)
         p.setGravity(0, 0, self.gravity, physicsClientId = self.client)

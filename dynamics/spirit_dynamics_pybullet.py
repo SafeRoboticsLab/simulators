@@ -75,14 +75,14 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         self.robot = Spirit(self.client, height, rotate)
 
         if random_joint_value is None:
-            random_joint_value = self.get_random_joint_value(target_set=False)
+            random_joint_value = self.get_random_joint_value()
         self.initial_joint_value = random_joint_value
         
         self.robot.reset(random_joint_value)
         self.robot.apply_position(random_joint_value)
 
-        for t in range(0, 100):
-            p.stepSimulation()
+        # for t in range(0, 100):
+        #     p.stepSimulation()
 
         spirit_initial_obs = self.robot.get_obs()
         self.state = np.concatenate((np.array(spirit_initial_obs, dtype=np.float32), np.array(spirit_initial_obs, dtype=np.float32), random_joint_value, random_joint_value), axis = 0)
@@ -93,52 +93,36 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
     def get_target_margin(self):
         return self.robot.target_margin(self.state)
 
-    def get_random_joint_value(self, target_set = False):
-        if target_set:
-            return (
-                0.0 + np.random.uniform(-0.3, 0.3),
-                0.6 + np.random.uniform(-0.3, 0.3),
-                1.45 + np.random.uniform(-0.25, 0.25),
-                0.0 + np.random.uniform(-0.3, 0.3),
-                0.6 + np.random.uniform(-0.3, 0.3),
-                1.45 + np.random.uniform(-0.25, 0.25),
-                0.0 + np.random.uniform(-0.3, 0.3),
-                0.6 + np.random.uniform(-0.3, 0.3),
-                1.45 + np.random.uniform(-0.25, 0.25),
-                0.0 + np.random.uniform(-0.3, 0.3),
-                0.6 + np.random.uniform(-0.3, 0.3),
-                1.45 + np.random.uniform(-0.25, 0.25)
-            )
-        else:
-            return (
-                np.random.uniform(-0.5, 0.5),
-                np.random.uniform(0.5, 2.64),
-                np.random.uniform(0.5, 2.64),
-                np.random.uniform(-0.5, 0.5),
-                np.random.uniform(0.5, 2.64),
-                np.random.uniform(0.5, 2.64),
-                np.random.uniform(-0.5, 0.5),
-                np.random.uniform(0.5, 2.64),
-                np.random.uniform(0.5, 2.64),
-                np.random.uniform(-0.5, 0.5),
-                np.random.uniform(0.5, 2.64),
-                np.random.uniform(0.5, 2.64)
-            )
+    def get_random_joint_value(self):
+        return (
+            np.random.uniform(self.abduction_min, self.abduction_max),
+            np.random.uniform(self.hip_min, self.hip_max),
+            np.random.uniform(self.knee_min, self.knee_max),
+            np.random.uniform(self.abduction_min, self.abduction_max),
+            np.random.uniform(self.hip_min, self.hip_max),
+            np.random.uniform(self.knee_min, self.knee_max),
+            np.random.uniform(self.abduction_min, self.abduction_max),
+            np.random.uniform(self.hip_min, self.hip_max),
+            np.random.uniform(self.knee_min, self.knee_max),
+            np.random.uniform(self.abduction_min, self.abduction_max),
+            np.random.uniform(self.hip_min, self.hip_max),
+            np.random.uniform(self.knee_min, self.knee_max)
+        )
     
     def get_random_joint_increment_from_current(self):
         increment = (
-            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
-            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
-            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
-            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
-            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
-            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
-            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
-            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
-            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
-            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
-            np.random.uniform(-np.pi * 0.05, np.pi * 0.05),
-            np.random.uniform(-np.pi * 0.05, np.pi * 0.05)
+            np.random.uniform(self.abduction_increment_min, self.abduction_increment_max),
+            np.random.uniform(self.hip_increment_min, self.hip_increment_max),
+            np.random.uniform(self.knee_increment_min, self.knee_increment_max),
+            np.random.uniform(self.abduction_increment_min, self.abduction_increment_max),
+            np.random.uniform(self.hip_increment_min, self.hip_increment_max),
+            np.random.uniform(self.knee_increment_min, self.knee_increment_max),
+            np.random.uniform(self.abduction_increment_min, self.abduction_increment_max),
+            np.random.uniform(self.hip_increment_min, self.hip_increment_max),
+            np.random.uniform(self.knee_increment_min, self.knee_increment_max),
+            np.random.uniform(self.abduction_increment_min, self.abduction_increment_max),
+            np.random.uniform(self.hip_increment_min, self.hip_increment_max),
+            np.random.uniform(self.knee_increment_min, self.knee_increment_max)
         )
 
         return np.array(self.robot.get_joint_position()) + np.array(increment)

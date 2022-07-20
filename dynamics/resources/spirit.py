@@ -156,7 +156,7 @@ class Spirit:
         elbow_height = elbows[2, :]
 
         return {
-            "corner_height": 0.1 - min(corner_height),
+            "corner_height": 0.15 - min(corner_height),
             "elbow_height": 0.1 - min(elbow_height)
         }
 
@@ -167,7 +167,7 @@ class Spirit:
         ground_velocity = math.sqrt(vel_x**2+vel_y**2)
 
         return {
-            "vel_z": abs(vel_z) - 0.5,
+            "vel_z": abs(vel_z) - 1.0,
             "roll": abs(state[3]) - math.pi * 0.125, 
             "pitch": abs(state[4]) - math.pi * 0.125,
             "ground_velocity": max(0.2 - ground_velocity, ground_velocity - 1.0),
