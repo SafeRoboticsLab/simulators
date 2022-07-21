@@ -201,5 +201,6 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         self.state = np.concatenate((spirit_new_obs, spirit_old_obs, spirit_new_joint_pos, spirit_old_joint_pos), axis=0)
         
         self.debugger.cam_and_robotstates(self.robot.id)
+        p.addUserDebugLine(position_vector, position_vector + force_vector*force, lineColorRGB=[0, 0, 1], lineWidth=2.0, lifeTime=0.1, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
 
         return self.state, clipped_control
