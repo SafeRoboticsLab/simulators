@@ -74,7 +74,7 @@ class BasePybulletDynamics(BaseDynamics):
         p.setGravity(0, 0, self.gravity, physicsClientId = self.client)
         p.setTimeStep(self.dt, physicsClientId = self.client)
         p.setPhysicsEngineParameter(fixedTimeStep = self.dt, physicsClientId = self.client)
-        p.setRealTimeSimulation(0)
+        p.setRealTimeSimulation(0, physicsClientId = self.client)
         Plane(self.client)
 
         if "terrain_data" in kwargs.keys():
@@ -113,7 +113,7 @@ class BasePybulletDynamics(BaseDynamics):
         self.force = force
         self.force_applied_force_vector = force_vector * self.force
         self.force_applied_position_vector = position_vector 
-        p.applyExternalForce(self.robot.id, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME)
+        p.applyExternalForce(self.robot.id, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME, physicsClientId = self.client)
 
     def _apply_force(self):
         if self.elapsed_force_applied > self.force_applied_reset:
@@ -121,7 +121,7 @@ class BasePybulletDynamics(BaseDynamics):
         else:
             self.elapsed_force_applied += 1
 
-        p.applyExternalForce(self.robot.id, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME)
+        p.applyExternalForce(self.robot.id, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME, physicsClientId = self.client)
     
     def _gen_terrain(self, terrain_height: Optional[int]=None, mesh_scale: Optional[np.ndarray]=None):
         """
