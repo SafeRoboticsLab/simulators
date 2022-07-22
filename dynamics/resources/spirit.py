@@ -163,12 +163,7 @@ class Spirit:
         }
 
     def target_margin(self, state):
-        vel_z = state[8]
-        vel_y = state[7]
-        vel_x = state[6]
-
         return {
-            "vel_z": abs(vel_z) - 1.0,
             "roll": abs(state[3]) - math.pi * 0.125,
             "pitch": abs(state[4]) - math.pi * 0.125,
             "height": max(0.2 - state[2], state[2] - 0.4)
