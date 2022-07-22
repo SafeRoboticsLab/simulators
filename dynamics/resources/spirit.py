@@ -157,21 +157,21 @@ class Spirit:
 
         return {
             "corner_height": 0.15 - min(corner_height),
-            "elbow_height": 0.1 - min(elbow_height)
+            "elbow_height": 0.1 - min(elbow_height),
+            "roll": abs(state[3]) - math.pi * 0.5, 
+            "pitch": abs(state[4]) - math.pi * 0.5
         }
 
     def target_margin(self, state):
         vel_z = state[8]
         vel_y = state[7]
         vel_x = state[6]
-        ground_velocity = math.sqrt(vel_x**2+vel_y**2)
 
         return {
             "vel_z": abs(vel_z) - 1.0,
-            "roll": abs(state[3]) - math.pi * 0.125, 
+            "roll": abs(state[3]) - math.pi * 0.125,
             "pitch": abs(state[4]) - math.pi * 0.125,
-            "ground_velocity": max(0.2 - ground_velocity, ground_velocity - 1.0),
-            "height": max(0.25 - state[2], state[2] - 0.35)
+            "height": max(0.2 - state[2], state[2] - 0.4)
         }
 
     def make_joint_list(self):
