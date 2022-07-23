@@ -5,6 +5,7 @@ from simulators.pybullet_debugger import pybulletDebug
 from .resources.plane import Plane
 from .base_dynamics import BaseDynamics
 import pybullet as p
+import subprocess
 
 class BasePybulletDynamics(BaseDynamics):
     def __init__(self, config: Any, action_space: np.ndarray) -> None:
@@ -69,7 +70,77 @@ class BasePybulletDynamics(BaseDynamics):
         
         self.debugger = pybulletDebug()
 
+        self.video_output_file = None
+        self.ffmpeg_pipe = None
+        self.cnt = None
+
+    def _init_frames(self):
+        """
+        Initialize the pipe for streaming frames to the video file.
+        Warning: video slows down the simulation!
+        """
+        if self.ffmpeg_pipe is not None:
+            try:
+                if self.video_output_file is not None:
+                    self.ffmpeg_pipe.stdin.close()
+                    self.ffmpeg_pipe.stderr.close()
+                    ret = self.ffmpeg_pipe.wait()
+            except Exception as e:
+                print(
+                    "VideoRecorder encoder exited with status {}".format(ret))
+
+        if self.video_output_file is not None:
+            camera = p.getDebugVisualizerCamera()
+            command = [
+                'ffmpeg',
+                '-y',
+                '-r', str(24),
+                '-f', 'rawvideo',
+                '-vcodec', 'rawvideo',
+                '-s', '{}x{}'.format(camera[0], camera[1]),
+                '-pix_fmt', 'rgba',
+                '-i', '-',
+                '-an',
+                '-vcodec', 'mpeg4',
+                '-vb', '20M',
+                self.video_output_file]
+            #print(command)
+            self.ffmpeg_pipe = subprocess.Popen(
+                command, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    def _save_frames(self):
+        """
+        Write frame at each step.
+        24 FPS dt =1/240 : every 10 frames
+        """
+        if self.video_output_file is not None and \
+                self.cnt % (int(1. / (self.dt * 24))) == 0:
+            camera = p.getDebugVisualizerCamera()
+            img = p.getCameraImage(
+                camera[0], camera[1],
+                renderer=p.ER_BULLET_HARDWARE_OPENGL)
+            self.ffmpeg_pipe.stdin.write(img[2].tobytes())
+    
+    def destroy(self):
+        """Properly close the simulation."""
+        try:
+            p.disconnect()
+        except p.error as e:
+            print("Warning (destructor of simulator):", e)
+        try:
+            if self.video_output_file is not None:
+                self.ffmpeg_pipe.stdin.close()
+                self.ffmpeg_pipe.stderr.close()
+                ret = self.ffmpeg_pipe.wait()
+        except Exception as e:
+            print(
+                "VideoRecorder encoder exited with status {}".format(ret))
+
     def reset(self, **kwargs):
+        if "video_output_file" in kwargs.keys():
+            self.video_output_file = kwargs["video_output_file"]
+            
+        self.cnt = 0
         p.resetSimulation(physicsClientId = self.client)
         p.setGravity(0, 0, self.gravity, physicsClientId = self.client)
         p.setTimeStep(self.dt, physicsClientId = self.client)
@@ -89,6 +160,9 @@ class BasePybulletDynamics(BaseDynamics):
                 self._set_terrain(terrain_data, mesh_scale=[0.2, 0.2, 2.0])
         
         self._gen_force()
+
+        if self.gui and self.video_output_file is not None:
+            self._init_frames()
 
     def integrate_forward(self, state: np.ndarray, control: np.ndarray, num_segment: Optional[int] = 1, noise: Optional[np.ndarray] = None, noise_type: Optional[str] = 'unif', adversary: Optional[np.ndarray] = None, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         return super().integrate_forward(state, control, num_segment, noise, noise_type, adversary, **kwargs)

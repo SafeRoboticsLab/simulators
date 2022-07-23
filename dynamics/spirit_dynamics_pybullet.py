@@ -196,6 +196,9 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
             if has_adversarial:
                 p.addUserDebugLine(position_vector, position_vector + force_vector*force, lineColorRGB=[0, 0, 1], lineWidth=2.0, lifeTime=0.1, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
             time.sleep(self.dt)
+            
+            if self.video_output_file is not None:
+                self._save_frames()
 
         spirit_new_obs = np.array(self.robot.get_obs(), dtype = np.float32)
         spirit_new_joint_pos = np.array(self.robot.get_joint_position(), dtype = np.float32)
@@ -203,5 +206,7 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         self.state = np.concatenate((spirit_new_obs, spirit_old_obs, spirit_new_joint_pos, spirit_old_joint_pos), axis=0)
         
         self.debugger.cam_and_robotstates(self.robot.id)
+
+        self.cnt += 1
 
         return self.state, clipped_control
