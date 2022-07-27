@@ -199,13 +199,13 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
             
             if self.video_output_file is not None:
                 self._save_frames()
+            
+            self.debugger.cam_and_robotstates(self.robot.id)
 
         spirit_new_obs = np.array(self.robot.get_obs(), dtype = np.float32)
         spirit_new_joint_pos = np.array(self.robot.get_joint_position(), dtype = np.float32)
 
         self.state = np.concatenate((spirit_new_obs, spirit_old_obs, spirit_new_joint_pos, spirit_old_joint_pos), axis=0)
-        
-        self.debugger.cam_and_robotstates(self.robot.id)
 
         self.cnt += 1
 

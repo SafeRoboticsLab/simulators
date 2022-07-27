@@ -65,10 +65,9 @@ class BasePybulletDynamics(BaseDynamics):
                 cameraYaw=20,
                 cameraPitch=-20,
                 cameraTargetPosition=[1, -0.5, 0.8])
+            self.debugger = pybulletDebug()
         else:
             self.client = p.connect(p.DIRECT)
-        
-        self.debugger = pybulletDebug()
 
         self.video_output_file = None
         self.ffmpeg_pipe = None
