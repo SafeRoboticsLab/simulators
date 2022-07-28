@@ -295,18 +295,34 @@ class Spirit:
         # rotate_x
         roll = obs[3]
 
-        # 0.335 0.24 0.104
-
-        L = 0.36
-        W = 0.35
-        H = 0.104
+        body_l = 0.335
+        body_w = 0.24
+        body_h = 0.104
+        upper_link_l = 0.206
+        hip_from_body_l = 0.2263
+        hip_from_body_w = 0.07
+        upper_from_hip_w = 0.1
+        hip_w = 0.11
+        hip_l = 0.08
 
         current_joint = self.get_joint_position()
 
-        FL_elbow = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(L*0.5) + rotate_x(-np.pi * 0.5) @ (translate_z(W*0.5) + rotate_z(-(np.pi - current_joint[1])) @ (translate_x(0.206) + initial_pos)))
-        FR_elbow = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(L*0.5) + rotate_x(np.pi * 0.5) @ (translate_z(W*0.5) + rotate_z(np.pi - current_joint[7]) @ (translate_x(0.206) + initial_pos)))
-        BL_elbow = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(-L*0.5) + rotate_x(-np.pi * 0.5) @ (translate_z(W*0.5) + rotate_z(-(np.pi - current_joint[4])) @ (translate_x(0.206) + initial_pos)))
-        BR_elbow = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(-L*0.5) + rotate_x(np.pi * 0.5) @ (translate_z(W*0.5) + rotate_z(np.pi - current_joint[10]) @ (translate_x(0.206) + initial_pos)))
+        hip_FL = current_joint[0]
+        hip_FR = current_joint[6]
+        hip_BL = current_joint[3]
+        hip_BR = current_joint[9]
+        upper_FL = current_joint[1]
+        upper_FR = current_joint[7]
+        upper_BL = current_joint[4]
+        upper_BR = current_joint[10]
+
+        FL_elbow = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(hip_from_body_l) + rotate_x(-np.pi * 0.5) @ (translate_z(hip_from_body_w) + rotate_x(hip_FL) @ (translate_x(hip_l*0.5) + translate_z(upper_from_hip_w) + rotate_z(np.pi - upper_FL) @ (translate_x(upper_link_l) + rotate_z(-np.pi+upper_FL) @ rotate_x(-hip_FL) @ rotate_x(np.pi*0.5) @ initial_pos))))
+
+        FR_elbow = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(hip_from_body_l) + rotate_x(np.pi * 0.5) @ (translate_z(hip_from_body_w) + rotate_x(-hip_FR) @ (translate_x(hip_l*0.5) + translate_z(upper_from_hip_w) + rotate_z(np.pi + upper_FR) @ (translate_x(upper_link_l) + rotate_z(-np.pi - upper_FR) @ rotate_x(hip_FR) @ rotate_x(-np.pi*0.5) @ initial_pos))))
+
+        BL_elbow = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(-hip_from_body_l) + rotate_x(-np.pi * 0.5) @ (translate_z(hip_from_body_w) + rotate_x(hip_BL) @ (translate_x(hip_l*0.5) + translate_z(upper_from_hip_w) + rotate_z(np.pi - upper_BL) @ (translate_x(upper_link_l) + rotate_z(-np.pi+upper_BL) @ rotate_x(-hip_BL) @ rotate_x(np.pi*0.5) @ initial_pos))))
+
+        BR_elbow = rotate_x(roll) @ rotate_y(pitch) @ rotate_z(yaw) @ (translate_x(-hip_from_body_l) + rotate_x(np.pi * 0.5) @ (translate_z(hip_from_body_w) + rotate_x(-hip_BR) @ (translate_x(hip_l*0.5) + translate_z(upper_from_hip_w) + rotate_z(np.pi + upper_BR) @ (translate_x(upper_link_l) + rotate_z(-np.pi-upper_BR) @ rotate_x(hip_BR) @ rotate_x(-np.pi*0.5) @ initial_pos))))
 
         return np.concatenate([FL_elbow, FR_elbow, BL_elbow, BR_elbow], axis=1)
     

@@ -183,10 +183,9 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         
         self.robot.apply_action(clipped_control)
         if has_adversarial:
-            force = adversary[0]
-            force_vector = adversary[1:4]
-            position_vector = adversary[4:]
-            self._apply_adversarial_force(force=force, force_vector=force_vector, position_vector=position_vector)
+            force_vector = adversary[0:3]
+            position_vector = adversary[3:]
+            self._apply_adversarial_force(force_vector=force_vector, position_vector=position_vector)
         else:
             self._apply_force()
 
@@ -194,7 +193,7 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
 
         if self.gui:
             if has_adversarial:
-                p.addUserDebugLine(position_vector, position_vector + force_vector*force, lineColorRGB=[0, 0, 1], lineWidth=2.0, lifeTime=0.1, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
+                p.addUserDebugLine(position_vector, position_vector + force_vector * self.force, lineColorRGB=[0, 0, 1], lineWidth=2.0, lifeTime=0.1, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
             time.sleep(self.dt)
             
             if self.video_output_file is not None:
