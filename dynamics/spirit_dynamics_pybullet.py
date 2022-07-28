@@ -81,8 +81,8 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         self.robot.reset(random_joint_value)
         self.robot.apply_position(random_joint_value)
 
-        for t in range(0, 100):
-            p.stepSimulation()
+        # for t in range(0, 100):
+        #     p.stepSimulation()
 
         spirit_initial_obs = self.robot.get_obs()
         self.state = np.concatenate((np.array(spirit_initial_obs, dtype=np.float32), np.array(spirit_initial_obs, dtype=np.float32), random_joint_value, random_joint_value), axis = 0)
