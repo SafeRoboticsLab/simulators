@@ -166,7 +166,7 @@ class Spirit:
         return {
             "roll": abs(state[3]) - math.pi * 0.125,
             "pitch": abs(state[4]) - math.pi * 0.125,
-            "height": max(0.25 - state[2])
+            "height": 0.25 - state[2]
         }
 
     def make_joint_list(self):
