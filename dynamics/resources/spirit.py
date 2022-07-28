@@ -156,9 +156,9 @@ class Spirit:
         elbow_height = elbows[2, :]
 
         return {
-            "corner_height": 0.15 - min(corner_height),
-            "elbow_height": 0.1 - min(elbow_height),
-            "roll": abs(state[3]) - math.pi * 0.5, 
+            "corner_height": 0.2 - min(corner_height),
+            "elbow_height": 0.15 - min(elbow_height),
+            "roll": abs(state[3]) - math.pi * 0.5,
             "pitch": abs(state[4]) - math.pi * 0.5
         }
 
@@ -166,7 +166,7 @@ class Spirit:
         return {
             "roll": abs(state[3]) - math.pi * 0.125,
             "pitch": abs(state[4]) - math.pi * 0.125,
-            "height": max(0.2 - state[2], state[2] - 0.4)
+            "height": max(0.25 - state[2])
         }
 
     def make_joint_list(self):
