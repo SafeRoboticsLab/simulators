@@ -148,7 +148,14 @@ class Spirit:
         # }
 
         # NEW SAFETY MARGIN
-        # If any of the corners gets too close to the ground
+        # Only consider if the robot flips
+
+        return {
+            "roll": abs(state[3]) - math.pi * 0.5,
+            "pitch": abs(state[4]) - math.pi * 0.5
+        }
+
+    def target_margin(self, state):
         corners = self.get_body_corners()
         corner_height = corners[2, :]
 
@@ -156,17 +163,10 @@ class Spirit:
         elbow_height = elbows[2, :]
 
         return {
-            "corner_height": 0.16 - min(corner_height),
-            "elbow_height": 0.12 - min(elbow_height),
-            "roll": abs(state[3]) - math.pi * 0.5,
-            "pitch": abs(state[4]) - math.pi * 0.5
-        }
-
-    def target_margin(self, state):
-        return {
             "roll": abs(state[3]) - math.pi * 0.125,
             "pitch": abs(state[4]) - math.pi * 0.125,
-            "height": max(0.2 - state[2], state[2] - 0.4)
+            "corner_height": 0.16 - min(corner_height),
+            "elbow_height": 0.12 - min(elbow_height),
         }
 
     def make_joint_list(self):
