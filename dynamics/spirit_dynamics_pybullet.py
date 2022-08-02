@@ -88,7 +88,8 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         self.state = np.concatenate((np.array(spirit_initial_obs, dtype=np.float32), np.array(spirit_initial_obs, dtype=np.float32), random_joint_value, random_joint_value), axis = 0)
 
         # rejection sampling until outside target set and safe set
-        while max(self.robot.target_margin(self.state).values()) <= 0 and max(self.robot.safety_margin(self.state).values()) > 0:
+        # while max(self.robot.target_margin(self.state).values()) <= 0 or max(self.robot.safety_margin(self.state).values()) > 0:
+        while max(self.robot.safety_margin(self.state).values()) > 0:
             self.reset(**kwargs)
     
     def get_constraints(self):
