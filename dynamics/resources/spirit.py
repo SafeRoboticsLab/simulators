@@ -177,8 +177,8 @@ class Spirit:
         elbow_height = elbows[2, :]
         
         return {
-            "corner_height": 0.16 - min(corner_height),
-            "elbow_height": 0.12 - min(elbow_height),
+            # "corner_height": 0.16 - min(corner_height),
+            # "elbow_height": 0.12 - min(elbow_height),
             "roll": abs(state[3]) - math.pi * 0.2,
             "pitch": abs(state[4]) - math.pi * 0.2
         }

@@ -97,6 +97,7 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
             # input()
 
             # if max(self.robot.target_margin(self.state).values()) > 0 and max(self.robot.safety_margin(self.state).values()) <= 0:
+            
             if max(self.robot.safety_margin(self.state).values()) <= 0:
                 break
     
