@@ -108,19 +108,34 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         return self.robot.target_margin(self.state)
 
     def get_random_joint_value(self):
+        # return (
+        #     np.random.uniform(self.abduction_min, self.abduction_max),
+        #     np.random.uniform(self.hip_min, self.hip_max),
+        #     np.random.uniform(self.knee_min, self.knee_max),
+        #     np.random.uniform(self.abduction_min, self.abduction_max),
+        #     np.random.uniform(self.hip_min, self.hip_max),
+        #     np.random.uniform(self.knee_min, self.knee_max),
+        #     np.random.uniform(self.abduction_min, self.abduction_max),
+        #     np.random.uniform(self.hip_min, self.hip_max),
+        #     np.random.uniform(self.knee_min, self.knee_max),
+        #     np.random.uniform(self.abduction_min, self.abduction_max),
+        #     np.random.uniform(self.hip_min, self.hip_max),
+        #     np.random.uniform(self.knee_min, self.knee_max)
+        # )
+
         return (
-            np.random.uniform(self.abduction_min, self.abduction_max),
-            np.random.uniform(self.hip_min, self.hip_max),
-            np.random.uniform(self.knee_min, self.knee_max),
-            np.random.uniform(self.abduction_min, self.abduction_max),
-            np.random.uniform(self.hip_min, self.hip_max),
-            np.random.uniform(self.knee_min, self.knee_max),
-            np.random.uniform(self.abduction_min, self.abduction_max),
-            np.random.uniform(self.hip_min, self.hip_max),
-            np.random.uniform(self.knee_min, self.knee_max),
-            np.random.uniform(self.abduction_min, self.abduction_max),
-            np.random.uniform(self.hip_min, self.hip_max),
-            np.random.uniform(self.knee_min, self.knee_max)
+            0.0 + np.random.uniform(-0.3, 0.3),
+            0.6 + np.random.uniform(-0.3, 0.3),
+            1.45 + np.random.uniform(-0.3, 0.3),
+            0.0 + np.random.uniform(-0.3, 0.3),
+            0.6 + np.random.uniform(-0.3, 0.3),
+            1.45 + np.random.uniform(-0.3, 0.3),
+            0.0 + np.random.uniform(-0.3, 0.3),
+            0.6 + np.random.uniform(-0.3, 0.3),
+            1.45 + np.random.uniform(-0.3, 0.3),
+            0.0 + np.random.uniform(-0.3, 0.3),
+            0.6 + np.random.uniform(-0.3, 0.3),
+            1.45 + np.random.uniform(-0.3, 0.3)
         )
     
     def get_random_joint_increment_from_current(self):
