@@ -43,20 +43,24 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         # rejection sampling until outside target set and safe set
         while True:
             super().reset(**kwargs)
-            # add the robot to the Pybullet engine
+            
+            is_rollout_shielding_reset = False
 
             if "initial_height" in kwargs.keys():
                 height = kwargs["initial_height"]
+                is_rollout_shielding_reset = True
             else:
                 height = None
             
             if "initial_rotation" in kwargs.keys():
                 rotate = kwargs["initial_rotation"]
+                is_rollout_shielding_reset = True
             else:
                 rotate = None
             
             if "initial_joint_value" in kwargs.keys():
                 random_joint_value = kwargs["initial_joint_value"]
+                is_rollout_shielding_reset = True
             else:
                 random_joint_value = None
             
@@ -83,8 +87,9 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
             self.robot.reset(random_joint_value)
             self.robot.apply_position(random_joint_value)
 
-            for t in range(0, 100):
-                p.stepSimulation(physicsClientId = self.client)
+            if not is_rollout_shielding_reset:
+                for t in range(0, 100):
+                    p.stepSimulation(physicsClientId = self.client)
 
             spirit_initial_obs = self.robot.get_obs()
             self.state = np.concatenate((np.array(spirit_initial_obs, dtype=np.float32), np.array(spirit_initial_obs, dtype=np.float32), random_joint_value, random_joint_value), axis = 0)
@@ -98,7 +103,7 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
 
             # if max(self.robot.target_margin(self.state).values()) > 0 and max(self.robot.safety_margin(self.state).values()) <= 0:
             
-            if max(self.robot.safety_margin(self.state).values()) <= 0:
+            if max(self.robot.safety_margin(self.state).values()) <= 0 or is_rollout_shielding_reset:
                 break
     
     def get_constraints(self):
