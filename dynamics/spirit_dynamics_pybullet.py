@@ -40,57 +40,65 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         self.reset()
     
     def reset(self, **kwargs):
-        super().reset(**kwargs)
-        # add the robot to the Pybullet engine
-
-        if "initial_height" in kwargs.keys():
-            height = kwargs["initial_height"]
-        else:
-            height = None
-        
-        if "initial_rotation" in kwargs.keys():
-            rotate = kwargs["initial_rotation"]
-        else:
-            rotate = None
-        
-        if "initial_joint_value" in kwargs.keys():
-            random_joint_value = kwargs["initial_joint_value"]
-        else:
-            random_joint_value = None
-        
-        if height is None:
-            if self.height_reset:  # Drops from the air.
-                height = 0.4 + np.random.rand()*0.2
-            else:
-                height = 0.6
-        self.initial_height = height
-
-        if rotate is None:
-            if self.rotate_reset:  # Resets the yaw, pitch, roll.
-                rotate = p.getQuaternionFromEuler((np.random.rand(3)-0.5) * np.pi * 0.125)
-            else:
-                rotate = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
-        self.initial_rotation = rotate
-         
-        self.robot = Spirit(self.client, height, rotate)
-
-        if random_joint_value is None:
-            random_joint_value = self.get_random_joint_value()
-        self.initial_joint_value = random_joint_value
-        
-        self.robot.reset(random_joint_value)
-        self.robot.apply_position(random_joint_value)
-
-        for t in range(0, 100):
-            p.stepSimulation()
-
-        spirit_initial_obs = self.robot.get_obs()
-        self.state = np.concatenate((np.array(spirit_initial_obs, dtype=np.float32), np.array(spirit_initial_obs, dtype=np.float32), random_joint_value, random_joint_value), axis = 0)
-
         # rejection sampling until outside target set and safe set
-        # while max(self.robot.target_margin(self.state).values()) <= 0 or max(self.robot.safety_margin(self.state).values()) > 0:
-        while max(self.robot.safety_margin(self.state).values()) > 0:
-            self.reset(**kwargs)
+        while True:
+            super().reset(**kwargs)
+            # add the robot to the Pybullet engine
+
+            if "initial_height" in kwargs.keys():
+                height = kwargs["initial_height"]
+            else:
+                height = None
+            
+            if "initial_rotation" in kwargs.keys():
+                rotate = kwargs["initial_rotation"]
+            else:
+                rotate = None
+            
+            if "initial_joint_value" in kwargs.keys():
+                random_joint_value = kwargs["initial_joint_value"]
+            else:
+                random_joint_value = None
+            
+            if height is None:
+                if self.height_reset:  # Drops from the air.
+                    height = 0.4 + np.random.rand()*0.2
+                else:
+                    height = 0.6
+            self.initial_height = height
+
+            if rotate is None:
+                if self.rotate_reset:  # Resets the yaw, pitch, roll.
+                    rotate = p.getQuaternionFromEuler((np.random.rand(3)-0.5) * np.pi * 0.125)
+                else:
+                    rotate = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
+            self.initial_rotation = rotate
+            
+            self.robot = Spirit(self.client, height, rotate)
+
+            if random_joint_value is None:
+                random_joint_value = self.get_random_joint_value()
+            self.initial_joint_value = random_joint_value
+            
+            self.robot.reset(random_joint_value)
+            self.robot.apply_position(random_joint_value)
+
+            for t in range(0, 100):
+                p.stepSimulation()
+
+            spirit_initial_obs = self.robot.get_obs()
+            self.state = np.concatenate((np.array(spirit_initial_obs, dtype=np.float32), np.array(spirit_initial_obs, dtype=np.float32), random_joint_value, random_joint_value), axis = 0)
+
+            # print(
+            #     max(self.robot.safety_margin(self.state).values()), 
+            #     max(self.robot.target_margin(self.state).values())
+            # )
+
+            # input()
+
+            # if max(self.robot.target_margin(self.state).values()) > 0 and max(self.robot.safety_margin(self.state).values()) <= 0:
+            if max(self.robot.safety_margin(self.state).values()) <= 0:
+                break
     
     def get_constraints(self):
         return self.robot.safety_margin(self.state)
