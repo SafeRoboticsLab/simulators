@@ -1,10 +1,10 @@
-from turtle import position
 import numpy as np 
 import pybullet as p
 from .base_pybullet_dynamics import BasePybulletDynamics
 from typing import Optional, Tuple, Any
 from .resources.spirit import Spirit
 import time
+import matplotlib.pyplot as plt
 
 class SpiritDynamicsPybullet(BasePybulletDynamics):
     def __init__(self, config: Any, action_space: np.ndarray) -> None:
@@ -36,6 +36,8 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         self.initial_height = None
         self.initial_rotation = None
         self.initial_joint_value = None
+
+        self.rendered_img = None
 
         self.reset()
     
@@ -234,6 +236,8 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
                 self._save_frames()
             
             self.debugger.cam_and_robotstates(self.robot.id)
+        # else:
+        #     self.render()
 
         spirit_new_obs = np.array(self.robot.get_obs(), dtype = np.float32)
         spirit_new_joint_pos = np.array(self.robot.get_joint_position(), dtype = np.float32)
@@ -243,3 +247,34 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         self.cnt += 1
 
         return self.state, clipped_control
+    
+    def render(self):
+        if self.rendered_img is None:
+            self.rendered_img = plt.imshow(np.zeros((200, 200, 4)))
+
+        # Base information
+        robot_id, client_id = self.robot.get_ids()
+        proj_matrix = p.computeProjectionMatrixFOV(fov=80, aspect=1,
+                                                   nearVal=0.01, farVal=100, physicsClientId = self.client)
+        pos, ori = [list(l) for l in
+                    p.getBasePositionAndOrientation(robot_id, client_id)]
+
+        pos[0] += 1.2
+        pos[1] -= 1.2
+        pos[2] += 1
+        ori = p.getQuaternionFromEuler([0, 0.6, np.pi * 0.8])
+
+        # Rotate camera direction
+        rot_mat = np.array(p.getMatrixFromQuaternion(ori)).reshape(3, 3)
+        camera_vec = np.matmul(rot_mat, [1, 0, 0])
+        up_vec = np.matmul(rot_mat, np.array([0, 0, 1]))
+        view_matrix = p.computeViewMatrix(pos, pos + camera_vec, up_vec)
+
+        # Display image
+        frame = p.getCameraImage(200, 200, view_matrix, proj_matrix, physicsClientId = self.client)[2]
+        frame = np.reshape(frame, (200, 200, 4))
+        self.rendered_img.set_data(frame)
+        plt.draw()
+        plt.axis('off')
+        plt.title("Rollout imagine env")
+        plt.pause(.00001)
