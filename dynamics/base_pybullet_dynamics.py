@@ -20,6 +20,7 @@ class BasePybulletDynamics(BaseDynamics):
 
         self.verbose = config.VERBOSE
         self.gui = config.GUI
+        self.gui_imaginary = config.GUI_IMAGINARY
         self.dt = config.DT
         self.gravity = -9.81
 
