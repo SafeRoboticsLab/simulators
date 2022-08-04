@@ -236,8 +236,8 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
                 self._save_frames()
             
             self.debugger.cam_and_robotstates(self.robot.id)
-        # else:
-        #     self.render()
+        else:
+            self.render()
 
         spirit_new_obs = np.array(self.robot.get_obs(), dtype = np.float32)
         spirit_new_joint_pos = np.array(self.robot.get_joint_position(), dtype = np.float32)
