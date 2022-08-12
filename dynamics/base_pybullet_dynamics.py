@@ -115,10 +115,10 @@ class BasePybulletDynamics(BaseDynamics):
         """
         if self.video_output_file is not None and \
                 self.cnt % (int(1. / (self.dt * 24))) == 0:
-            camera = p.getDebugVisualizerCamera()
+            camera = p.getDebugVisualizerCamera(physicsClientId=self.client)
             img = p.getCameraImage(
                 camera[0], camera[1],
-                renderer=p.ER_BULLET_HARDWARE_OPENGL)
+                renderer=p.ER_BULLET_HARDWARE_OPENGL, physicsClientId=self.client)
             self.ffmpeg_pipe.stdin.write(img[2].tobytes())
     
     def destroy(self):
