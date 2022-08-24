@@ -13,6 +13,7 @@ from .agent import Agent
 from .base_env import BaseEnv
 from .utils import ActionZS, build_obs_space
 
+import copy
 
 class BaseZeroSumEnv(BaseEnv):
   """

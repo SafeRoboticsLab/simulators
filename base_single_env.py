@@ -12,6 +12,7 @@ from gym import spaces
 from .agent import Agent
 from .base_env import BaseEnv
 
+import copy
 
 class BaseSingleEnv(BaseEnv):
   """Implements an environment of a single agent.
