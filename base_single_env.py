@@ -229,6 +229,7 @@ class BaseSingleEnv(BaseEnv):
       else:
         new_joint_pos = controller.get_action()
         action = new_joint_pos - np.array(self.agent.dyn.robot.get_joint_position())
+        solver_info = None
 
       # Applies action: `done` and `info` are evaluated at the next state.
       obs, reward, done, step_info = self.step(action)

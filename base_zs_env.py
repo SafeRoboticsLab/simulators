@@ -253,6 +253,7 @@ class BaseZeroSumEnv(BaseEnv):
       else:
         new_joint_pos = controller.get_action()
         ctrl = new_joint_pos - np.array(self.agent.dyn.robot.get_joint_position())
+        solver_info = None
 
       # Applies action: `done` and `info` are evaluated at the next state.
       action = {'ctrl': ctrl, 'dstb': adversary(self.state, ctrl)}
