@@ -160,6 +160,7 @@ class BaseSingleEnv(BaseEnv):
       action_kwargs: Optional[Dict] = None,
       rollout_step_callback: Optional[Callable] = None,
       rollout_episode_callback: Optional[Callable] = None,
+      **kwargs
   ) -> Tuple[np.ndarray, int, Dict]:
     """
     Rolls out the trajectory given the horizon, termination criterion, reset
@@ -194,6 +195,10 @@ class BaseSingleEnv(BaseEnv):
     if action_kwargs is None:
       action_kwargs = {}
 
+    controller = None
+    if "controller" in kwargs.keys():
+      controller = copy.deepcopy(kwargs["controller"])
+
     state_hist = []
     action_hist = []
     reward_hist = []
@@ -208,17 +213,21 @@ class BaseSingleEnv(BaseEnv):
     state_hist.append(self.state)
 
     for t in range(T_rollout):
-      # Gets action.
-      if self.agent.policy.policy_type == "iLQR":
-        action, solver_info = self.agent.policy.get_action(
-            state=self.state, controls=init_control, **action_kwargs
-        )
-      elif self.agent.policy.policy_type == "NNCS":
-        with torch.no_grad():
-          obs_tensor = torch.FloatTensor(obs).to(self.agent.policy.device)
+      if controller is None:
+        # Gets action.
+        if self.agent.policy.policy_type == "iLQR":
           action, solver_info = self.agent.policy.get_action(
-              state=obs_tensor, **action_kwargs
+              state=self.state, controls=init_control, **action_kwargs
           )
+        elif self.agent.policy.policy_type == "NNCS":
+          with torch.no_grad():
+            obs_tensor = torch.FloatTensor(obs).to(self.agent.policy.device)
+            action, solver_info = self.agent.policy.get_action(
+                state=obs_tensor, **action_kwargs
+            )
+      else:
+        new_joint_pos = controller.get_action()
+        action = new_joint_pos - np.array(self.agent.dyn.robot.get_joint_position())
 
       # Applies action: `done` and `info` are evaluated at the next state.
       obs, reward, done, step_info = self.step(action)
@@ -267,6 +276,7 @@ class BaseSingleEnv(BaseEnv):
       action_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
       rollout_step_callback: Optional[Callable] = None,
       rollout_episode_callback: Optional[Callable] = None,
+      **kwargs
   ):
     """
     Rolls out multiple trajectories given the horizon, termination criterion,
@@ -304,7 +314,8 @@ class BaseSingleEnv(BaseEnv):
           T_rollout=T_rollout, end_criterion=end_criterion,
           reset_kwargs=reset_kwargs, action_kwargs=action_kwargs,
           rollout_step_callback=rollout_step_callback,
-          rollout_episode_callback=rollout_episode_callback
+          rollout_episode_callback=rollout_episode_callback,
+          **kwargs
       )
       trajectories.append(state_hist)
       results[trial] = result
