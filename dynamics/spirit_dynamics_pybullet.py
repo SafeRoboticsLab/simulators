@@ -45,26 +45,26 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         # rejection sampling until outside target set and safe set
         while True:
             super().reset(**kwargs)
-            
-            is_rollout_shielding_reset = False
 
             if "initial_height" in kwargs.keys():
                 height = kwargs["initial_height"]
-                is_rollout_shielding_reset = True
             else:
                 height = None
             
             if "initial_rotation" in kwargs.keys():
                 rotate = kwargs["initial_rotation"]
-                is_rollout_shielding_reset = True
             else:
                 rotate = None
             
             if "initial_joint_value" in kwargs.keys():
                 random_joint_value = kwargs["initial_joint_value"]
-                is_rollout_shielding_reset = True
             else:
                 random_joint_value = None
+
+            if "is_rollout_shielding_reset" in kwargs.keys():
+                is_rollout_shielding_reset = kwargs["is_rollout_shielding_reset"]
+            else:
+                is_rollout_shielding_reset = False
             
             if height is None:
                 if self.height_reset:  # Drops from the air.
