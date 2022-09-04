@@ -14,11 +14,10 @@ class Spirit:
         ox = 0
         oy = 0
         
-        for key in kwargs.keys():
-            if key == "ox":
-                ox = kwargs["ox"]
-            if key == "oy":
-                oy = kwargs["oy"]
+        if "ox" in kwargs.keys():
+            ox = kwargs["ox"]
+        if "oy" in kwargs.keys():
+            oy = kwargs["oy"]
         
         if envtype != None:
             # TODO: create different env here

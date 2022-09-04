@@ -80,16 +80,16 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
                     rotate = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
             self.initial_rotation = rotate
             
-            self.robot = Spirit(self.client, height, rotate)
-
-            if random_joint_value is None:
-                random_joint_value = self.get_random_joint_value()
-            self.initial_joint_value = random_joint_value
-            
-            self.robot.reset(random_joint_value)
-            self.robot.apply_position(random_joint_value)
+            self.robot = Spirit(self.client, height, rotate, **kwargs)
 
             if not is_rollout_shielding_reset:
+                if random_joint_value is None:
+                    random_joint_value = self.get_random_joint_value()
+                self.initial_joint_value = random_joint_value
+                
+                self.robot.reset(random_joint_value)
+                self.robot.apply_position(random_joint_value)
+
                 for t in range(0, 100):
                     p.stepSimulation(physicsClientId = self.client)
 
@@ -259,10 +259,10 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         pos, ori = [list(l) for l in
                     p.getBasePositionAndOrientation(robot_id, client_id)]
 
-        pos[0] += 1.2
-        pos[1] -= 1.2
-        pos[2] += 1
-        ori = p.getQuaternionFromEuler([0, 0.6, np.pi * 0.8])
+        pos[0] += 1.0
+        pos[1] -= 1.0
+        pos[2] += 0.7
+        ori = p.getQuaternionFromEuler([0, 0.2, np.pi * 0.8])
 
         # Rotate camera direction
         rot_mat = np.array(p.getMatrixFromQuaternion(ori)).reshape(3, 3)
