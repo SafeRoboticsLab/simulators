@@ -38,6 +38,8 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         self.initial_joint_value = None
 
         self.rendered_img = None
+        self.adv_debug_line_id = None
+        self.shielding_status_debug_text_id = None
 
         self.reset()
     
@@ -229,7 +231,9 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
 
         if self.gui:
             if has_adversarial:
-                p.addUserDebugLine(position_vector, position_vector + force_vector * self.force, lineColorRGB=[0, 0, 1], lineWidth=2.0, lifeTime=0.1, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
+                if self.adv_debug_line_id is not None:
+                    p.removeUserDebugItem(self.adv_debug_line_id)
+                self.adv_debug_line_id = p.addUserDebugLine(position_vector, position_vector + force_vector * self.force, lineColorRGB=[0, 0, 1], lineWidth=2.0, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
             time.sleep(self.dt)
             
             if self.video_output_file is not None:

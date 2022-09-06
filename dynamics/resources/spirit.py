@@ -91,13 +91,13 @@ class Spirit:
 
     def get_obs(self):
         # Get the position and orientation of robot in the simulation
-        pos, ang = p.getBasePositionAndOrientation(self.id, self.client)
+        pos, ang = p.getBasePositionAndOrientation(self.id, physicsClientId = self.client)
         ang = p.getEulerFromQuaternion(ang, physicsClientId = self.client)
         
         # ori = (math.cos(ang[0]), math.sin(ang[0]), math.cos(ang[1]), math.sin(ang[1]), math.cos(ang[2]), math.sin(ang[2]))
         
         # Get the velocity of robot
-        vel = p.getBaseVelocity(self.id, self.client)[0][:]
+        vel = p.getBaseVelocity(self.id, physicsClientId = self.client)[0][:]
 
         # self.previous_position = pos[0:2]
 
