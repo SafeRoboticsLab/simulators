@@ -32,7 +32,7 @@ class BaseConstraints(ABC):
 
     # Dynamics Constraint
     self.alat_max = config_agent.ALAT_MAX  # max lateral accel
-    self.alat_min = -config_agent.ALAT_MAX  # min lateral accel
+    self.alat_min = config_agent.ALAT_MIN  # min lateral accel
 
     # Obstacles
     self.buffer = getattr(config_env, "BUFFER", 0.)

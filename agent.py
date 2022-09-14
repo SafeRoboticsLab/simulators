@@ -3,8 +3,9 @@ Please contact the author(s) of this library if you have any questions.
 Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, Union
 import numpy as np
+import torch
 
 # Dynamics.
 from .dynamics.bicycle_dynamics_v1 import BicycleDynamicsV1
@@ -46,7 +47,8 @@ class Agent:
     self.policy = None
 
   def integrate_forward(
-      self, state: np.ndarray, control: Optional[np.ndarray] = None,
+      self, state: np.ndarray, control: Optional[Union[np.ndarray,
+                                                       torch.Tensor]] = None,
       num_segment: Optional[int] = 1, noise: Optional[np.ndarray] = None,
       noise_type: Optional[str] = 'unif',
       adversary: Optional[np.ndarray] = None, **kwargs
@@ -76,6 +78,13 @@ class Agent:
     )
     if control is None:
       control = self.policy.get_action(state, **kwargs)[0]
+    elif not isinstance(control, np.ndarray):
+      control = control.cpu().numpy()
+    if noise is not None:
+      assert isinstance(noise, np.ndarray)
+    if adversary is not None and not isinstance(adversary, np.ndarray):
+      adversary = adversary.cpu().numpy()
+
     return self.dyn.integrate_forward(
         state=state, control=control, num_segment=num_segment, noise=noise,
         noise_type=noise_type, adversary=adversary, **kwargs
