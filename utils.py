@@ -23,6 +23,15 @@ def load_obj(filename):
     return pickle.load(f)
 
 
+def cast_numpy(x: np.ndarray | torch.Tensor) -> np.ndarray:
+  if torch.is_tensor(x):
+    x = x.cpu().numpy()
+  else:
+    assert isinstance(x, np.ndarray), "Invalid action type!"
+
+  return x
+
+
 # Type Hints
 class ActionZS(TypedDict):
   ctrl: np.ndarray

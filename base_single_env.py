@@ -6,8 +6,8 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 from abc import abstractmethod
 from typing import Any, Tuple, Optional, Callable, List, Dict, Union
 import numpy as np
-from gym import spaces
 import torch
+from gym import spaces
 
 from .agent import Agent
 from .base_env import BaseEnv
@@ -31,7 +31,10 @@ class BaseSingleEnv(BaseEnv):
 
     self.integrate_kwargs = getattr(config_env, "INTEGRATE_KWARGS", {})
     if "noise" in self.integrate_kwargs:
-      self.integrate_kwargs['noise'] = np.array(self.integrate_kwargs['noise'])
+      if self.integrate_kwargs['noise'] is not None:
+        self.integrate_kwargs['noise'] = np.array(
+            self.integrate_kwargs['noise']
+        )
 
   def step(
       self, action: np.ndarray, cast_torch: bool = False
@@ -39,7 +42,7 @@ class BaseSingleEnv(BaseEnv):
     """Implements the step function in the environment.
 
     Args:
-        action (np.ndarray): current actions of the shape (2, ).
+        action (np.ndarray).
         cast_torch (bool): cast state to torch if True.
 
     Returns:
@@ -50,10 +53,6 @@ class BaseSingleEnv(BaseEnv):
         Dict[str, Any]]: additional information of the step, such as target
             margin and safety margin used in reachability analysis.
     """
-    if torch.is_tensor(action):
-      action = action.cpu().numpy()
-    else:
-      assert isinstance(action, np.ndarray), "Invalid action type!"
 
     self.cnt += 1
     state_nxt, _ = self.agent.integrate_forward(
@@ -73,10 +72,6 @@ class BaseSingleEnv(BaseEnv):
     return obs, -cost, done, info
 
   @abstractmethod
-  def get_obs(self, state: np.ndarray) -> np.ndarray:
-    raise NotImplementedError
-
-  @abstractmethod
   def get_cost(
       self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray,
       constraints: Optional[Dict] = None
@@ -85,9 +80,9 @@ class BaseSingleEnv(BaseEnv):
     Gets the cost given current state, current action, and next state.
 
     Args:
-        state (np.ndarray): current states of the shape (4, N).
-        action (np.ndarray): current actions of the shape (2, N).
-        state_nxt (np.ndarray): next state or final state of the shape (4, ).
+        state (np.ndarray): current states.
+        action (np.ndarray): current actions.
+        state_nxt (np.ndarray): next state.
         constraints (Dict): each (key, value) pair is the name and value of a
             constraint function.
 
@@ -105,9 +100,9 @@ class BaseSingleEnv(BaseEnv):
     action, and next state.
 
     Args:
-        state (np.ndarray): current states of the shape (4, N).
-        action (np.ndarray): current actions of the shape (2, N).
-        state_nxt (np.ndarray): next state or final state of the shape (4, ).
+        state (np.ndarray): current states.
+        action (np.ndarray): current actions.
+        state_nxt (np.ndarray): next state.
 
     Returns:
         Dict: each (key, value) pair is the name and value of a constraint
@@ -124,9 +119,9 @@ class BaseSingleEnv(BaseEnv):
     action, and next state.
 
     Args:
-        state (np.ndarray): current states of the shape (4, N).
-        action (np.ndarray): current actions of the shape (2, N).
-        state_nxt (np.ndarray): next state or final state of the shape (4, ).
+        state (np.ndarray): current states.
+        action (np.ndarray): current actions.
+        state_nxt (np.ndarray): next state.
 
     Returns:
         Dict: each (key, value) pair is the name and value of a target margin
@@ -158,11 +153,13 @@ class BaseSingleEnv(BaseEnv):
     raise NotImplementedError
 
   def simulate_one_trajectory(
-      self, T_rollout: int, end_criterion: str,
+      self,
+      T_rollout: int,
+      end_criterion: str,
       reset_kwargs: Optional[Dict] = None,
       action_kwargs: Optional[Dict] = None,
       rollout_step_callback: Optional[Callable] = None,
-      rollout_episode_callback: Optional[Callable] = None
+      rollout_episode_callback: Optional[Callable] = None,
   ) -> Tuple[np.ndarray, int, Dict]:
     """
     Rolls out the trajectory given the horizon, termination criterion, reset
@@ -273,7 +270,7 @@ class BaseSingleEnv(BaseEnv):
   ):
     """
     Rolls out multiple trajectories given the horizon, termination criterion,
-    reset keyword arguments, callback afeter every step, and callout after the
+    reset keyword arguments, callback afeter every step, and callback after the
     rollout. Need to call env.reset() after this function to revert back to the
     training mode.
     """
