@@ -3,7 +3,7 @@ environment:
   SEED: 0
   NUM_AGENTS: 1
   # TRACK
-  TRACK_FILE: /Users/kaichieh/Desktop/LINC/simulators/race_car/outerloop_center_smooth.csv
+  TRACK_FILE: simulators/race_car/outerloop_center_smooth.csv
   TRACK_WIDTH_RIGHT: 0.6
   TRACK_WIDTH_LEFT: 0.6
   TRACK_OFFSET: 0.4
@@ -79,4 +79,4 @@ solver:
   N: 21
   MAX_ITER: 50
   MAX_ITER_RECEDING: 100
-  OUT_FOLDER: /Users/kaichieh/Desktop/LINC/experiments/liqr_v2/
+  OUT_FOLDER: experiments/ilqr_v2/
