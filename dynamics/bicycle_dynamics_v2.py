@@ -98,7 +98,7 @@ class BicycleDynamicsV2(BaseDynamics):
           rv = np.random.normal(size=(self.dim_x))
         state_nxt = state_nxt + (transform_mtx@noise) * rv / num_segment
 
-    state_nxt[3] = np.mod(state_nxt[3], 2 * np.pi)
+    state_nxt[3] = np.mod(state_nxt[3] + np.pi, 2 * np.pi) - np.pi
     return state_nxt, control_clip
 
   def get_jacobian(
