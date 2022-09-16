@@ -22,7 +22,7 @@ class BaseSingleEnv(BaseEnv):
     super().__init__(config_env)
 
     # Action Space.
-    action_space = np.array(config_agent.ACTION_LIMIT, dtype=np.float32)
+    action_space = np.array(config_agent.ACTION_RANGE, dtype=np.float32)
     self.action_dim = action_space.shape[0]
     self.agent = Agent(config_agent, action_space)
     self.action_space = spaces.Box(

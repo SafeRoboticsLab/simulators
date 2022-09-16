@@ -29,7 +29,7 @@ class BaseZeroSumEnv(BaseEnv):
     super().__init__(config_env)
 
     # Action Space.
-    ctrl_space = np.array(config_agent.ACTION_LIMIT['CTRL'])
+    ctrl_space = np.array(config_agent.ACTION_RANGE['CTRL'])
     self.action_space_ctrl = spaces.Box(
         low=ctrl_space[:, 0], high=ctrl_space[:, 1]
     )
@@ -44,7 +44,7 @@ class BaseZeroSumEnv(BaseEnv):
             self.integrate_kwargs['noise']
         )
 
-    dstb_space = np.array(config_agent.ACTION_LIMIT['DSTB'])
+    dstb_space = np.array(config_agent.ACTION_RANGE['DSTB'])
     self.action_space_dstb = spaces.Box(
         low=dstb_space[:, 0], high=dstb_space[:, 1]
     )

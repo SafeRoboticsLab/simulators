@@ -171,7 +171,7 @@ def main(config_file):
 
     states = np.array(state_hist).T
     ctrls = np.array(action_hist).T
-    action_space = np.array(config_agent.ACTION_LIMIT, dtype=np.float32)
+    action_space = np.array(config_agent.ACTION_RANGE, dtype=np.float32)
 
     ax = axes[0]
     sc = ax.scatter(

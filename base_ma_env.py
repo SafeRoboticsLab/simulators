@@ -40,7 +40,7 @@ class BaseMultiAgentEnv(BaseEnv):
     for i in range(self.num_agents):
       agent_name = 'agent_' + str(i)
       # Action Space.
-      tmp_action_space = np.array(config_agent[i].ACTION_LIMIT[agent_name])
+      tmp_action_space = np.array(config_agent[i].ACTION_RANGE[agent_name])
       _action_space[agent_name] = spaces.Box(
           low=tmp_action_space[:, 0], high=tmp_action_space[:, 1]
       )
