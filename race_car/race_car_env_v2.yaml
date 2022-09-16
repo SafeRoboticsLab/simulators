@@ -3,7 +3,7 @@ environment:
   SEED: 0
   NUM_AGENTS: 1
   # TRACK
-  TRACK_FILE: ./simulators/race_car/outerloop_center_smooth.csv
+  TRACK_FILE: simulators/race_car/outerloop_center_smooth.csv
   TRACK_WIDTH_RIGHT: 0.6
   TRACK_WIDTH_LEFT: 0.6
   TRACK_OFFSET: 0.4
@@ -71,12 +71,11 @@ agent:
   V_MAX: 2.
   DELTA_MIN: -0.35  # rad
   DELTA_MAX: 0.35
-  A_MIN: -3.5
-  A_MAX: 3.5
+  ALAT_MIN: -5
   ALAT_MAX: 5.
 
 solver:
   N: 21
   MAX_ITER: 50
   MAX_ITER_RECEDING: 100
-  OUT_FOLDER: ./experiments/liqr_v2/
+  OUT_FOLDER: experiments/ilqr_v2/
