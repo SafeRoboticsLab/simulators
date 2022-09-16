@@ -7,12 +7,14 @@ from typing import Optional, Tuple, Any, Union
 import numpy as np
 import torch
 
+from .dynamics.spirit_dynamics_pybullet import SpiritDynamicsPybullet
+
 # Dynamics.
 from .dynamics.bicycle_dynamics_v1 import BicycleDynamicsV1
 from .dynamics.bicycle_dynamics_v2 import BicycleDynamicsV2
 
 # Footprint.
-from .ell_reach.ellipse import Ellipse
+# from .ell_reach.ellipse import Ellipse
 
 # Policy.
 from .policy.ilqr_policy import iLQR
@@ -33,6 +35,8 @@ class Agent:
       self.dyn = BicycleDynamicsV1(config, action_space)
     elif config.DYN == "BicycleV2":
       self.dyn = BicycleDynamicsV2(config, action_space)
+    elif config.DYN == "SpiritPybullet":
+      self.dyn = SpiritDynamicsPybullet(config, action_space)
     else:
       raise ValueError("Dynamics type not supported!")
 
