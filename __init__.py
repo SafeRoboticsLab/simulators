@@ -19,20 +19,3 @@ from .base_zs_env import BaseZeroSumEnv
 # from .ell_reach.plot_ellipsoids import plot_ellipsoids
 
 from .utils import save_obj
-
-import gym
-
-gym.envs.register(  # no time limit imposed
-    id='RaceCarSingleEnv-v1',
-    entry_point=RaceCarSingleEnvV1,
-)
-
-gym.envs.register(  # no time limit imposed
-    id='RaceCarSingleEnv-v2',
-    entry_point=RaceCarSingleEnvV2,
-)
-
-gym.envs.register(  # no time limit imposed
-    id='RaceCarZeroSumEnv-v2',
-    entry_point=RaceCarZeroSumEnvV2,
-)
