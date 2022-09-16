@@ -13,7 +13,11 @@ class BasePolicy(ABC):
 
   def __init__(self, env, config) -> None:
     super().__init__()
-    self.env = copy.deepcopy(env)
+    try:
+      self.env = copy.deepcopy(env)
+    except Exception as e:
+      print("WARNING: Cannot copy env - {}".format(e))
+
     self.has_safety = getattr(config, "HAS_SAFETY", False)
     if self.has_safety:
       pass  #TODO: load safety
