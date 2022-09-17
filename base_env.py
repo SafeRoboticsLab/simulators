@@ -4,7 +4,7 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple, Optional, List, Union, Callable
+from typing import Dict, Tuple, Optional
 import random
 import numpy as np
 import gym
