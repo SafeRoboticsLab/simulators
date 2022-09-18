@@ -15,6 +15,7 @@ from .utils import ActionZS, build_obs_space
 
 import copy
 
+
 class BaseZeroSumEnv(BaseEnv):
   """
   Implements an environment of a two-player discrete-time zero-sum dynamic
@@ -175,15 +176,12 @@ class BaseZeroSumEnv(BaseEnv):
     raise NotImplementedError
 
   def simulate_one_trajectory(
-      self,
-      T_rollout: int,
-      end_criterion: str,
-      adversary: Callable[[np.ndarray, np.ndarray, Any], np.ndarray],
-      reset_kwargs: Optional[Dict] = None,
+      self, T_rollout: int, end_criterion: str,
+      adversary: Callable[[np.ndarray, np.ndarray, Any],
+                          np.ndarray], reset_kwargs: Optional[Dict] = None,
       action_kwargs: Optional[Dict] = None,
       rollout_step_callback: Optional[Callable] = None,
-      rollout_episode_callback: Optional[Callable] = None,
-      **kwargs
+      rollout_episode_callback: Optional[Callable] = None, **kwargs
   ) -> Tuple[np.ndarray, int, Dict]:
     """
     Rolls out the trajectory given the horizon, termination criterion, reset
@@ -225,6 +223,7 @@ class BaseZeroSumEnv(BaseEnv):
       controller = copy.deepcopy(kwargs["controller"])
 
     state_hist = []
+    obs_hist = []
     action_hist = []
     reward_hist = []
     plan_hist = []
@@ -246,21 +245,23 @@ class BaseZeroSumEnv(BaseEnv):
           )
         elif self.agent.policy.policy_type == "NNCS":
           with torch.no_grad():
-            obs_tensor = torch.FloatTensor(obs).to(self.agent.policy.device)
             ctrl, solver_info = self.agent.policy.get_action(
-                state=obs_tensor, **action_kwargs
+                state=obs, **action_kwargs
             )
       else:
         new_joint_pos = controller.get_action()
-        ctrl = new_joint_pos - np.array(self.agent.dyn.robot.get_joint_position())
+        ctrl = new_joint_pos - np.array(
+            self.agent.dyn.robot.get_joint_position()
+        )
         solver_info = None
 
       # Applies action: `done` and `info` are evaluated at the next state.
-      action = {'ctrl': ctrl, 'dstb': adversary(self.state, ctrl)}
+      action = {'ctrl': ctrl, 'dstb': adversary(obs, ctrl)}
       obs, reward, done, step_info = self.step(action)
 
       # Executes step callback and stores history.
       state_hist.append(self.state)
+      obs_hist.append(obs)
       action_hist.append(action)
       plan_hist.append(solver_info)
       reward_hist.append(reward)
@@ -290,21 +291,17 @@ class BaseZeroSumEnv(BaseEnv):
     self.timeout = timeout_backup
     self.end_criterion = end_criterion_backup
     return np.array(state_hist), result, dict(
-        action_hist=action_hist, plan_hist=plan_hist,
+        obs_hist=obs_hist, action_hist=action_hist, plan_hist=plan_hist,
         reward_hist=np.array(reward_hist), step_hist=step_hist
     )
 
   def simulate_trajectories(
-      self,
-      num_trajectories: int,
-      T_rollout: int,
-      end_criterion: str,
+      self, num_trajectories: int, T_rollout: int, end_criterion: str,
       adversary: Callable[[np.ndarray, np.ndarray, Any], np.ndarray],
       reset_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
       action_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
       rollout_step_callback: Optional[Callable] = None,
-      rollout_episode_callback: Optional[Callable] = None,
-      **kwargs
+      rollout_episode_callback: Optional[Callable] = None, **kwargs
   ):
     """
     Rolls out multiple trajectories given the horizon, termination criterion,
@@ -343,8 +340,7 @@ class BaseZeroSumEnv(BaseEnv):
           adversary=adversary, reset_kwargs=reset_kwargs,
           action_kwargs=action_kwargs,
           rollout_step_callback=rollout_step_callback,
-          rollout_episode_callback=rollout_episode_callback,
-          **kwargs
+          rollout_episode_callback=rollout_episode_callback, **kwargs
       )
       trajectories.append(state_hist)
       results[trial] = result

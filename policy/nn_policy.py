@@ -71,8 +71,7 @@ class NeuralNetworkControlSystem(BasePolicy):
 
     state_tensor = torch.FloatTensor(state).to(self.device)
     time0 = time.time()
-    with torch.no_grad():
-      action = self.actor(state_tensor, append=append, latent=latent)
+    action = self.actor(state_tensor, append=append, latent=latent)
     t_process = time.time() - time0
     action = action.cpu().numpy()
     status = 1
