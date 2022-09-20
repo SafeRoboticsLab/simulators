@@ -222,9 +222,9 @@ class BaseSingleEnv(BaseEnv):
           )
         elif self.agent.policy.policy_type == "NNCS":
           with torch.no_grad():
-            obs_tensor = torch.FloatTensor(obs).to(self.agent.policy.device)
+            # obs_tensor = torch.FloatTensor(obs).to(self.agent.policy.device)
             action, solver_info = self.agent.policy.get_action(
-                state=obs_tensor, **action_kwargs
+                state=obs, **action_kwargs
             )
       else:
         new_joint_pos = controller.get_action()
