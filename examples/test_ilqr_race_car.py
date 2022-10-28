@@ -2,8 +2,9 @@
 Please contact the author(s) of this library if you have any questions.
 Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
-
+from typing import Dict
 import os
+import sys
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,123 +12,105 @@ from matplotlib import cm
 import imageio
 from IPython.display import Image
 import argparse
+from shutil import copyfile
+import jax
 
 from simulators import (
-    RaceCarSingleEnvV1, RaceCarSingleEnvV2, load_config, Ellipse,
-    plot_ellipsoids, save_obj
+    RaceCarSingle5DEnv, load_config, PrintLogger, Bicycle5DCost,
+    Bicycle5DReachabilityCost
 )
+
+jax.config.update('jax_platform_name', 'cpu')
 
 
 def main(config_file):
   # region: Sets environment
-  # Loads config.
   config = load_config(config_file)
   config_env = config['environment']
   config_agent = config['agent']
   config_solver = config['solver']
+  config_cost = config['cost']
+  config_cost.N = config_solver.N
 
-  # Constructs a static obstacle.
-  ego_a = config_agent.LENGTH / 2.0
-  ego_b = config_agent.WIDTH / 2.0
-  ego_Q = np.diag([ego_a**2, ego_b**2])
-
-  ego_q1 = np.array([0, 5.6])[:, np.newaxis]
-  static_obs1 = Ellipse(q=ego_q1, Q=ego_Q)
-
-  ego_q2 = np.array([1.5, 5.2])[:, np.newaxis]
-  static_obs2 = Ellipse(q=ego_q2, Q=ego_Q)
-
-  ego_q3 = np.array([-2.7, 4.])[:, np.newaxis]
-  ego_Q3 = np.diag([(ego_b * 0.8)**2, ego_a**2])
-  static_obs3 = Ellipse(q=ego_q3, Q=ego_Q3)
-
-  obs_object = [static_obs1, static_obs2, static_obs3]
-  num_obs = len(obs_object)
-
-  if config_agent.DYN == "BicycleV1":
-    env_class = RaceCarSingleEnvV1
-  elif config_agent.DYN == "BicycleV2":
-    env_class = RaceCarSingleEnvV2
-  else:
-    raise ValueError("Dynamics type not supported!")
-
-  env = env_class(config_env, config_agent)
-  env.report()
-
-  pos0, psi0 = env.track.interp([2])  # The position and yaw on the track.
-  pos0 = pos0[:, 0]
-  psi0 = psi0[0]
-  psi0 = np.mod(psi0 + np.pi, 2 * np.pi)
-  if config_agent.DYN == "BicycleV1":
-    x_cur = np.array([pos0[0], pos0[1], 0., psi0])
-  elif config_agent.DYN == "BicycleV2":
-    x_cur = np.array([pos0[0], pos0[1], 0., psi0, 0.])
+  env = RaceCarSingle5DEnv(config_env, config_agent, config_cost)
+  env.step_keep_constraints = True
+  x_cur = np.array(getattr(config_solver, "INIT_STATE", [0., 0., 1., 0., 0.]))
   env.reset(x_cur)
 
-  obs_list = []
-  obs_list_2 = []
-  for i in range(num_obs):
-    obs_list.append([obs_object[i], obs_object[i]])
-    obs_list_2.append([obs_object[i] for _ in range(config_solver.N)])
-  env.constraints.update_obstacle(obs_list)
   # endregion
 
   # region: Constructs placeholder and initializes iLQR
-  config_env_imag = copy.deepcopy(config_env)
-  config_env_imag.INTEGRATE_KWARGS = config_agent.AGENT_INTEGRATE_KWARGS
-  config_env_imag.USE_SOFT_CONS_COST = config_agent.AGENT_USE_SOFT_CONS_COST
-  env_imaginary = env_class(config_env_imag, config_agent)
-  env_imaginary.constraints.update_obstacle(obs_list_2)
+  #! hacky
+  config_ilqr_cost = copy.deepcopy(config_cost)
+  config_ilqr_cost.BUFFER = getattr(config_solver, "BUFFER", 0.)
+  if config_cost.COST_TYPE == "Reachability":
+    policy_type = "iLQRReachabilitySpline"
+    cost = Bicycle5DReachabilityCost(config_ilqr_cost)
+    env.cost = cost  #! hacky
+  else:
+    policy_type = "iLQRSpline"
+    cost = Bicycle5DCost(config_ilqr_cost)
+
   env.agent.init_policy(
-      policy_type="iLQR", env=env_imaginary, config=config_solver
+      policy_type=policy_type, config=config_solver, cost=cost, track=env.track
   )
   max_iter_receding = config_solver.MAX_ITER_RECEDING
 
   fig_folder = os.path.join(config_solver.OUT_FOLDER, "figure")
   fig_prog_folder = os.path.join(fig_folder, "progress")
   os.makedirs(fig_prog_folder, exist_ok=True)
+  copyfile(config_file, os.path.join(config_solver.OUT_FOLDER, 'config.yaml'))
+  sys.stdout = PrintLogger(os.path.join(config_solver.OUT_FOLDER, 'log.txt'))
+  sys.stderr = PrintLogger(os.path.join(config_solver.OUT_FOLDER, 'log.txt'))
   # endregion
 
   # region: Runs iLQR
+  # Warms up jit
+  env.agent.policy.get_action(obs=x_cur, state=x_cur)
+
+  print("\n== iLQR starts ==")
+  env.report()
   c_track = 'k'
   c_obs = 'r'
-  c_ego = 'b'
+  c_ego = 'g'
 
   def rollout_step_callback(
-      env, state_hist, action_hist, plan_hist, step_hist, *args, **kwargs
+      env: RaceCarSingle5DEnv, state_hist, action_hist, plan_hist, step_hist,
+      *args, **kwargs
   ):
     solver_info = plan_hist[-1]
-    fig, ax = plt.subplots(1, 1, figsize=(6, 6))
+    fig, ax = plt.subplots(
+        1, 1, figsize=(config_solver.FIG_SIZE_X, config_solver.FIG_SIZE_Y)
+    )
+    ax.axis(env.visual_extent)
+    ax.set_aspect('equal')
 
-    # track.
+    # track, obstacles, footprint
     env.track.plot_track(ax, c=c_track)
-    obs_to_plot = []
-    if env.constraints.obs_list is not None:
-      for obs_list_j in env.constraints.obs_list:
-        obs_to_plot.append(obs_list_j[0])
-    plot_ellipsoids(
-        ax, obs_to_plot, arg_list=[dict(c=c_obs, linewidth=1.)], dims=[0, 1],
-        N=50, plot_center=False
+    env.render_obs(ax=ax, c=c_obs)
+    env.render_footprint(ax=ax, state=state_hist[-1], c=c_ego, lw=1.5)
+    ego_fut = env.agent.footprint.move2state(
+        solver_info['states'][[0, 1, 3], -1]
     )
-
-    # agent.
-    ego = env.agent.footprint.move2state(solver_info['states'][[0, 1, 3], 0])
-    plot_ellipsoids(
-        ax, [ego], arg_list=[dict(c=c_ego)], dims=[0, 1], N=50,
-        plot_center=False
-    )
+    ego_fut.plot(ax, color=c_ego, lw=1.5, alpha=.5)
+    if config_solver.CMAP:
+      env.render_state_cost_map(
+          ax=ax, nx=config_solver.CMAP_RES_X, ny=config_solver.CMAP_RES_Y,
+          vmin=config_solver.CMAP_MIN, vmax=config_solver.CMAP_MAX,
+          vel=state_hist[-1][2], yaw=state_hist[-1][3], delta=state_hist[-1][4]
+      )
 
     # plan.
     ax.plot(
-        solver_info['states'][0, :], solver_info['states'][1, :], linewidth=2,
+        solver_info['states'][0, :], solver_info['states'][1, :], linewidth=1.,
         c=c_ego
     )
-
     # history.
     states = np.array(state_hist).T  # last one is the next state.
     sc = ax.scatter(
         states[0, :-1], states[1, :-1], s=24, c=states[2, :-1], cmap=cm.jet,
-        vmin=0, vmax=config_agent.V_MAX, edgecolor='none', marker='o'
+        vmin=config_cost.V_MIN, vmax=config_cost.V_MAX, edgecolor='none',
+        marker='o'
     )
     cbar = fig.colorbar(sc, ax=ax)
     cbar.set_label(r"velocity [$m/s$]", size=20)
@@ -139,35 +122,30 @@ def main(config_file):
     plt.close('all')
 
     print(
-        "[{}]: solver returns status {} and uses {:.3f}.".format(
-            states.shape[1] - 1, solver_info['status'],
+        "[{}]: solver returns status {}, cost {:.1e}, and uses {:.3f}.".format(
+            states.shape[1] - 1, solver_info['status'], solver_info['J'],
             solver_info['t_process']
-        ), end='\r'
+        ), end=' -> '
     )
+    ctrl = action_hist[-1]
+    print(f"ctrl: [{ctrl[0]:.2e}, {ctrl[1]:.2e}]", end='\r')
+    # with np.printoptions(prrecision=2, suppress=False):
+    #   print(np.asarray(solver_info['K_closed_loop'][..., 0]))
 
   def rollout_episode_callback(
       env, state_hist, action_hist, plan_hist, step_hist, *args, **kwargs
   ):
-    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+    fig, axes = plt.subplots(
+        2, 1, figsize=(config_solver.FIG_SIZE_X, 2 * config_solver.FIG_SIZE_Y)
+    )
 
     for ax in axes:
-      # track.
+      # track, obstacles, footprint
       env.track.plot_track(ax, c=c_track)
-      obs_to_plot = []
-      if env.constraints.obs_list is not None:
-        for obs_list_j in env.constraints.obs_list:
-          obs_to_plot.append(obs_list_j[0])
-      plot_ellipsoids(
-          ax, obs_to_plot, arg_list=[dict(c=c_obs, linewidth=1.)], dims=[0, 1],
-          N=50, plot_center=False
-      )
-
-      # agent.
-      ego = env.agent.footprint.move2state(state_hist[-1][[0, 1, 3]])
-      plot_ellipsoids(
-          ax, [ego], arg_list=[dict(c=c_ego)], dims=[0, 1], N=50,
-          plot_center=False
-      )
+      env.render_obs(ax=ax, c=c_obs)
+      env.render_footprint(ax=ax, state=state_hist[-1], c=c_ego)
+      ax.axis(env.visual_extent)
+      ax.set_aspect('equal')
 
     states = np.array(state_hist).T
     ctrls = np.array(action_hist).T
@@ -175,8 +153,9 @@ def main(config_file):
 
     ax = axes[0]
     sc = ax.scatter(
-        states[0, :], states[1, :], s=24, c=states[2, :], cmap=cm.jet, vmin=0,
-        vmax=config_agent.V_MAX, edgecolor='none', marker='o'
+        states[0, :], states[1, :], s=24, c=states[2, :], cmap=cm.jet,
+        vmin=config_cost.V_MIN, vmax=config_cost.V_MAX, edgecolor='none',
+        marker='o'
     )
     cbar = fig.colorbar(sc, ax=ax)
     cbar.set_label(r"velocity [$m/s$]", size=20)
@@ -199,16 +178,6 @@ def main(config_file):
       t_process += solver_info['t_process']
     print("\n\n --> Planning uses {:.3f}.".format(t_process))
 
-    final_step_info = step_hist[-1]
-    if final_step_info["done_type"] == "failure":
-      print("The rollout fails!")
-      constraint_dict = env.get_constraints(
-          state=state_hist[-2], action=action_hist[-1],
-          state_nxt=state_hist[-1]
-      )
-      for key, value in constraint_dict.items():
-        print(key, ":", value[:, -1])
-
   end_criterion = "failure"
   # end_criterion = "timeout"
   nominal_states, result, traj_info = env.simulate_one_trajectory(
@@ -218,24 +187,20 @@ def main(config_file):
       rollout_episode_callback=rollout_episode_callback
   )
   print("result", result)
-  nominal_ctrls = traj_info['action_hist']
-  A, B = env.agent.get_dyn_jacobian(
-      nominal_states=nominal_states[:-1, :].T, nominal_controls=nominal_ctrls.T
-  )
-  print(A.shape, B.shape)
-  dict_for_minimax = {
-      "nominal_states": nominal_states,
-      "nominal_ctrls": nominal_ctrls,
-      "dyn_x": A,
-      "dyn_u": B
-  }
-  save_obj(dict_for_minimax, "dict_minimax")
+  print(traj_info['step_hist'][-1]["done_type"])
+  constraints: Dict = traj_info['step_hist'][-1]['constraints']
+  for k, v in constraints.items():
+    print(f"{k}: {v[0, 1]:.1e}")
+
   # endregion
 
   # region: Visualizes
   gif_path = os.path.join(fig_folder, 'rollout.gif')
+  frame_skip = getattr(config_solver, "FRAME_SKIP", 1)
   with imageio.get_writer(gif_path, mode='I') as writer:
     for i in range(len(nominal_states) - 1):
+      if frame_skip != 1 and (i+1) % frame_skip == 0:
+        continue
       filename = os.path.join(fig_prog_folder, str(i + 1) + ".png")
       image = imageio.imread(filename)
       writer.append_data(image)
@@ -247,7 +212,7 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument(
       "-cf", "--config_file", help="config file path", type=str,
-      default=os.path.join("simulators", "race_car", "race_car_env_v2.yaml")
+      default=os.path.join("simulators", "race_car", "race_car_straight.yaml")
   )
   args = parser.parse_args()
   main(args.config_file)

@@ -9,30 +9,36 @@ from .base_single_env import BaseSingleEnv
 from .base_zs_env import BaseZeroSumEnv
 
 from .race_car.track import Track
-from .race_car.constraints_bicycle_v1 import ConstraintsBicycleV1
-from .race_car.constraints_bicycle_v2 import ConstraintsBicycleV2
-from .race_car.race_car_single_v1 import RaceCarSingleEnvV1
-from .race_car.race_car_single_v2 import RaceCarSingleEnvV2
-from .race_car.race_car_zs_v2 import RaceCarZeroSumEnvV2
+from .race_car.race_car_single import RaceCarSingle5DEnv
+from .race_car.race_car_dstb import RaceCarDstb5DEnv
+from .race_car.cost_bicycle5D import (
+    Bicycle5DCost, Bicycle5DConstraint, Bicycle5DReachabilityCost
+)
 
 from .ell_reach.ellipse import Ellipse
 from .ell_reach.plot_ellipsoids import plot_ellipsoids
 
-from .utils import save_obj
+from .cost.quadratic_cost import QuadraticCost
+from .cost.half_space_cost import (
+    UpperHalfCost, LowerHalfCost, UpperHalfBoxFootprintCost,
+    LowerHalfBoxFootprintCost
+)
+from .cost.base_cost import BarrierCost, BaseCost
+from .cost.box_cost import BoxObsCost, BoxObsBoxFootprintCost
+
+from .dynamics.bicycle4D import Bicycle4D
+from .dynamics.bicycle5D import Bicycle5D
+
+from .utils import save_obj, load_obj, PrintLogger
 
 import gym
 
 gym.envs.register(  # no time limit imposed
-    id='RaceCarSingleEnv-v1',
-    entry_point=RaceCarSingleEnvV1,
+    id='RaceCarSingle5DEnv-v1',
+    entry_point=RaceCarSingle5DEnv,
 )
 
 gym.envs.register(  # no time limit imposed
-    id='RaceCarSingleEnv-v2',
-    entry_point=RaceCarSingleEnvV2,
-)
-
-gym.envs.register(  # no time limit imposed
-    id='RaceCarZeroSumEnv-v2',
-    entry_point=RaceCarZeroSumEnvV2,
+    id='RaceCarDstb5DEnv-v1',
+    entry_point=RaceCarDstb5DEnv,
 )

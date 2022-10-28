@@ -1,0 +1,85 @@
+environment:
+  SEED: 0
+  NUM_AGENTS: 1
+  # TRACK
+  TRACK_FILE: simulators/race_car/outerloop_center_smooth.csv
+  TRACK_WIDTH_RIGHT: .6
+  TRACK_WIDTH_LEFT: .6
+  # LOOP: true
+  TIMEOUT: 100
+  # DONE FLAG PARAM
+  END_CRITERION: failure
+  G_X_FAIL: 0.25
+  OBS_TYPE: perfect
+  OBS_SPEC:
+    - [-1, 5.7, 0., 0.25, 0.1]
+    - [0.5, 5.3, 0., 0.25, 0.1]
+    - [1.5, 5., 0., 0.25, 0.1]
+    - [-2.2, 4., 1.5707, 0.25, 0.1]
+  RESET_SPACE:
+    - [0., 1.]
+    - [-0.4, 0.4]
+    - [0.5, 1.5]
+    - [-0.3, 0.3]
+    - [-0.15, 0.15]
+
+cost:
+  BIDIRECTIONAL: true
+  COST_TYPE: Lagrange
+  # CONSTRAINT PARAM
+  Q1_V: 1.
+  Q2_V: 10.
+  Q1_ROAD: 5.
+  Q2_ROAD: 10.
+  Q1_YAW: 1.
+  Q2_YAW: 10.
+  Q1_OBS: 5.
+  Q2_OBS: 10.
+  Q1_DELTA: 5.
+  Q2_DELTA: 10.
+  # COST PARAM
+  TRACK_OFFSET: 0.5
+  W_VEL: 4.
+  W_CONTOUR: 1.
+  W_THETA: 0.
+  W_ACCEL: 0.01
+  W_OMEGA: 0.01
+  V_REF: 1.5
+  BARRIER_CLIP_MIN: -0.25
+  BARRIER_CLIP_MAX: 5.0
+  #
+  V_MIN: 0.
+  V_MAX: 2.
+  YAW_MIN: -1.5707
+  YAW_MAX: 1.5707
+  DELTA_MIN: -0.35  # rad
+  DELTA_MAX: 0.35
+
+agent:
+  AGENT_ID: ego
+  DYN: Bicycle5D
+  FOOTPRINT: Box
+  BOX_LIMIT: [0., 0.5, -0.1, 0.1]
+  ACTION_RANGE:
+    - [-3.5, 3.5]
+    - [-5., 5.]
+  WEIGHT : 2.99  # kg
+  # CAR DYNAMICS
+  WHEELBASE: 0.257
+  DT: 0.1
+  NUM_SEGMENT: 10
+
+solver:
+  INIT_STATE: [0., 0., 0.1, 0., 0.]
+  N: 20
+  MAX_ITER: 50
+  MAX_ITER_RECEDING: 150
+  OUT_FOLDER: experiments/ilqr/bic5D/loop/
+  DEVICE: cpu
+  FIG_SIZE_X: 10
+  FIG_SIZE_Y: 10
+  CMAP: true
+  CMAP_RES_X: 200
+  CMAP_RES_Y: 200
+  CMAP_MIN: 0.
+  CMAP_MAX: 20.
