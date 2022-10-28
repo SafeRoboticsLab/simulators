@@ -2,7 +2,7 @@
 Please contact the author(s) of this library if you have any questions.
 Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
-
+from typing import Dict
 import yaml
 
 
@@ -25,7 +25,7 @@ def dict2object(dictionary, key):
 
 def load_config(file_path):
   with open(file_path) as f:
-    data = yaml.safe_load(f)
+    data: Dict = yaml.safe_load(f)
   config_dict = {}
   for key, value in data.items():
     config_dict[key] = Struct(**value)

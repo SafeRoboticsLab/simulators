@@ -5,14 +5,14 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 
 from abc import abstractmethod
 import copy
-from typing import Dict, Tuple, Any, List, Union
+from typing import Dict, Tuple, Any, List, Union, Optional
 import numpy as np
 import torch
 from gym import spaces
 
 from .agent import Agent
 from .base_env import BaseEnv
-from .utils import build_obs_space, cast_numpy
+from .utils import build_space, cast_numpy
 
 
 class BaseMultiAgentEnv(BaseEnv):
@@ -21,186 +21,213 @@ class BaseMultiAgentEnv(BaseEnv):
   dynamic game. The planners should take care of the following training options
   in their implementation:
       (1) Centralized Training for Decentralized Execution (CTDE).
-      (2) Global Observation Broadcast.
+      (2) Global Observation Broadcast (GLOBAL).
   """
-  agent: List[Agent]
+  agents: Dict[str, Agent]
+  state: Dict[str, np.ndarray]
 
-  def __init__(self, config_env: Any, config_agent: List[Any]) -> None:
-    super().__init__()
-    self.num_agents = config_env.NUM_AGENTS
+  def __init__(
+      self, config_env: Any, config_agent: List[Any],
+      agent_name_list: Optional[List[str]] = None
+  ) -> None:
+    super().__init__(config_env)
+    self.env_type = "multi-agent"
+    self.num_agents: int = config_env.NUM_AGENTS
+    if agent_name_list is None:
+      agent_name_list = [f'agent_{i}' for i in range(self.num_agents)]
+    else:
+      len(agent_name_list) == self.num_agents
+    self.agent_name_list: List[str] = agent_name_list
 
-    # placeholder
-    _obs_space = {}
     _action_space = {}
-    self.action_dim = np.empty(shape=(self.num_agents,))
-    self.observation_dim = [None for _ in range(self.num_agents)]
-    self.agent = [None for _ in range(self.num_agents)]
-    self.integrate_kwargs = [None for _ in range(self.num_agents)]
-
-    for i in range(self.num_agents):
-      agent_name = 'agent_' + str(i)
-      # Action Space.
-      tmp_action_space = np.array(config_agent[i].ACTION_RANGE[agent_name])
-      _action_space[agent_name] = spaces.Box(
+    self.action_dim = {}
+    self.agents = {}
+    self.integrate_kwargs = {}
+    for i, a_name in enumerate(agent_name_list):
+      tmp_action_space = np.array(config_agent[i].ACTION_RANGE)
+      _action_space[a_name] = spaces.Box(
           low=tmp_action_space[:, 0], high=tmp_action_space[:, 1]
       )
-      self.action_dim[i] = _action_space[agent_name].low.shape
-      self.agent[i] = Agent(config_agent[i], action_space=tmp_action_space)
-      self.integrate_kwargs[i] = config_agent[i].INTEGRATE_KWARGS[agent_name]
-
-      # Observation space.
-      obs_spec = np.array(config_agent[i].OBS_RANGE[agent_name])
-      _obs_space[agent_name] = build_obs_space(
-          obs_spec=obs_spec, obs_dim=config_agent[i].OBS_DIM[agent_name]
+      self.action_dim[a_name] = _action_space[a_name].low.shape
+      self.agents[a_name] = Agent(
+          config_agent[i], action_space=tmp_action_space
       )
-      self.observation_dim[i] = _obs_space[agent_name].low.shape
-
-    # Required attributes for gym env.
+      self.integrate_kwargs[a_name] = config_agent[i].AGENT_INTEGRATE_KWARGS
     self.action_space = spaces.Dict(_action_space)
+
+    self.build_rst_sapce(config_env, config_agent)
+    self.build_obs_space(config_env, config_agent)
+    self.seed(config_env.SEED)
+    self.state = self.reset_sample_space.sample()  # Overriden by reset later.
+
+  def build_rst_sapce(self, config_env: Any, config_agent: List[Any]):
+    _rst_space = {}
+    self.state_dim = {}
+    for i, a_name in enumerate(self.agent_name_list):
+      self.state_dim[a_name] = self.agents[a_name].dyn.dim_x
+      rst_spec = np.array(config_agent[i].RST_RANGE)
+      _rst_space[a_name] = build_space(
+          space_spec=rst_spec, space_dim=self.state_dim[a_name]
+      )
+    self.reset_sample_space = spaces.Dict(_rst_space)
+
+  def build_obs_space(self, config_env: Any, config_agent: List[Any]):
+    _obs_space = {}
+    self.observation_dim = {}
+    for i, a_name in enumerate(self.agent_name_list):
+      obs_spec = np.array(config_agent[i].OBS_RANGE)
+      _obs_space[a_name] = build_space(
+          space_spec=obs_spec, space_dim=config_agent[i].OBS_DIM
+      )
+      self.observation_dim[a_name] = _obs_space[a_name].low.shape
     self.observation_space = spaces.Dict(_obs_space)
-    self.state = self.observation_space.sample()  # Overriden by reset later.
 
   def step(
-      self, action: List[Union[np.ndarray, torch.Tensor]],
+      self, action: Dict[str, Union[np.ndarray, torch.Tensor]],
       cast_torch: bool = False
-  ) -> Tuple[List[np.ndarray], List[float], List[bool], List[Dict]]:
+  ) -> Tuple[Union[Union[np.ndarray, torch.Tensor], Dict[str, Union[
+      np.ndarray, torch.Tensor]]], Dict[str, float], bool, Dict[str, bool],
+             Dict[str, Dict]]:  # noqa
     """
     Implements the step function in the environment. We assume each agent's
     action only influences its own state.
 
     Args:
-        action (List[np.ndarray]): a list consisting of the action of each
+        action (Dict[str, np.ndarray]): a dict consisting of the action of each
             agent.
         cast_torch (bool): cast state to torch if True.
 
     Returns:
-        List[np.ndarray, torch.Tensor]: a list consisting of the next state of
-            each agent.
-        List[float]: a list consisting of the reward (cost*-1) of each agent.
-        List[bool]: a list consisting of the done flag of each agent. True if
-            the episode of that agent ends.
-        List[Dict]]: a list consisting of additional information of each agent
-            after the step, such as target margin and safety margin used in
-            reachability analysis.
+        Dict | np.ndarray | torch.Tensor]: a dict consisting of observations
+            of each agent or an observation of the whole system.
+        Dict[str, float]: a dict consisting of the reward (cost*-1) of each
+            agent.
+        Dict[str, bool]: a dict consisting of the done flag of each agent. True
+            if the episode of that agent ends.
+        Dict[str, Dict]]: a dict consisting of additional information of each
+            agent after the step, such as target margin and safety margin used
+            in the reachability analysis.
     """
-    state_nxt = [None for _ in range(self.num_agents)]
+    state_nxt = {}
 
-    for i, (state_i, action_i) in enumerate(zip(self.state, action)):
-      action_i = cast_numpy(action_i)
-      state_nxt_i, _ = self.agent[i].integrate_forward(
-          state=state_i, control=action_i, **self.integrate_kwargs[i]
+    for a_name, state_i in self.state.items():
+      action_i = cast_numpy(action[a_name])
+      state_nxt_i, _ = self.agents[a_name].integrate_forward(
+          state=state_i, control=action_i, **self.integrate_kwargs[a_name]
       )
-      state_nxt[i] = np.copy(state_nxt_i)
+      state_nxt[a_name] = np.copy(state_nxt_i)
 
-    cost = self.get_cost(self.state, action, state_nxt)
     constraints = self.get_constraints(self.state, action, state_nxt)
-    done = self.get_done_flag(self.state, action, state_nxt, constraints)
-    info = self.get_info(self.state, action, state_nxt, cost, constraints)
+    cost = self.get_cost(self.state, action, state_nxt, constraints)
+    targets = self.get_target_margin(self.state, action, state_nxt)
+    done, info = self.get_done_and_info(constraints, targets)
 
     self.state = copy.deepcopy(state_nxt)
     obs = self.get_obs(state_nxt)
     if cast_torch:
       obs = torch.FloatTensor(obs)
 
-    return obs, -cost, done, info
+    reward = {}
+    for k, v in cost.items():
+      reward[k] = -v
+
+    return obs, reward, done, info
 
   @abstractmethod
   def get_cost(
-      self, state: List[np.ndarray], action: List[np.ndarray],
-      state_nxt: List[np.ndarray]
-  ) -> List[float]:
+      self, state: Dict[str, np.ndarray], action: Dict[str, np.ndarray],
+      state_nxt: Dict[str, np.ndarray], constraints: Dict[str, Dict]
+  ) -> Dict[str, float]:
     """
     Gets the cost given current state, current action, and next state of each
     agent.
 
     Args:
-        state (List[np.ndarray]): a list consisting of the current state of
-            each agent.
-        action (List[np.ndarray]): a list consisting of the action of each
+        state (Dict[str, np.ndarray]): a dict consisting of the current state
+            of each agent.
+        action (Dict[str, np.ndarray]): a dict consisting of the action of each
             agent.
-        state_nxt (List[np.ndarray]): a list consisting of the next state of
-            each agent.
+        state_nxt (Dict[str, np.ndarray]): a dict consisting of the next state
+            of each agent.
+        constraints (Dict[str, Dict]): the keys of the 1st level keys specify
+            an agent's constraint dictionary and the (key, value) pair of the
+            2nd level is the name and value of a constraint function.
 
     Returns:
-        List[float]: a list consisting of the cost of each agent.
+        Dict[str, float]: a dict consisting of the cost of each agent.
     """
     raise NotImplementedError
 
   @abstractmethod
   def get_constraints(
-      self, state: List[np.ndarray], action: List[np.ndarray],
-      state_nxt: List[np.ndarray]
-  ) -> List[Dict]:
+      self, state: Dict[str, np.ndarray], action: Dict[str, np.ndarray],
+      state_nxt: Dict[str, np.ndarray]
+  ) -> Dict[str, Dict]:
     """
     Gets the values of all constaint functions given current state, current
     action, and next state of each agent.
 
     Args:
-        state (List[np.ndarray]): a list consisting of the current state of
-            each agent.
-        action (List[np.ndarray]): a list consisting of the action of each
+        state (Dict[str, np.ndarray]): a dict consisting of the current state
+            of each agent.
+        action (Dict[str, np.ndarray]): a dict consisting of the action of each
             agent.
-        state_nxt (List[np.ndarray]): a list consisting of the next state of
-            each agent.
+        state_nxt (Dict[str, np.ndarray]): a dict consisting of the next state
+            of each agent.
 
     Returns:
-        List[Dict]: a list consisting of the constraints dictionary of
-            each agent. Each (key, value) pair in the dictionary is the
-            name and value of a constraint function.
+        Dict[str, dict]: the keys of the 1st level keys specify an agent's
+            constraint dictionary and the (key, value) pair of the 2nd level is
+            the name and value of a constraint function.
     """
     raise NotImplementedError
 
   @abstractmethod
-  def get_done_flag(
-      self, state: List[np.ndarray], action: List[np.ndarray],
-      state_nxt: List[np.ndarray], constraints: List[Dict]
-  ) -> bool:
+  def get_target_margin(
+      self, state: Dict[str, np.ndarray], action: Dict[str, np.ndarray],
+      state_nxt: Dict[str, np.ndarray]
+  ) -> Dict[str, Dict]:
     """
-    Gets the done flag given current state, current action, next state, and
-    constraints of each agent.
+    Gets the values of all target margin functions given current state, current
+    action, and next state of each agent.
 
     Args:
-        state (List[np.ndarray]): a list consisting of the current state of
-            each agent.
-        action (List[np.ndarray]): a list consisting of the action of each
+        state (Dict[str, np.ndarray]): a dict consisting of the current state
+            of each agent.
+        action (Dict[str, np.ndarray]): a dict consisting of the action of each
             agent.
-        state_nxt (List[np.ndarray]): a list consisting of the next state of
-            each agent.
-        constraints (List[Dict]): a list consisting of the constraints
-            dictionary of each agent. Each (key, value) pair in the dictionary
-            is the name and value of a constraint function.
+        state_nxt (Dict[str, np.ndarray]): a dict consisting of the next state
+            of each agent.
 
     Returns:
-        List[bool]: a list consisting of the done flag of each agent. True if
-            the episode of that agent ends.
+        Dict[str, Dict]: the keys of the 1st level keys specify
+            an agent's target dictionary and the (key, value) pair of the
+            2nd level is the name and value of a target margin function.
     """
     raise NotImplementedError
 
   @abstractmethod
-  def get_info(
-      self, state: List[np.ndarray], action: List[np.ndarray],
-      state_nxt: List[np.ndarray], cost: List[float], constraints: List[Dict]
-  ) -> List[Dict]:
+  def get_done_and_info(
+      self, constraints: Dict[str, Dict], targets: Dict[str, Dict]
+  ) -> Tuple[Dict[str, bool], Dict[str, Dict]]:
     """
-    Gets a dictionary to provide additional information of the step function
-    given current state, current action, next state, cost, and constraints of
-    each agent.
+    Gets the done flag and a dictionary to provide additional information of
+    the step function given current state, current action, next state,
+    constraints, and targets of each agent.
 
     Args:
-        state (List[np.ndarray]): a list consisting of the current state of
-            each agent.
-        action (List[np.ndarray]): a list consisting of the action of each
-            agent.
-        state_nxt (List[np.ndarray]): a list consisting of the next state of
-            each agent.
-        cost (List[float]): a list consisting of the cost of each agent.
-        constraints (List[Dict]): a list consisting of the constraints
-            dictionary of each agent. Each (key, value) pair in the dictionary
-            is the name and value of a constraint function.
+        constraints (Dict[str, Dict]): the keys of the 1st level keys specify
+            an agent's constraint dictionary and the (key, value) pair of the
+            2nd level is the name and value of a constraint function.
+        targets Dict[str, Dict]: the keys of the 1st level keys specify
+            an agent's target dictionary and the (key, value) pair of the
+            2nd level is the name and value of a target margin function.
 
     Returns:
-        List[Dict]: a list consisting of additional information of each agent
-            after the step, such as target margin and safety margin used in
-            reachability analysis.
+        Dict[str, bool]: a dict consisting of the done flag of each agent. True
+            if the episode of that agent ends.
+        Dict[str, Dict]: a dict consisting of additional information of each
+            agent after the step, such as target margin and safety margin used
+            in the reachability analysis.
     """
     raise NotImplementedError

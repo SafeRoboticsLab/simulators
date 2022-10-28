@@ -34,7 +34,7 @@ class VecEnvBase(SubprocVecEnv):
   """
 
   def __init__(
-      self, venv, cpu_offset, device: str = th.device("cpu"),
+      self, venv, cpu_offset=0, device: str = th.device("cpu"),
       pickle_option='cloudpickle', start_method=None
   ):
     super(VecEnvBase, self).__init__(
@@ -45,11 +45,11 @@ class VecEnvBase(SubprocVecEnv):
 
   def reset(self, **kwargs):
     obs = super().reset(**kwargs)
-    return th.from_numpy(obs).to(self.device)
+    return th.FloatTensor(obs).to(self.device)
 
   def reset_one(self, index, **kwargs):
     obs = self.env_method('reset', indices=[index], **kwargs)[0]
-    return th.from_numpy(obs).to(self.device)
+    return th.FloatTensor(obs).to(self.device)
 
   # Overrides
   def step_async(self, actions):
@@ -60,8 +60,8 @@ class VecEnvBase(SubprocVecEnv):
   # Overrides
   def step_wait(self):
     obs, reward, done, info = super().step_wait()
-    obs = th.from_numpy(obs).to(self.device)
-    reward = th.from_numpy(reward).unsqueeze(dim=1).float()
+    obs = th.FloatTensor(obs).to(self.device)
+    reward = th.FloatTensor(reward).unsqueeze(dim=1).float()
     return obs, reward, done, info
 
   def get_obs(self, states):
