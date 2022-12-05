@@ -2,7 +2,7 @@ environment:
   SEED: 0
   NUM_AGENTS: 1
   # TRACK
-  TRACK_FILE: simulators/race_car/outerloop_center_smooth.csv
+  TRACK_LEN: 20
   TRACK_WIDTH_RIGHT: .6
   TRACK_WIDTH_LEFT: .6
   # LOOP: true
@@ -12,9 +12,12 @@ environment:
   G_X_FAIL: 0.25
   OBS_TYPE: perfect
   OBS_SPEC:
-    - [0.5, 5.3, 0., 0.25, 0.1]
-    - [1.5, 5., 0., 0.25, 0.1]
-    - [-2.2, 4., 1.5707, 0.25, 0.1]
+    - [2, -0.4, 0., 0.25, 0.1]
+    - [5, 0.4, 0., 0.25, 0.1]
+    - [8, 0.1, 0., 0.25, 0.1]
+    - [11, -0.1, 0., 0.25, 0.1]
+    - [14, -0.4, 0., 0.25, 0.1]
+    - [14, 0.4, 0., 0.25, 0.1]
   RESET_SPACE:
     - [0., 1.]
     - [-0.4, 0.4]
@@ -23,22 +26,22 @@ environment:
     - [-0.15, 0.15]
 
 cost:
-  BIDIRECTIONAL: false
   COST_TYPE: Lagrange
+  BIDIRECTIONAL: false
   # CONSTRAINT PARAM
-  Q1_ROAD: 5.
+  Q1_ROAD: 1.
   Q2_ROAD: 10.
   Q1_YAW: 1.
   Q2_YAW: 10.
-  Q1_OBS: 5.
+  Q1_OBS: 1.
   Q2_OBS: 10.
   # COST PARAM
   TRACK_OFFSET: 0.5
   W_VEL: 4.
   W_CONTOUR: 4.
   W_THETA: 0.
-  W_ACCEL: 0.001
-  W_OMEGA: 0.001
+  W_ACCEL: 0.01
+  W_OMEGA: 0.01
   V_REF: 1.5
   BARRIER_CLIP_MIN: -0.25
   BARRIER_CLIP_MAX: 5.0
@@ -55,6 +58,7 @@ cost:
   # Q2_V: 10.
   # Q1_DELTA: 1.
   # Q2_DELTA: 10.
+
 agent:
   AGENT_ID: ego
   DYN: Bicycle5D
@@ -74,16 +78,39 @@ agent:
   V_MAX: 2.
 
 solver:
-  INIT_STATE: [3.2, 3., 0.1, 1.571, 0.]
+  INIT_STATE: [3., 0.4, 0.8, 0.0, 0.0]
   N: 20
   MAX_ITER: 50
-  MAX_ITER_RECEDING: 150
-  OUT_FOLDER: experiments/ilqr/bic5D/loop/
+  MAX_ITER_RECEDING: 200
+  OUT_FOLDER: experiments/ilqr/bic5D/straight_ref/
   DEVICE: cpu
-  FIG_SIZE_X: 10
-  FIG_SIZE_Y: 10
+  FIG_SIZE_X: 20
+  FIG_SIZE_Y: 4
   CMAP: true
-  CMAP_RES_X: 200
-  CMAP_RES_Y: 200
+  CMAP_RES_X: 2000
+  CMAP_RES_Y: 20
   CMAP_MIN: 0.
-  CMAP_MAX: 20.
+  CMAP_MAX: 3.
+  UPDATE_REF_TRAJ: true
+
+traj_cost:
+  W_ACCEL: 0.001
+  W_OMEGA: 0.001
+  W_REF: [5., 5., 1., 1., 1.]
+  #== CONSTRAINT PARAM ==
+  BIDIRECTIONAL: false
+  Q1_ROAD: 1.
+  Q2_ROAD: 10.
+  Q1_YAW: 1.
+  Q2_YAW: 10.
+  Q1_OBS: 1.
+  Q2_OBS: 10.
+  BARRIER_CLIP_MIN: -0.25
+  BARRIER_CLIP_MAX: 5.0
+  YAW_MIN: -1.5707
+  YAW_MAX: 1.5707
+  HAS_VEL_CONSTR: false
+  HAS_DELTA_CONSTR: false
+  HAS_YAW_CONSTR: true
+  HAS_ROAD_CONSTR: true
+  HAS_OBS_CONSTR: true

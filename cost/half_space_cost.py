@@ -19,7 +19,7 @@ class UpperHalfCost(BaseCost):
 
   @partial(jax.jit, static_argnames='self')
   def get_stage_cost(
-      self, state: DeviceArray, ctrl: DeviceArray
+      self, state: DeviceArray, ctrl: DeviceArray, time_idx: DeviceArray
   ) -> DeviceArray:
     c = state[self.dim] - self.value
     return c
@@ -37,7 +37,7 @@ class LowerHalfCost(BaseCost):
 
   @partial(jax.jit, static_argnames='self')
   def get_stage_cost(
-      self, state: DeviceArray, ctrl: DeviceArray
+      self, state: DeviceArray, ctrl: DeviceArray, time_idx: DeviceArray
   ) -> DeviceArray:
     c = self.value - state[self.dim]
     return c
@@ -66,7 +66,7 @@ class UpperHalfBoxFootprintCost(BaseCost):
 
   @partial(jax.jit, static_argnames='self')
   def get_stage_cost(
-      self, state: DeviceArray, ctrl: DeviceArray
+      self, state: DeviceArray, ctrl: DeviceArray, time_idx: DeviceArray
   ) -> DeviceArray:
     yaw = state[self.yaw_dim]
     rot_mat = jnp.array([[jnp.cos(yaw), -jnp.sin(yaw)],
@@ -99,7 +99,7 @@ class LowerHalfBoxFootprintCost(BaseCost):
 
   @partial(jax.jit, static_argnames='self')
   def get_stage_cost(
-      self, state: DeviceArray, ctrl: DeviceArray
+      self, state: DeviceArray, ctrl: DeviceArray, time_idx: DeviceArray
   ) -> DeviceArray:
     yaw = state[self.yaw_dim]
     rot_mat = jnp.array([[jnp.cos(yaw), -jnp.sin(yaw)],

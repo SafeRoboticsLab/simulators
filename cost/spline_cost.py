@@ -13,105 +13,114 @@ from ..race_car.track import Track
 
 class BaseSplineCost(ABC):
 
-  def __init__(self):
+  def __init__(self, config):
     super().__init__()
+    self.config = copy.deepcopy(config)
+
+    # System parameters.
+    self.state_box_limits = np.asarray(config.STATE_BOX_LIMITS)
+
+    # Racing cost parameters.
+    self.track_width_right: float = config.TRACK_WIDTH_RIGHT
+    self.track_width_left: float = config.TRACK_WIDTH_LEFT
 
   @abstractmethod
   def get_stage_cost(
-      self, state: DeviceArray, ctrl: DeviceArray
+      self, state: DeviceArray, ctrl: DeviceArray, closest_pt: DeviceArray,
+      slope: DeviceArray, theta: DeviceArray, time_idx: DeviceArray
   ) -> DeviceArray:
     raise NotImplementedError
 
   @partial(jax.jit, static_argnames='self')
   def get_cost(
       self, state: DeviceArray, ctrl: DeviceArray, closest_pt: DeviceArray,
-      slope: DeviceArray, theta: DeviceArray
+      slope: DeviceArray, theta: DeviceArray, time_indices: DeviceArray
   ) -> DeviceArray:
-    obj = jax.vmap(self.get_stage_cost, in_axes=(1, 1, 1, 1, 1))
-    return obj(state, ctrl, closest_pt, slope, theta)
+    obj = jax.vmap(self.get_stage_cost, in_axes=(1, 1, 1, 1, 1, 1))
+    return obj(state, ctrl, closest_pt, slope, theta, time_indices)
 
   @partial(jax.jit, static_argnames='self')
   def get_traj_cost(
       self, state: DeviceArray, ctrl: DeviceArray, closest_pt: DeviceArray,
-      slope: DeviceArray, theta: DeviceArray
+      slope: DeviceArray, theta: DeviceArray, time_indices: DeviceArray
   ) -> DeviceArray:
-    obj = jax.vmap(self.get_stage_cost, in_axes=(1, 1, 1, 1, 1))
-    costs = obj(state, ctrl, closest_pt, slope, theta)
+    obj = jax.vmap(self.get_stage_cost, in_axes=(1, 1, 1, 1, 1, 1))
+    costs = obj(state, ctrl, closest_pt, slope, theta, time_indices)
     return jnp.sum(costs).astype(float)
 
   @partial(jax.jit, static_argnames='self')
   def get_cx(
       self, state: DeviceArray, ctrl: DeviceArray, closest_pt: DeviceArray,
-      slope: DeviceArray, theta: DeviceArray
+      slope: DeviceArray, theta: DeviceArray, time_indices: DeviceArray
   ) -> DeviceArray:
     _cx = jax.vmap(
-        jax.jacfwd(self.get_stage_cost, argnums=0), in_axes=(1, 1, 1, 1, 1),
+        jax.jacfwd(self.get_stage_cost, argnums=0), in_axes=(1, 1, 1, 1, 1, 1),
         out_axes=1
     )
-    return _cx(state, ctrl, closest_pt, slope, theta)
+    return _cx(state, ctrl, closest_pt, slope, theta, time_indices)
 
   @partial(jax.jit, static_argnames='self')
   def get_cu(
       self, state: DeviceArray, ctrl: DeviceArray, closest_pt: DeviceArray,
-      slope: DeviceArray, theta: DeviceArray
+      slope: DeviceArray, theta: DeviceArray, time_indices: DeviceArray
   ) -> DeviceArray:
     _cu = jax.vmap(
-        jax.jacfwd(self.get_stage_cost, argnums=1), in_axes=(1, 1, 1, 1, 1),
+        jax.jacfwd(self.get_stage_cost, argnums=1), in_axes=(1, 1, 1, 1, 1, 1),
         out_axes=1
     )
-    return _cu(state, ctrl, closest_pt, slope, theta)
+    return _cu(state, ctrl, closest_pt, slope, theta, time_indices)
 
   @partial(jax.jit, static_argnames='self')
   def get_cxx(
       self, state: DeviceArray, ctrl: DeviceArray, closest_pt: DeviceArray,
-      slope: DeviceArray, theta: DeviceArray
+      slope: DeviceArray, theta: DeviceArray, time_indices: DeviceArray
   ) -> DeviceArray:
     _cxx = jax.vmap(
         jax.jacfwd(jax.jacrev(self.get_stage_cost, argnums=0), argnums=0),
-        in_axes=(1, 1, 1, 1, 1), out_axes=2
+        in_axes=(1, 1, 1, 1, 1, 1), out_axes=2
     )
-    return _cxx(state, ctrl, closest_pt, slope, theta)
+    return _cxx(state, ctrl, closest_pt, slope, theta, time_indices)
 
   @partial(jax.jit, static_argnames='self')
   def get_cuu(
       self, state: DeviceArray, ctrl: DeviceArray, closest_pt: DeviceArray,
-      slope: DeviceArray, theta: DeviceArray
+      slope: DeviceArray, theta: DeviceArray, time_indices: DeviceArray
   ) -> DeviceArray:
     _cuu = jax.vmap(
         jax.jacfwd(jax.jacrev(self.get_stage_cost, argnums=1), argnums=1),
-        in_axes=(1, 1, 1, 1, 1), out_axes=2
+        in_axes=(1, 1, 1, 1, 1, 1), out_axes=2
     )
-    return _cuu(state, ctrl, closest_pt, slope, theta)
+    return _cuu(state, ctrl, closest_pt, slope, theta, time_indices)
 
   @partial(jax.jit, static_argnames='self')
   def get_cux(
       self, state: DeviceArray, ctrl: DeviceArray, closest_pt: DeviceArray,
-      slope: DeviceArray, theta: DeviceArray
+      slope: DeviceArray, theta: DeviceArray, time_indices: DeviceArray
   ) -> DeviceArray:
     _cux = jax.vmap(
         jax.jacfwd(jax.jacrev(self.get_stage_cost, argnums=1), argnums=0),
-        in_axes=(1, 1, 1, 1, 1), out_axes=2
+        in_axes=(1, 1, 1, 1, 1, 1), out_axes=2
     )
-    return _cux(state, ctrl, closest_pt, slope, theta)
+    return _cux(state, ctrl, closest_pt, slope, theta, time_indices)
 
   @partial(jax.jit, static_argnames='self')
   def get_cxu(
       self, state: DeviceArray, ctrl: DeviceArray, closest_pt: DeviceArray,
-      slope: DeviceArray, theta: DeviceArray
+      slope: DeviceArray, theta: DeviceArray, time_indices: DeviceArray
   ) -> DeviceArray:
-    return self.get_cux(state, ctrl, closest_pt, slope, theta).T
+    return self.get_cux(state, ctrl, closest_pt, slope, theta, time_indices).T
 
   @partial(jax.jit, static_argnames='self')
   def get_derivatives(
       self, state: DeviceArray, ctrl: DeviceArray, closest_pt: DeviceArray,
-      slope: DeviceArray, theta: DeviceArray
+      slope: DeviceArray, theta: DeviceArray, time_indices: DeviceArray
   ) -> DeviceArray:
     return (
-        self.get_cx(state, ctrl, closest_pt, slope, theta),
-        self.get_cu(state, ctrl, closest_pt, slope, theta),
-        self.get_cxx(state, ctrl, closest_pt, slope, theta),
-        self.get_cuu(state, ctrl, closest_pt, slope, theta),
-        self.get_cux(state, ctrl, closest_pt, slope, theta),
+        self.get_cx(state, ctrl, closest_pt, slope, theta, time_indices),
+        self.get_cu(state, ctrl, closest_pt, slope, theta, time_indices),
+        self.get_cxx(state, ctrl, closest_pt, slope, theta, time_indices),
+        self.get_cuu(state, ctrl, closest_pt, slope, theta, time_indices),
+        self.get_cux(state, ctrl, closest_pt, slope, theta, time_indices),
     )
 
 
@@ -121,7 +130,7 @@ class SplineBarrierCost(BaseSplineCost):
       self, clip_min: Optional[float], clip_max: Optional[float], q1: float,
       q2: float, cost: BaseSplineCost
   ):
-    super().__init__()
+    super().__init__(cost.config)
     self.clip_min = clip_min
     self.clip_max = clip_max
     self.q1 = q1
@@ -130,9 +139,11 @@ class SplineBarrierCost(BaseSplineCost):
 
   def get_stage_cost(
       self, state: DeviceArray, ctrl: DeviceArray, closest_pt: DeviceArray,
-      slope: DeviceArray, theta: DeviceArray
+      slope: DeviceArray, theta: DeviceArray, time_idx: DeviceArray
   ) -> DeviceArray:
-    _cost = self.cost.get_stage_cost(state, ctrl, closest_pt, slope, theta)
+    _cost = self.cost.get_stage_cost(
+        state, ctrl, closest_pt, slope, theta, time_idx
+    )
     return self.q1 * jnp.exp(
         self.q2 * jnp.clip(a=_cost, a_min=self.clip_min, a_max=self.clip_max)
     )
@@ -144,7 +155,7 @@ class SplineRoadBoundaryCost(BaseSplineCost):
       self, config, x_dim: int = 0, y_dim: int = 1, yaw_dim: int = 3,
       buffer: float = 0.
   ):
-    super().__init__()
+    super().__init__(config)
     self.x_dim = x_dim
     self.y_dim = y_dim
     self.yaw_dim = yaw_dim
@@ -164,7 +175,7 @@ class SplineRoadBoundaryCost(BaseSplineCost):
   @partial(jax.jit, static_argnames='self')
   def get_stage_cost(
       self, state: DeviceArray, ctrl: DeviceArray, closest_pt: DeviceArray,
-      slope: DeviceArray, theta: DeviceArray
+      slope: DeviceArray, theta: DeviceArray, time_idx: DeviceArray
   ) -> DeviceArray:
     """
 
@@ -200,20 +211,17 @@ class SplineRoadBoundaryCost(BaseSplineCost):
 
 class SplineYawCost(BaseSplineCost):
 
-  def __init__(
-      self, yaw_min: float, yaw_max: float, yaw_dim: int = 3,
-      bidirectional: bool = True
-  ):
-    super().__init__()
+  def __init__(self, config, yaw_dim: int = 3):
+    super().__init__(config)
     self.yaw_dim = yaw_dim
-    self.yaw_min = yaw_min
-    self.yaw_max = yaw_max
-    self.bidirectional = bidirectional
+    self.yaw_min = config.YAW_MIN
+    self.yaw_max = config.YAW_MAX
+    self.bidirectional = getattr(config, "BIDIRECTIONAL", True)
 
   @partial(jax.jit, static_argnames='self')
   def get_stage_cost(
       self, state: DeviceArray, ctrl: DeviceArray, closest_pt: DeviceArray,
-      slope: DeviceArray, theta: DeviceArray
+      slope: DeviceArray, theta: DeviceArray, time_idx: DeviceArray
   ) -> DeviceArray:
     """
 
@@ -254,65 +262,3 @@ class SplineYawCost(BaseSplineCost):
       return jnp.minimum(cost1, cost2)
     else:
       return cost1
-
-
-#! Deprecated
-class SplineStateCost(BaseCost):
-  """
-  This cost provides an uniform interace (only takes in states and controls),
-  but it sacrifices the computation time (cannot be jitted).
-  """
-
-  def __init__(self, config, track: Track):
-    super().__init__()
-    self.track = copy.deepcopy(track)
-    self.v_ref = config.V_REF  # reference velocity.
-    self.w_vel = config.W_VEL
-    self.w_contour = config.W_CONTOUR
-    self.w_theta = config.W_THETA
-    self.track_offset = config.TRACK_OFFSET
-
-  def get_stage_cost(
-      self, state: DeviceArray, ctrl: DeviceArray
-  ) -> DeviceArray:
-    closest_pt, slope, theta = self.track.get_closest_pts(
-        state[:2].reshape(2, 1), normalize_progress=True
-    )
-    closest_pt = jnp.array(closest_pt.reshape(-1))
-    slope = jnp.array(slope.reshape(-1))
-    theta = jnp.array(theta.reshape(-1))
-
-    return self._get_stage_cost(state, ctrl, closest_pt, slope, theta)
-
-  @partial(jax.jit, static_argnames='self')
-  def _get_stage_cost(
-      self, state: DeviceArray, ctrl: DeviceArray, closest_pt: DeviceArray,
-      slope: DeviceArray, theta: DeviceArray
-  ) -> DeviceArray:
-    sr = jnp.sin(slope)
-    cr = jnp.cos(slope)
-    offset = (
-        sr * (state[0] - closest_pt[0]) - cr *
-        (state[1] - closest_pt[1]) - self.track_offset
-    )
-    cost = self.w_contour * offset**2
-    cost += self.w_vel * (state[2] - self.v_ref)**2
-    cost -= self.w_theta * theta
-    return cost
-
-  def get_cost(self, state: DeviceArray, ctrl: DeviceArray) -> DeviceArray:
-    closest_pt, slope, theta = self.track.get_closest_pts(
-        state[:2, :], normalize_progress=True
-    )
-    closest_pt = jnp.array(closest_pt)
-    slope = jnp.array(slope)
-    theta = jnp.array(theta)
-    return self._get_cost(state, ctrl, closest_pt, slope, theta)
-
-  @partial(jax.jit, static_argnames='self')
-  def _get_cost(
-      self, state: DeviceArray, ctrl: DeviceArray, closest_pt: DeviceArray,
-      slope: DeviceArray, theta: DeviceArray
-  ) -> DeviceArray:
-    obj = jax.vmap(self._get_stage_cost, in_axes=(1, 1, 1, 1, 1))
-    return obj(state, ctrl, closest_pt, slope, theta)

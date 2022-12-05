@@ -176,16 +176,16 @@ class Agent:
         # print(f"get action for {agent_id}")
         if agent_id not in _action_dict:
           agent_policy: BasePolicy = self.agents_policy[agent_id]
-          agent_kwarg = {}
+          agent_kwarg = {"state": kwargs.get("state", None)}
           if agents_kwargs is not None:
             if agent_id in agents_kwargs:
-              agent_kwarg = agents_kwargs[agent_id]
+              agent_kwarg.update(agents_kwargs[agent_id])
           _action_dict[agent_policy.id] = agent_policy.get_action(
               obs=obs, agents_action=_action_dict, **agent_kwarg
           )[0]
 
     policy_type = kwargs.get('policy_type', 'task')
-    # TODO: different action after computin imaginary others' action for
+    # TODO: different action after computing others' imaginary actions for
     # TODO: task and safety.
     if policy_type == 'task':
       pass
@@ -203,42 +203,79 @@ class Agent:
         critic_action_dict = {
             k: _action_dict[k] for k in self.safety_policy.critic_agents_order
         }
-        append = shield_kwargs.get("append", None)
         safety_value = self.safety_policy.critic(
-            obs=obs, action=critic_action_dict, append=append
+            obs=obs, action=critic_action_dict
         )
         if safety_value > shield_thr:
           use_safe_action = True
-      elif shield_type == "rollout":
+      elif shield_type == "rollout" or shield_type == "mixed":
+        #! bugs!!!!
         imag_rollout_steps = shield_kwargs['imag_rollout_steps']
         imag_end_criterion = shield_kwargs['imag_end_criterion']
 
         if self.env.env_type == "zero-sum":
           adversary = self.agents_policy['dstb']
 
-          def adversary_fn(obs: np.ndarray, ctrl: np.ndarray) -> np.ndarray:
+          def adversary_fn(
+              obs: np.ndarray, ctrl: np.ndarray, **kwargs
+          ) -> np.ndarray:
             return adversary.get_action(
-                obs=obs, agents_action={self.id: ctrl}
+                obs=obs, agents_action={self.id: ctrl}, **kwargs
             )[0]
 
           tmp_action = {
-              'ctrl': _action,
-              'dstb': adversary_fn(obs=obs, ctrl=_action.copy())
+              'ctrl':
+                  _action,
+              'dstb':
+                  adversary_fn(
+                      obs=obs, ctrl=_action.copy(), state=kwargs.get('state')
+                  )
           }
           self.env.reset(state=kwargs.get('state'))
           self.env.end_criterion = imag_end_criterion
           _, _, done, step_info = self.env.step(tmp_action)
           if done:
+            result = 0
             if step_info["done_type"] == "success":
               result = 1
             elif step_info["done_type"] == "failure":
               result = -1
           else:
-            _, result, _ = self.env.simulate_one_trajectory(
+            traj, result, info = self.env.simulate_one_trajectory(
                 T_rollout=imag_rollout_steps, end_criterion=imag_end_criterion,
                 adversary=adversary_fn,
                 reset_kwargs=dict(state=self.env.state.copy())
             )
+            if shield_type == "mixed" and result == 0:
+              # skips if it enters in the target or failure set.
+              state_ter = traj[-1]
+              obs_ter = info['obs_hist'][-1]
+
+              # Collects all other agents' actions.
+              action_dict_ter = {}
+              for agent_id in self.agents_order:
+                # print(f"get action for {agent_id}")
+                if agent_id == 'ego':
+                  agent_policy: BasePolicy = self.safety_policy
+                else:
+                  agent_policy: BasePolicy = self.agents_policy[agent_id]
+                agent_kwarg = {"state": state_ter}
+                if agents_kwargs is not None:
+                  if agent_id in agents_kwargs:
+                    agent_kwarg.update(agents_kwargs[agent_id])
+                action_dict_ter[agent_policy.id] = agent_policy.get_action(
+                    obs=obs_ter, agents_action=action_dict_ter, **agent_kwarg
+                )[0]
+
+              critic_action_dict_ter = {
+                  k: action_dict_ter[k]
+                  for k in self.safety_policy.critic_agents_order
+              }
+              safety_value_ter = self.safety_policy.critic(
+                  obs=obs_ter, action=critic_action_dict_ter
+              )
+              if safety_value_ter > shield_kwargs['thr']:
+                result = -1
 
           if imag_end_criterion == "reach-avoid" and result != 1:
             use_safe_action = True
@@ -266,19 +303,17 @@ class Agent:
       self, policy_type: str, config, cost: Optional[BaseCost] = None, **kwargs
   ):
     if policy_type == "iLQR":
-      self.policy = iLQR(self.id, config, self.dyn, cost)
+      self.policy = iLQR(self.id, config, self.dyn, cost, **kwargs)
     elif policy_type == "iLQRSpline":
-      self.policy = iLQRSpline(
-          self.id, config, self.dyn, cost, kwargs.get("track")
-      )
+      self.policy = iLQRSpline(self.id, config, self.dyn, cost, **kwargs)
     elif policy_type == "iLQRReachabilitySpline":
       self.policy = iLQRReachabilitySpline(
-          self.id, config, self.dyn, cost, kwargs.get("track")
+          self.id, config, self.dyn, cost, **kwargs
       )
     # elif policy_type == "MPC":
     elif policy_type == "NNCS":
       self.policy = NeuralNetworkControlSystem(
-          self.id, kwargs['actor'], config
+          id=self.id, config=config, **kwargs
       )
     else:
       raise ValueError(
@@ -314,18 +349,21 @@ class Agent:
 
   def update_safety_module(
       self,
-      critic: Union[torch.nn.Module,
-                    Callable[[np.ndarray, np.ndarray, Optional[np.ndarray]],
-                             float]], policy: BasePolicy,
-      critic_agents_order: List
+      policy: BasePolicy,
+      critic: Optional[Union[torch.nn.Module, Callable[
+          [np.ndarray, np.ndarray, Optional[np.ndarray]], float]]] = None,
+      critic_agents_order: Optional[List] = None,
   ):
 
     self.safety_policy = copy.deepcopy(policy)
-    if isinstance(critic, torch.nn.Module):
-      self.safety_policy._critic = copy.deepcopy(critic)
-    else:
-      self.safety_policy._critic = critic
-    self.safety_policy.critic_agents_order = copy.deepcopy(critic_agents_order)
+    if critic is not None:
+      if isinstance(critic, torch.nn.Module):
+        self.safety_policy._critic = copy.deepcopy(critic)
+      else:
+        self.safety_policy._critic = critic
+      self.safety_policy.critic_agents_order = copy.deepcopy(
+          critic_agents_order
+      )
 
   def report(self):
     print(self.id)

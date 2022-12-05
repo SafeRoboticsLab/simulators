@@ -24,7 +24,7 @@ class BoxObsCost(BaseCost):
 
   @partial(jax.jit, static_argnames='self')
   def get_stage_cost(
-      self, state: DeviceArray, ctrl: DeviceArray
+      self, state: DeviceArray, ctrl: DeviceArray, time_idx: DeviceArray
   ) -> DeviceArray:
     # signed distance to the box, negative inside
     sgn_dist = jnp.maximum(self.lb[0] - state[0], state[0] - self.ub[0])
@@ -71,7 +71,7 @@ class BoxObsBoxFootprintCost(BaseCost):
 
   @partial(jax.jit, static_argnames='self')
   def get_stage_cost(
-      self, state: DeviceArray, ctrl: DeviceArray
+      self, state: DeviceArray, ctrl: DeviceArray, time_idx: DeviceArray
   ) -> DeviceArray:
     yaw = state[self.yaw_dim]
     rot_mat = jnp.array([[jnp.cos(yaw), -jnp.sin(yaw)],

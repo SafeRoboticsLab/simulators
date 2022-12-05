@@ -30,6 +30,7 @@ class Track:
         width_right: float, width of the track on the right side
         loop: Boolean. If the track has loop
     '''
+    self.center_line_data = center_line.copy()
     self.center_line = Curve(x=center_line[0, :], y=center_line[1, :], k=3)
     self.width_left = width_left
     self.width_right = width_right

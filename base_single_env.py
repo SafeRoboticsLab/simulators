@@ -229,6 +229,7 @@ class BaseSingleEnv(BaseEnv):
       if controller is None:
         # Gets action.
         action_kwargs['state'] = self.state.copy()
+        action_kwargs['time_idx'] = t
         if warmup:
           action, solver_info = self.agent.get_action(
               obs=obs, controls=init_control, **action_kwargs
@@ -258,7 +259,7 @@ class BaseSingleEnv(BaseEnv):
       step_hist.append(step_info)
       if rollout_step_callback is not None:
         rollout_step_callback(
-            self, state_hist, action_hist, plan_hist, step_hist
+            self, state_hist, action_hist, plan_hist, step_hist, time_idx=t
         )
       if solver_info is not None:
         if policy_type == 'shield':

@@ -74,7 +74,8 @@ class Bicycle4D(BaseDynamics):
 
     @jax.jit
     def _fwd_step(i, args):  # Euler method.
-      _state, _ctrl, _dstb = args
+      _state, _ctrl = args
+
       d_x = (state[2] * jnp.cos(state[3])) * self.int_dt
       d_y = (state[2] * jnp.sin(state[3])) * self.int_dt
       d_v = _ctrl[0] * self.int_dt

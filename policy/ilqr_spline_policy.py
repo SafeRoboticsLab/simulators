@@ -18,16 +18,27 @@ from ..race_car.track import Track
 class iLQRSpline(iLQR):
 
   def __init__(
-      self, id: str, config, dyn: BaseDynamics, cost: BaseCost, track: Track
+      self, id: str, config, dyn: BaseDynamics, cost: BaseCost, track: Track,
+      ref_traj: Optional[np.ndarray] = None, **kwargs
   ) -> None:
     super().__init__(id, config, dyn, cost)
     self.track = copy.deepcopy(track)
+    self.update_ref_traj = getattr(config, "UPDATE_REF_TRAJ", False)
+    if self.update_ref_traj:
+      assert ref_traj.ndim == 2 and ref_traj.shape[1] >= self.N
+      assert hasattr(cost, "ref_traj")
+      self.update_ref_traj = True
+      self.ref_traj = ref_traj.copy()
 
   def get_action(
       self, obs: np.ndarray, controls: Optional[np.ndarray] = None,
       agents_action: Optional[Dict] = None, **kwargs
   ) -> np.ndarray:
     status = 0
+
+    if self.update_ref_traj:
+      tmp = (self.horizon_indices + kwargs.get("time_idx")).reshape(-1)
+      self.cost.ref_traj = jnp.asarray(self.ref_traj[:, tmp])
 
     # `controls` include control input at timestep N-1, which is a dummy
     # control of zeros.
@@ -49,7 +60,10 @@ class iLQRSpline(iLQR):
     closest_pt = jnp.array(closest_pt)
     slope = jnp.array(slope)
     theta = jnp.array(theta)
-    J = self.cost.get_traj_cost(states, controls, closest_pt, slope, theta)
+    J = self.cost.get_traj_cost(
+        states, controls, closest_pt, slope, theta,
+        time_indices=self.horizon_indices
+    )
 
     converged = False
     time0 = time.time()
@@ -57,7 +71,8 @@ class iLQRSpline(iLQR):
       # We need cost derivatives from 0 to N-1, but we only need dynamics
       # jacobian from 0 to N-2.
       c_x, c_u, c_xx, c_uu, c_ux = self.cost.get_derivatives(
-          states, controls, closest_pt, slope, theta
+          states, controls, closest_pt, slope, theta,
+          time_indices=self.horizon_indices
       )
       fx, fu = self.dyn.get_jacobian(states[:, :-1], controls[:, :-1])
       K_closed_loop, k_open_loop = self.backward_pass(
@@ -96,15 +111,15 @@ class iLQRSpline(iLQR):
         break
     t_process = time.time() - time0
 
-    states = np.asarray(states)
-    controls = np.asarray(controls)
-    K_closed_loop = np.asarray(K_closed_loop)
-    k_open_loop = np.asarray(k_open_loop)
     solver_info = dict(
-        states=states, controls=controls, K_closed_loop=K_closed_loop,
-        k_open_loop=k_open_loop, t_process=t_process, status=status, J=J
+        states=np.asarray(states), controls=np.asarray(controls),
+        K_closed_loop=np.asarray(K_closed_loop),
+        k_open_loop=np.asarray(k_open_loop), t_process=t_process,
+        status=status, J=J, c_x=np.asarray(c_x), c_u=np.asarray(c_u),
+        c_xx=np.asarray(c_xx), c_uu=np.asarray(c_uu), c_ux=np.asarray(c_ux),
+        fx=np.asarray(fx), fu=np.asarray(fu)
     )
-    return controls[:, 0], solver_info
+    return np.asarray(controls[:, 0]), solver_info
 
   def forward_pass(
       self, nominal_states: DeviceArray, nominal_controls: DeviceArray,
@@ -120,5 +135,7 @@ class iLQRSpline(iLQR):
     closest_pt = jnp.array(closest_pt)
     slope = jnp.array(slope)
     theta = jnp.array(theta)
-    J = self.cost.get_traj_cost(X, U, closest_pt, slope, theta)
+    J = self.cost.get_traj_cost(
+        X, U, closest_pt, slope, theta, time_indices=self.horizon_indices
+    )
     return X, U, J, closest_pt, slope, theta

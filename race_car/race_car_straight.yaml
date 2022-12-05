@@ -29,16 +29,12 @@ cost:
   BIDIRECTIONAL: false
   COST_TYPE: Lagrange
   # CONSTRAINT PARAM
-  Q1_V: 1.
-  Q2_V: 10.
   Q1_ROAD: 1.
   Q2_ROAD: 10.
   Q1_YAW: 1.
   Q2_YAW: 10.
   Q1_OBS: 1.
   Q2_OBS: 10.
-  Q1_DELTA: 1.
-  Q2_DELTA: 10.
   # COST PARAM
   TRACK_OFFSET: 0.5
   W_VEL: 4.
@@ -50,12 +46,18 @@ cost:
   BARRIER_CLIP_MIN: -0.25
   BARRIER_CLIP_MAX: 5.0
   #
-  V_MIN: 0.
-  V_MAX: 2.
   YAW_MIN: -1.5707
   YAW_MAX: 1.5707
-  DELTA_MIN: -0.35  # rad
-  DELTA_MAX: 0.35
+  HAS_VEL_CONSTR: false
+  HAS_DELTA_CONSTR: false
+  # V_MIN: 0.4
+  # V_MAX: 2.
+  # DELTA_MIN: -0.35
+  # DELTA_MAX: 0.35
+  # Q1_V: 1.
+  # Q2_V: 10.
+  # Q1_DELTA: 1.
+  # Q2_DELTA: 10.
 
 agent:
   AGENT_ID: ego
@@ -69,7 +71,11 @@ agent:
   # CAR DYNAMICS
   WHEELBASE: 0.257
   DT: 0.1
-  NUM_SEGMENT: 10
+  NUM_SEGMENT: 10  #! deprecated
+  DELTA_MIN: -0.35
+  DELTA_MAX: 0.35
+  V_MIN: 0.
+  V_MAX: 2.
 
 solver:
   INIT_STATE: [0., 0., 0.8, 0.0, 0.0]
@@ -85,3 +91,4 @@ solver:
   CMAP_RES_Y: 20
   CMAP_MIN: 0.
   CMAP_MAX: 10.
+  USE_TRAJ_COST: false
