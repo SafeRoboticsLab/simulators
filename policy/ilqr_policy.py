@@ -20,7 +20,7 @@ from ..cost.base_cost import BaseCost
 class iLQR(BasePolicy):
 
   def __init__(
-      self, id: str, config, dyn: BaseDynamics, cost: BaseCost
+      self, id: str, config, dyn: BaseDynamics, cost: BaseCost, **kwargs
   ) -> None:
     super().__init__(id, config)
     self.policy_type = "iLQR"
@@ -37,6 +37,7 @@ class iLQR(BasePolicy):
     # Stepsize scheduler.
     # TODO: Other line search methods
     self.alphas = 0.5**(np.arange(25))
+    self.horizon_indices = jnp.arange(self.N).reshape(1, -1)
 
   def get_action(
       self, obs: np.ndarray, controls: Optional[np.ndarray] = None,
@@ -56,14 +57,18 @@ class iLQR(BasePolicy):
     states, controls = self.rollout_nominal(
         jnp.array(kwargs.get('state')), controls
     )
-    J = self.cost.get_traj_cost(states, controls)
+    J = self.cost.get_traj_cost(
+        states, controls, time_indices=self.horizon_indices
+    )
 
     converged = False
     time0 = time.time()
     for i in range(self.max_iter):
       # We need cost derivatives from 0 to N-1, but we only need dynamics
       # jacobian from 0 to N-2.
-      c_x, c_u, c_xx, c_uu, c_ux = self.cost.get_derivatives(states, controls)
+      c_x, c_u, c_xx, c_uu, c_ux = self.cost.get_derivatives(
+          states, controls, time_indices=self.horizon_indices
+      )
       fx, fu = self.dyn.get_jacobian(states[:, :-1], controls[:, :-1])
       K_closed_loop, k_open_loop = self.backward_pass(
           c_x=c_x, c_u=c_u, c_xx=c_xx, c_uu=c_uu, c_ux=c_ux, fx=fx, fu=fu
@@ -117,7 +122,7 @@ class iLQR(BasePolicy):
     X, U = self.rollout(
         nominal_states, nominal_controls, K_closed_loop, k_open_loop, alpha
     )
-    J = self.cost.get_traj_cost(X, U)
+    J = self.cost.get_traj_cost(X, U, time_indices=self.horizon_indices)
     return X, U, J
 
   @partial(jax.jit, static_argnames='self')

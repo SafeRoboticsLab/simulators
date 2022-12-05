@@ -13,7 +13,7 @@ from .base_policy import BasePolicy
 
 class NeuralNetworkControlSystem(BasePolicy):
 
-  def __init__(self, id: str, actor: torch.nn.Module, config: Any):
+  def __init__(self, id: str, actor: torch.nn.Module, config: Any, **kwargs):
     super().__init__(id, config)
     self.policy_type = "NNCS"
 

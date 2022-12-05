@@ -12,7 +12,8 @@ from .race_car.track import Track
 from .race_car.race_car_single import RaceCarSingle5DEnv
 from .race_car.race_car_dstb import RaceCarDstb5DEnv
 from .race_car.cost_bicycle5D import (
-    Bicycle5DCost, Bicycle5DConstraint, Bicycle5DReachabilityCost
+    Bicycle5DCost, Bicycle5DConstraint, Bicycle5DReachabilityCost,
+    Bicycle5DRefTrajCost
 )
 
 from .ell_reach.ellipse import Ellipse
@@ -29,7 +30,18 @@ from .cost.box_cost import BoxObsCost, BoxObsBoxFootprintCost
 from .dynamics.bicycle4D import Bicycle4D
 from .dynamics.bicycle5D import Bicycle5D
 
-from .utils import save_obj, load_obj, PrintLogger
+from .policy.base_policy import BasePolicy
+from .policy.nn_policy import NeuralNetworkControlSystem
+from .policy.ilqr_policy import iLQR
+from .policy.ilqr_spline_policy import iLQRSpline
+from .policy.linear_policy import LinearPolicy
+
+from .vec_env.subproc_vec_env import SubprocVecEnv
+from .vec_env.vec_env import VecEnvBase
+
+from .utils import (
+    save_obj, load_obj, PrintLogger, parallel_apply, parallel_iapply
+)
 
 import gym
 

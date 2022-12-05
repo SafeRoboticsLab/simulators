@@ -76,10 +76,10 @@ class BaseZeroSumEnv(BaseEnv):
     """
 
     self.cnt += 1
-    state_nxt = self.agent.integrate_forward(
+    state_nxt, ctrl_clip, dstb_clip = self.agent.integrate_forward(
         state=self.state, control=action['ctrl'], adversary=action['dstb'],
         **self.integrate_kwargs
-    )[0]
+    )
     state_cur = self.state.copy()
     self.state = state_nxt.copy()
 
@@ -91,6 +91,9 @@ class BaseZeroSumEnv(BaseEnv):
     obs = self.get_obs(state_nxt)
     if cast_torch:
       obs = torch.FloatTensor(obs)
+
+    info['ctrl_clip'] = ctrl_clip
+    info['dstb_clip'] = dstb_clip
 
     return obs, -cost, done, info
 
@@ -222,7 +225,6 @@ class BaseZeroSumEnv(BaseEnv):
     if action_kwargs is None:
       action_kwargs = {}
     policy_type = action_kwargs.get('policy_type', 'task')
-    warmup = policy_type == 'task' and self.agent.policy.policy_type == "iLQR"
     if policy_type == 'safety':
       assert self.agent.safety_policy is not None
       warmup = self.agent.safety_policy.policy_type == "iLQR"
@@ -257,6 +259,7 @@ class BaseZeroSumEnv(BaseEnv):
       if controller is None:
         # Gets action.
         action_kwargs['state'] = self.state.copy()
+        action_kwargs['time_idx'] = t
         if warmup:
           ctrl, solver_info = self.agent.get_action(
               obs=obs, controls=init_control, **action_kwargs
@@ -272,21 +275,21 @@ class BaseZeroSumEnv(BaseEnv):
         solver_info = None
 
       # Applies action: `done` and `info` are evaluated at the next state.
-      dstb = adversary(obs, ctrl)
+      dstb = adversary(obs, ctrl, **action_kwargs)
       action = {'ctrl': ctrl, 'dstb': dstb}
       obs, reward, done, step_info = self.step(action)
 
       # Executes step callback and stores history.
       state_hist.append(self.state)
       obs_hist.append(obs)
-      action_hist['ctrl'].append(ctrl)
-      action_hist['dstb'].append(dstb)
+      action_hist['ctrl'].append(step_info['ctrl_clip'])
+      action_hist['dstb'].append(step_info['dstb_clip'])
       plan_hist.append(solver_info)
       reward_hist.append(reward)
       step_hist.append(step_info)
       if rollout_step_callback is not None:
         rollout_step_callback(
-            self, state_hist, action_hist, plan_hist, step_hist
+            self, state_hist, action_hist, plan_hist, step_hist, time_idx=t
         )
       if solver_info is not None:
         if policy_type == 'shield':
@@ -354,8 +357,9 @@ class BaseZeroSumEnv(BaseEnv):
     trajectories = []
     info_list = []
     use_tqdm = kwargs.get('use_tqdm', False)
+    leave = kwargs.get('leave', False)
     if use_tqdm:
-      iterable = tqdm(range(num_trajectories), desc='sim trajs', leave=False)
+      iterable = tqdm(range(num_trajectories), desc='sim trajs', leave=leave)
     else:
       iterable = range(num_trajectories)
 

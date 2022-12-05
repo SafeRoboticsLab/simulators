@@ -5,11 +5,40 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 
 from __future__ import annotations
 import sys
-from typing import TypeVar, TypedDict, List, Any, Optional, Union, Tuple, Dict
+from typing import (
+    TypeVar, TypedDict, List, Any, Optional, Union, Tuple, Dict, Iterable,
+    Callable
+)
 import numpy as np
 from gym import spaces
 import torch
 import pickle
+from tqdm import tqdm
+from multiprocessing import Pool
+
+
+def parallel_apply(
+    element_fn: Callable,
+    element_list: Iterable,
+    num_workers: int,
+    desc: Optional[str] = None,
+    disable: bool = False,
+) -> List:
+  return list(
+      parallel_iapply(element_fn, element_list, num_workers, desc, disable)
+  )
+
+
+def parallel_iapply(
+    element_fn: Callable, element_list: Iterable, num_workers: int,
+    desc: Optional[str] = None, disable: bool = False, **kwargs
+) -> Iterable:
+  with Pool(processes=num_workers) as pool:
+    for fn_output in tqdm(
+        pool.imap(element_fn, element_list), desc=desc,
+        total=len(element_list), disable=disable, **kwargs
+    ):
+      yield fn_output
 
 
 def save_obj(obj, filename, protocol=None):
