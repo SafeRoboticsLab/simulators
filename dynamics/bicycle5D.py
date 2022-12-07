@@ -34,7 +34,6 @@ class Bicycle5D(BaseDynamics):
     self.v_min = config.V_MIN
     self.v_max = config.V_MAX
 
-
   @partial(jax.jit, static_argnames='self')
   def integrate_forward_jax(
       self, state: DeviceArray, control: DeviceArray
@@ -161,7 +160,6 @@ class Bicycle5D(BaseDynamics):
     return deriv
 
   @partial(jax.jit, static_argnames='self')
-==
   def _integrate_forward(
       self, state: DeviceArray, control: DeviceArray
   ) -> DeviceArray:
