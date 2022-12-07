@@ -8,11 +8,13 @@ from typing import Any, Tuple, Optional, Callable, List, Dict, Union
 import numpy as np
 import torch
 from gym import spaces
+from tqdm import tqdm
 
 from .agent import Agent
 from .base_env import BaseEnv
 
 import copy
+
 
 class BaseSingleEnv(BaseEnv):
   """Implements an environment of a single agent.
@@ -20,10 +22,12 @@ class BaseSingleEnv(BaseEnv):
 
   def __init__(self, config_env: Any, config_agent: Any) -> None:
     super().__init__(config_env)
+    self.env_type = "single-agent"
 
     # Action Space.
     action_space = np.array(config_agent.ACTION_RANGE, dtype=np.float32)
     self.action_dim = action_space.shape[0]
+    self.action_dim_ctrl = action_space.shape[0]
     self.agent = Agent(config_agent, action_space)
     self.action_space = spaces.Box(
         low=action_space[:, 0], high=action_space[:, 1]
@@ -56,15 +60,15 @@ class BaseSingleEnv(BaseEnv):
     """
 
     self.cnt += 1
-    state_nxt, _ = self.agent.integrate_forward(
+    state_nxt = self.agent.integrate_forward(
         state=self.state, control=action, **self.integrate_kwargs
-    )
-    constraints = self.get_constraints(self.state, action, state_nxt)
-    cost = self.get_cost(self.state, action, state_nxt, constraints)
-    targets = self.get_target_margin(self.state, action, state_nxt)
-    done, info = self.get_done_and_info(constraints, targets)
-
-    self.state = np.copy(state_nxt)
+    )[0]
+    state_cur = self.state.copy()
+    self.state = state_nxt.copy()
+    constraints = self.get_constraints(state_cur, action, state_nxt)
+    cost = self.get_cost(state_cur, action, state_nxt, constraints)
+    targets = self.get_target_margin(state_cur, action, state_nxt)
+    done, info = self.get_done_and_info(state_nxt, constraints, targets)
 
     obs = self.get_obs(state_nxt)
     if cast_torch:
@@ -81,8 +85,8 @@ class BaseSingleEnv(BaseEnv):
     Gets the cost given current state, current action, and next state.
 
     Args:
-        state (np.ndarray): current states.
-        action (np.ndarray): current actions.
+        state (np.ndarray): current state.
+        action (np.ndarray): current action.
         state_nxt (np.ndarray): next state.
         constraints (Dict): each (key, value) pair is the name and value of a
             constraint function.
@@ -132,8 +136,8 @@ class BaseSingleEnv(BaseEnv):
 
   @abstractmethod
   def get_done_and_info(
-      self, constraints: Dict, targets: Dict, final_only: bool = True,
-      end_criterion: Optional[str] = None
+      self, state: np.ndarray, constraints: Dict, targets: Dict,
+      final_only: bool = True, end_criterion: Optional[str] = None
   ) -> Tuple[bool, Dict]:
     """
     Gets the done flag and a dictionary to provide additional information of
@@ -141,6 +145,7 @@ class BaseSingleEnv(BaseEnv):
     constraints, and targets.
 
     Args:
+        state (np.ndarray): current state.
         constraints (Dict): each (key, value) pair is the name and value of a
             constraint function.
         targets (Dict): each (key, value) pair is the name and value of a
@@ -154,14 +159,11 @@ class BaseSingleEnv(BaseEnv):
     raise NotImplementedError
 
   def simulate_one_trajectory(
-      self,
-      T_rollout: int,
-      end_criterion: str,
+      self, T_rollout: int, end_criterion: str,
       reset_kwargs: Optional[Dict] = None,
       action_kwargs: Optional[Dict] = None,
       rollout_step_callback: Optional[Callable] = None,
-      rollout_episode_callback: Optional[Callable] = None,
-      **kwargs
+      rollout_episode_callback: Optional[Callable] = None, **kwargs
   ) -> Tuple[np.ndarray, int, Dict]:
     """
     Rolls out the trajectory given the horizon, termination criterion, reset
@@ -195,20 +197,30 @@ class BaseSingleEnv(BaseEnv):
       reset_kwargs = {}
     if action_kwargs is None:
       action_kwargs = {}
+    policy_type = action_kwargs.get('policy_type', 'task')
+    warmup = policy_type == 'task' and self.agent.policy.policy_type == "iLQR"
+    if policy_type == 'safety':
+      assert self.agent.safety_policy is not None
+      warmup = self.agent.safety_policy.policy_type == "iLQR"
+    else:
+      warmup = self.agent.policy.policy_type == "iLQR"
 
     controller = None
     if "controller" in kwargs.keys():
       controller = copy.deepcopy(kwargs["controller"])
 
     state_hist = []
+    obs_hist = []
     action_hist = []
     reward_hist = []
     plan_hist = []
     step_hist = []
 
     # Initializes robot.
-    if self.agent.policy.policy_type == "iLQR":
-      init_control = np.zeros((self.action_dim, self.agent.policy.N - 1))
+    if warmup:
+      init_control = np.zeros((self.action_dim, self.agent.policy.N))
+    if policy_type == 'shield':
+      shield_ind = []
     result = 0
     obs = self.reset(**reset_kwargs)
     state_hist.append(self.state)
@@ -216,11 +228,13 @@ class BaseSingleEnv(BaseEnv):
     for t in range(T_rollout):
       if controller is None:
         # Gets action.
-        if self.agent.policy.policy_type == "iLQR":
-          action, solver_info = self.agent.policy.get_action(
-              state=self.state, controls=init_control, **action_kwargs
+        action_kwargs['state'] = self.state.copy()
+        action_kwargs['time_idx'] = t
+        if warmup:
+          action, solver_info = self.agent.get_action(
+              obs=obs, controls=init_control, **action_kwargs
           )
-        elif self.agent.policy.policy_type == "NNCS":
+        else:
           with torch.no_grad():
             # obs_tensor = torch.FloatTensor(obs).to(self.agent.policy.device)
             action, solver_info = self.agent.policy.get_action(
@@ -228,7 +242,9 @@ class BaseSingleEnv(BaseEnv):
             )
       else:
         new_joint_pos = controller.get_action()
-        action = new_joint_pos - np.array(self.agent.dyn.robot.get_joint_position())
+        action = new_joint_pos - np.array(
+            self.agent.dyn.robot.get_joint_position()
+        )
         solver_info = None
 
       # Applies action: `done` and `info` are evaluated at the next state.
@@ -236,14 +252,18 @@ class BaseSingleEnv(BaseEnv):
 
       # Executes step callback and stores history.
       state_hist.append(self.state)
+      obs_hist.append(obs)
       action_hist.append(action)
       plan_hist.append(solver_info)
       reward_hist.append(reward)
       step_hist.append(step_info)
       if rollout_step_callback is not None:
         rollout_step_callback(
-            self, state_hist, action_hist, plan_hist, step_hist
+            self, state_hist, action_hist, plan_hist, step_hist, time_idx=t
         )
+      if solver_info is not None:
+        if policy_type == 'shield':
+          shield_ind.append(solver_info['shield'])
 
       # Checks termination criterion.
       if done:
@@ -253,7 +273,7 @@ class BaseSingleEnv(BaseEnv):
           result = -1
         break
 
-      if self.agent.policy.policy_type == "iLQR":  # Better warmup.
+      if warmup:
         init_control[:, :-1] = solver_info['controls'][:, 1:]
         init_control[:, -1] = 0.
 
@@ -264,20 +284,21 @@ class BaseSingleEnv(BaseEnv):
     # Reverts to training setting.
     self.timeout = timeout_backup
     self.end_criterion = end_criterion_backup
-    return np.array(state_hist), result, dict(
-        action_hist=np.array(action_hist), plan_hist=plan_hist,
-        reward_hist=np.array(reward_hist), step_hist=step_hist
+    info = dict(
+        obs_hist=np.array(obs_hist), action_hist=np.array(action_hist),
+        plan_hist=plan_hist, reward_hist=np.array(reward_hist),
+        step_hist=step_hist
     )
+    if policy_type == 'shield':
+      info['shield_ind'] = shield_ind
+    return np.array(state_hist), result, info
 
   def simulate_trajectories(
-      self,
-      num_trajectories: int,
-      T_rollout: int,
-      end_criterion: str,
+      self, num_trajectories: int, T_rollout: int, end_criterion: str,
       reset_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
       action_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
       rollout_step_callback: Optional[Callable] = None,
-      rollout_episode_callback: Optional[Callable] = None,
+      rollout_episode_callback: Optional[Callable] = None, return_info=False,
       **kwargs
   ):
     """
@@ -300,9 +321,15 @@ class BaseSingleEnv(BaseEnv):
 
     results = np.empty(shape=(num_trajectories,), dtype=int)
     length = np.empty(shape=(num_trajectories,), dtype=int)
-
     trajectories = []
-    for trial in range(num_trajectories):
+    info_list = []
+    use_tqdm = kwargs.get('use_tqdm', False)
+    if use_tqdm:
+      iterable = tqdm(range(num_trajectories), desc='sim trajs', leave=False)
+    else:
+      iterable = range(num_trajectories)
+
+    for trial in iterable:
       if isinstance(reset_kwargs_list, list):
         reset_kwargs = reset_kwargs_list[trial]
       else:
@@ -312,15 +339,17 @@ class BaseSingleEnv(BaseEnv):
       else:
         action_kwargs = action_kwargs_list
 
-      state_hist, result, _ = self.simulate_one_trajectory(
+      state_hist, result, info = self.simulate_one_trajectory(
           T_rollout=T_rollout, end_criterion=end_criterion,
           reset_kwargs=reset_kwargs, action_kwargs=action_kwargs,
           rollout_step_callback=rollout_step_callback,
-          rollout_episode_callback=rollout_episode_callback,
-          **kwargs
+          rollout_episode_callback=rollout_episode_callback, **kwargs
       )
       trajectories.append(state_hist)
       results[trial] = result
       length[trial] = len(state_hist)
-
-    return trajectories, results, length
+      info_list.append(info)
+    if return_info:
+      return trajectories, results, length, info_list
+    else:
+      return trajectories, results, length

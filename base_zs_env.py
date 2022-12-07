@@ -8,10 +8,11 @@ from typing import Any, Tuple, Optional, Callable, List, Dict, Union
 import numpy as np
 import torch
 from gym import spaces
+from tqdm import tqdm
 
 from .agent import Agent
 from .base_env import BaseEnv
-from .utils import ActionZS, build_obs_space
+from .utils import ActionZS
 
 import copy
 
@@ -28,14 +29,24 @@ class BaseZeroSumEnv(BaseEnv):
         "Zero-Sum Game currently only supports two agents!"
     )
     super().__init__(config_env)
+    self.env_type = "zero-sum"
 
     # Action Space.
-    ctrl_space = np.array(config_agent.ACTION_RANGE['CTRL'])
+    ctrl_space = np.array(config_agent.ACTION_RANGE['CTRL'], dtype=np.float32)
     self.action_space_ctrl = spaces.Box(
         low=ctrl_space[:, 0], high=ctrl_space[:, 1]
     )
+    dstb_space = np.array(config_agent.ACTION_RANGE['DSTB'], dtype=np.float32)
+    self.action_space_dstb = spaces.Box(
+        low=dstb_space[:, 0], high=dstb_space[:, 1]
+    )
+    self.action_space = spaces.Dict(
+        dict(ctrl=self.action_space_ctrl, dstb=self.action_space_dstb)
+    )
     self.action_dim_ctrl = ctrl_space.shape[0]
-    self.agent = Agent(config_agent, ctrl_space)
+    self.action_dim_dstb = dstb_space.shape[0]
+    tmp_action_space = {'ctrl': ctrl_space, 'dstb': dstb_space}
+    self.agent = Agent(config_agent, tmp_action_space)
     self.state_dim = self.agent.dyn.dim_x
 
     self.integrate_kwargs = getattr(config_env, "INTEGRATE_KWARGS", {})
@@ -45,23 +56,14 @@ class BaseZeroSumEnv(BaseEnv):
             self.integrate_kwargs['noise']
         )
 
-    dstb_space = np.array(config_agent.ACTION_RANGE['DSTB'])
-    self.action_space_dstb = spaces.Box(
-        low=dstb_space[:, 0], high=dstb_space[:, 1]
-    )
-    self.action_dim_dstb = dstb_space.shape[0]
-    self.action_space = spaces.Dict(
-        dict(ctrl=self.action_space_ctrl, dstb=self.action_space_dstb)
-    )
-
   def step(
       self, action: ActionZS, cast_torch: bool = False
   ) -> Tuple[Union[np.ndarray, torch.Tensor], float, bool, Dict]:
     """Implements the step function in the environment.
 
     Args:
-        action (ActionZS): a dictionary consists of 'ctrl' and 'dstb', which
-            are accessed by action['ctrl'] and action['dstb'].
+        action (ActionZS): a dictionary consists of ctrl and dstb, which are
+            accessed by action['ctrl'] and action['dstb'].
         cast_torch (bool): cast state to torch if True.
 
     Returns:
@@ -74,20 +76,24 @@ class BaseZeroSumEnv(BaseEnv):
     """
 
     self.cnt += 1
-    state_nxt, _ = self.agent.integrate_forward(
+    state_nxt, ctrl_clip, dstb_clip = self.agent.integrate_forward(
         state=self.state, control=action['ctrl'], adversary=action['dstb'],
         **self.integrate_kwargs
     )
-    constraints = self.get_constraints(self.state, action, state_nxt)
-    cost = self.get_cost(self.state, action, state_nxt, constraints)
-    targets = self.get_target_margin(self.state, action, state_nxt)
-    done, info = self.get_done_and_info(constraints, targets)
+    state_cur = self.state.copy()
+    self.state = state_nxt.copy()
 
-    self.state = np.copy(state_nxt)
+    constraints = self.get_constraints(state_cur, action, state_nxt)
+    cost = self.get_cost(state_cur, action, state_nxt, constraints)
+    targets = self.get_target_margin(state_cur, action, state_nxt)
+    done, info = self.get_done_and_info(state_nxt, constraints, targets)
 
     obs = self.get_obs(state_nxt)
     if cast_torch:
       obs = torch.FloatTensor(obs)
+
+    info['ctrl_clip'] = ctrl_clip
+    info['dstb_clip'] = dstb_clip
 
     return obs, -cost, done, info
 
@@ -101,8 +107,8 @@ class BaseZeroSumEnv(BaseEnv):
 
     Args:
         state (np.ndarray): current state.
-        action (ActionZS): a dictionary consists of 'ctrl' and 'dstb', which
-            are accessed by action['ctrl'] and action['dstb'].
+        action (ActionZS): a dictionary consists of ctrl and dstb, which are
+            accessed by action['ctrl'] and action['dstb'].
         state_nxt (np.ndarray): next state.
         constraints (Dict): each (key, value) pair is the name and value of a
             constraint function.
@@ -122,8 +128,8 @@ class BaseZeroSumEnv(BaseEnv):
 
     Args:
         state (np.ndarray): current state.
-        action (ActionZS): a dictionary consists of 'ctrl' and 'dstb', which
-            are accessed by action['ctrl'] and action['dstb'].
+        action (ActionZS): a dictionary consists of ctrl and 'dstb', which are
+            accessed by action['ctrl'] and action['dstb'].
         state_nxt (np.ndarray): next state.
 
     Returns:
@@ -142,8 +148,8 @@ class BaseZeroSumEnv(BaseEnv):
 
     Args:
         state (np.ndarray): current states.
-        action (ActionZS): a dictionary consists of 'ctrl' and 'dstb', which
-            are accessed by action['ctrl'] and action['dstb'].
+        action (ActionZS): a dictionary consists of ctrl and dstb, which are
+            accessed by action['ctrl'] and action['dstb'].
         state_nxt (np.ndarray): next state.
 
     Returns:
@@ -154,8 +160,8 @@ class BaseZeroSumEnv(BaseEnv):
 
   @abstractmethod
   def get_done_and_info(
-      self, constraints: Dict, targets: Dict, final_only: bool = True,
-      end_criterion: Optional[str] = None
+      self, state: np.ndarray, constraints: Dict, targets: Dict,
+      final_only: bool = True, end_criterion: Optional[str] = None
   ) -> Tuple[bool, Dict]:
     """
     Gets the done flag and a dictionary to provide additional information of
@@ -163,6 +169,7 @@ class BaseZeroSumEnv(BaseEnv):
     constraints, and targets.
 
     Args:
+        state (np.ndarray): current state.
         constraints (Dict): each (key, value) pair is the name and value of a
             constraint function.
         targets (Dict): each (key, value) pair is the name and value of a
@@ -177,7 +184,7 @@ class BaseZeroSumEnv(BaseEnv):
 
   def simulate_one_trajectory(
       self, T_rollout: int, end_criterion: str,
-      adversary: Callable[[np.ndarray, np.ndarray, Any],
+      adversary: Callable[[np.ndarray, np.ndarray],
                           np.ndarray], reset_kwargs: Optional[Dict] = None,
       action_kwargs: Optional[Dict] = None,
       rollout_step_callback: Optional[Callable] = None,
@@ -217,6 +224,12 @@ class BaseZeroSumEnv(BaseEnv):
       reset_kwargs = {}
     if action_kwargs is None:
       action_kwargs = {}
+    policy_type = action_kwargs.get('policy_type', 'task')
+    if policy_type == 'safety':
+      assert self.agent.safety_policy is not None
+      warmup = self.agent.safety_policy.policy_type == "iLQR"
+    else:
+      warmup = self.agent.policy.policy_type == "iLQR"
 
     controller = None
     if "controller" in kwargs.keys():
@@ -224,14 +237,20 @@ class BaseZeroSumEnv(BaseEnv):
 
     state_hist = []
     obs_hist = []
-    action_hist = []
+    action_hist = {'ctrl': [], 'dstb': []}
     reward_hist = []
     plan_hist = []
     step_hist = []
 
     # Initializes robot.
-    if self.agent.policy.policy_type == "iLQR":
-      init_control = np.zeros((self.action_dim, self.agent.policy.N - 1))
+    if warmup:
+      if policy_type == 'safety':
+        n_ctrls = self.agent.safety_policy.N
+      else:
+        n_ctrls = self.agent.policy.N
+      init_control = np.zeros((self.action_dim_ctrl, n_ctrls))
+    if policy_type == 'shield':
+      shield_ind = []
     result = 0
     obs = self.reset(**reset_kwargs)
     state_hist.append(self.state)
@@ -239,15 +258,15 @@ class BaseZeroSumEnv(BaseEnv):
     for t in range(T_rollout):
       if controller is None:
         # Gets action.
-        if self.agent.policy.policy_type == "iLQR":
-          ctrl, solver_info = self.agent.policy.get_action(
-              state=self.state, controls=init_control, **action_kwargs
+        action_kwargs['state'] = self.state.copy()
+        action_kwargs['time_idx'] = t
+        if warmup:
+          ctrl, solver_info = self.agent.get_action(
+              obs=obs, controls=init_control, **action_kwargs
           )
-        elif self.agent.policy.policy_type == "NNCS":
+        else:
           with torch.no_grad():
-            ctrl, solver_info = self.agent.policy.get_action(
-                state=obs, **action_kwargs
-            )
+            ctrl, solver_info = self.agent.get_action(obs=obs, **action_kwargs)
       else:
         new_joint_pos = controller.get_action()
         ctrl = new_joint_pos - np.array(
@@ -256,20 +275,25 @@ class BaseZeroSumEnv(BaseEnv):
         solver_info = None
 
       # Applies action: `done` and `info` are evaluated at the next state.
-      action = {'ctrl': ctrl, 'dstb': adversary(obs, ctrl)}
+      dstb = adversary(obs, ctrl, **action_kwargs)
+      action = {'ctrl': ctrl, 'dstb': dstb}
       obs, reward, done, step_info = self.step(action)
 
       # Executes step callback and stores history.
       state_hist.append(self.state)
       obs_hist.append(obs)
-      action_hist.append(action)
+      action_hist['ctrl'].append(step_info['ctrl_clip'])
+      action_hist['dstb'].append(step_info['dstb_clip'])
       plan_hist.append(solver_info)
       reward_hist.append(reward)
       step_hist.append(step_info)
       if rollout_step_callback is not None:
         rollout_step_callback(
-            self, state_hist, action_hist, plan_hist, step_hist
+            self, state_hist, action_hist, plan_hist, step_hist, time_idx=t
         )
+      if solver_info is not None:
+        if policy_type == 'shield':
+          shield_ind.append(solver_info['shield'])
 
       # Checks termination criterion.
       if done:
@@ -279,7 +303,7 @@ class BaseZeroSumEnv(BaseEnv):
           result = -1
         break
 
-      if self.agent.policy.policy_type == "iLQR":  # Better warmup.
+      if warmup:
         init_control[:, :-1] = solver_info['controls'][:, 1:]
         init_control[:, -1] = 0.
 
@@ -290,10 +314,16 @@ class BaseZeroSumEnv(BaseEnv):
     # Reverts to training setting.
     self.timeout = timeout_backup
     self.end_criterion = end_criterion_backup
-    return np.array(state_hist), result, dict(
-        obs_hist=obs_hist, action_hist=action_hist, plan_hist=plan_hist,
-        reward_hist=np.array(reward_hist), step_hist=step_hist
+    for k, v in action_hist.items():
+      action_hist[k] = np.array(v)
+    info = dict(
+        obs_hist=np.array(obs_hist), action_hist=action_hist,
+        plan_hist=plan_hist, reward_hist=np.array(reward_hist),
+        step_hist=step_hist
     )
+    if policy_type == 'shield':
+      info['shield_ind'] = shield_ind
+    return np.array(state_hist), result, info
 
   def simulate_trajectories(
       self, num_trajectories: int, T_rollout: int, end_criterion: str,
@@ -301,7 +331,8 @@ class BaseZeroSumEnv(BaseEnv):
       reset_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
       action_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
       rollout_step_callback: Optional[Callable] = None,
-      rollout_episode_callback: Optional[Callable] = None, **kwargs
+      rollout_episode_callback: Optional[Callable] = None, return_info=False,
+      **kwargs
   ):
     """
     Rolls out multiple trajectories given the horizon, termination criterion,
@@ -323,9 +354,16 @@ class BaseZeroSumEnv(BaseEnv):
 
     results = np.empty(shape=(num_trajectories,), dtype=int)
     length = np.empty(shape=(num_trajectories,), dtype=int)
-
     trajectories = []
-    for trial in range(num_trajectories):
+    info_list = []
+    use_tqdm = kwargs.get('use_tqdm', False)
+    leave = kwargs.get('leave', False)
+    if use_tqdm:
+      iterable = tqdm(range(num_trajectories), desc='sim trajs', leave=leave)
+    else:
+      iterable = range(num_trajectories)
+
+    for trial in iterable:
       if isinstance(reset_kwargs_list, list):
         reset_kwargs = reset_kwargs_list[trial]
       else:
@@ -335,7 +373,7 @@ class BaseZeroSumEnv(BaseEnv):
       else:
         action_kwargs = action_kwargs_list
 
-      state_hist, result, _ = self.simulate_one_trajectory(
+      state_hist, result, info = self.simulate_one_trajectory(
           T_rollout=T_rollout, end_criterion=end_criterion,
           adversary=adversary, reset_kwargs=reset_kwargs,
           action_kwargs=action_kwargs,
@@ -345,5 +383,8 @@ class BaseZeroSumEnv(BaseEnv):
       trajectories.append(state_hist)
       results[trial] = result
       length[trial] = len(state_hist)
-
-    return trajectories, results, length
+      info_list.append(info)
+    if return_info:
+      return trajectories, results, length, info_list
+    else:
+      return trajectories, results, length

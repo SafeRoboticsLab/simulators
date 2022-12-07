@@ -30,6 +30,7 @@ class Track:
         width_right: float, width of the track on the right side
         loop: Boolean. If the track has loop
     '''
+    self.center_line_data = center_line.copy()
     self.center_line = Curve(x=center_line[0, :], y=center_line[1, :], k=3)
     self.width_left = width_left
     self.width_right = width_right
@@ -127,7 +128,8 @@ class Track:
             array is of the shape (2, N).
         np.ndarray: the slope of of trangent line on those points. This vector
             is of the shape (1, N).
-        np.ndarray: the progress along the centerline.
+        np.ndarray: the progress along the centerline. This vector is of the
+            shape (1, N).
     """
     s, _ = self.center_line.projectPoint(points.T, eps=1e-3)
     if points.shape[1] == 1:
@@ -138,7 +140,7 @@ class Track:
     if not normalize_progress:
       s = s * self.length
 
-    return closest_pt, slope, s
+    return closest_pt, slope, s.reshape(1, -1)
 
   def project_point(
       self, points: np.ndarray, normalize_progress: Optional[bool] = False
@@ -222,7 +224,7 @@ class Track:
     cr = np.cos(slope)
 
     lateral_dev = sr*dx - cr*dy
-    local_states[0, :] = progress
+    local_states[0, :] = progress.reshape(-1)
     local_states[1, :] = lateral_dev
 
     if flatten:
@@ -232,7 +234,8 @@ class Track:
 
   # region: plotting
   def plot_track(
-      self, ax: Optional[matplotlib.axes.Axes] = None, c: str = 'k', zorder=0
+      self, ax: Optional[matplotlib.axes.Axes] = None, c: str = 'k', zorder=0,
+      plot_center_line: bool = False
   ):
     if ax is None:
       ax = plt.gca()
@@ -246,11 +249,18 @@ class Track:
         self.track_bound[2, :], self.track_bound[3, :], c=c, linestyle='-',
         zorder=zorder
     )
+    if plot_center_line:
+      self.plot_track_center(ax, c=c, zorder=zorder)
 
-  def plot_track_center(self, ax: Optional[matplotlib.axes.Axes] = None):
+  def plot_track_center(
+      self, ax: Optional[matplotlib.axes.Axes] = None, c: str = 'k', zorder=0
+  ):
     if ax is None:
       ax = plt.gca()
-    ax.plot(self.track_center[0, :], self.track_center[1, :], 'r--')
+    ax.plot(
+        self.track_center[0, :], self.track_center[1, :], c=c, linestyle='--',
+        zorder=zorder
+    )
 
   # endregion
 
