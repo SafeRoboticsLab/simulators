@@ -4,11 +4,41 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 
 from __future__ import annotations
-from typing import TypeVar, TypedDict, List, Any, Optional, Union, Tuple
+import sys
+from typing import (
+    TypeVar, TypedDict, List, Any, Optional, Union, Tuple, Dict, Iterable,
+    Callable
+)
 import numpy as np
 from gym import spaces
 import torch
 import pickle
+from tqdm import tqdm
+from multiprocessing import Pool
+
+
+def parallel_apply(
+    element_fn: Callable,
+    element_list: Iterable,
+    num_workers: int,
+    desc: Optional[str] = None,
+    disable: bool = False,
+) -> List:
+  return list(
+      parallel_iapply(element_fn, element_list, num_workers, desc, disable)
+  )
+
+
+def parallel_iapply(
+    element_fn: Callable, element_list: Iterable, num_workers: int,
+    desc: Optional[str] = None, disable: bool = False, **kwargs
+) -> Iterable:
+  with Pool(processes=num_workers) as pool:
+    for fn_output in tqdm(
+        pool.imap(element_fn, element_list), desc=desc,
+        total=len(element_list), disable=disable, **kwargs
+    ):
+      yield fn_output
 
 
 def save_obj(obj, filename, protocol=None):
@@ -21,6 +51,28 @@ def save_obj(obj, filename, protocol=None):
 def load_obj(filename):
   with open(filename + '.pkl', 'rb') as f:
     return pickle.load(f)
+
+
+class PrintLogger(object):
+  """
+  This class redirects print statements to both console and a file.
+  """
+
+  def __init__(self, log_file):
+    self.terminal = sys.stdout
+    print('STDOUT will be forked to %s' % log_file)
+    self.log_file = open(log_file, "a")
+
+  def write(self, message):
+    self.terminal.write(message)
+    self.log_file.write(message)
+    self.log_file.flush()
+
+  def flush(self):
+    # this flush method is needed for python 3 compatibility.
+    # this handles the flush command by doing nothing.
+    # you might want to specify some extra behavior here.
+    pass
 
 
 def cast_numpy(x: np.ndarray | torch.Tensor) -> np.ndarray:
@@ -39,27 +91,31 @@ class ActionZS(TypedDict):
 
 
 GenericAction = TypeVar(
-    'GenericAction', np.ndarray, List[np.ndarray], ActionZS
+    'GenericAction', np.ndarray, Dict[str, np.ndarray], ActionZS
 )
 
 GenericState = TypeVar(
-    'GenericState', torch.FloatTensor, np.ndarray, List[torch.FloatTensor],
-    List[np.ndarray]
+    'GenericState', torch.FloatTensor, np.ndarray,
+    Dict[str, torch.FloatTensor], Dict[str, np.ndarray]
 )
 
 
 # Observation.
-def build_obs_space(
-    obs_spec: np.ndarray, obs_dim: Optional[tuple] = None
+def build_space(
+    space_spec: np.ndarray, space_dim: Optional[tuple] = None
 ) -> spaces.Box:
-  if obs_spec.ndim == 2:  # e.g., state.
-    obs_space = spaces.Box(low=obs_spec[:, 0], high=obs_spec[:, 1])
-  elif obs_spec.ndim == 4:  # e.g., RGB-D.
-    obs_space = spaces.Box(low=obs_spec[:, :, :, 0], high=obs_spec[:, :, :, 1])
+  if space_spec.ndim == 2:  # e.g., state.
+    obs_space = spaces.Box(low=space_spec[:, 0], high=space_spec[:, 1])
+  elif space_spec.ndim == 4:  # e.g., RGB-D.
+    obs_space = spaces.Box(
+        low=space_spec[:, :, :, 0], high=space_spec[:, :, :, 1]
+    )
   else:  # Each dimension shares the same min and max.
-    assert obs_spec.ndim == 1, "Unsupported obs space spec!"
-    assert obs_dim is not None, "Obs. dim is not provided"
-    obs_space = spaces.Box(low=obs_spec[0], high=obs_spec[1], shape=obs_dim)
+    assert space_spec.ndim == 1, "Unsupported space spec!"
+    assert space_dim is not None, "Space dim is not provided"
+    obs_space = spaces.Box(
+        low=space_spec[0], high=space_spec[1], shape=space_dim
+    )
   return obs_space
 
 

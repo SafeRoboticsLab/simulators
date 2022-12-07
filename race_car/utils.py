@@ -7,6 +7,18 @@ import csv
 import numpy as np
 
 
+def trans2cossin(state: np.ndarray) -> np.ndarray:
+  if state.ndim == 1:
+    _state = np.zeros(6)
+  else:
+    _state = np.zeros((6, state.shape[1]))
+  _state[:3, ...] = state[:3, ...].copy()  # x, y, v
+  _state[3, ...] = np.cos(state[3, ...].copy())
+  _state[4, ...] = np.sin(state[3, ...].copy())
+  _state[5:, ...] = state[4:, ...].copy()
+  return _state
+
+
 def get_centerline_from_traj(filepath: str) -> np.ndarray:
   """
   Gets the centerline of the track from the trajectory data. We currently only

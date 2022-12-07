@@ -1,12 +1,13 @@
 """
 Modified from stable-baseline3 and https://github.com/allenzren/alano.
 """
-
+from typing import Callable, Optional, Union, List, Dict, Any
 import numpy as np
 import multiprocessing as mp
 import cloudpickle
 import dill
 import gym
+from tqdm import tqdm
 
 
 def _worker(remote, parent_remote, env_fn_wrapper, cpu_ind=-1):
@@ -217,6 +218,117 @@ class SubprocVecEnv():
     if indices is None:
       indices = range(self.n_envs)
     return [self.remotes[i] for i in indices]
+
+  def simulate_trajectories(
+      self, num_trajectories: int, T_rollout: int, end_criterion: str,
+      reset_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
+      action_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
+      return_info=False, **kwargs
+  ):
+    if not isinstance(reset_kwargs_list, list):
+      reset_kwargs_list = [reset_kwargs_list for _ in range(num_trajectories)]
+    if not isinstance(action_kwargs_list, list):
+      action_kwargs_list = [
+          action_kwargs_list for _ in range(num_trajectories)
+      ]
+
+    results = np.empty(shape=(num_trajectories,), dtype=int)
+    length = np.empty(shape=(num_trajectories,), dtype=int)
+    trajectories = []
+    info_list = []
+
+    n_parallel_runs = max(int(np.ceil(num_trajectories / self.n_envs)), 1)
+
+    use_tqdm = kwargs.get('use_tqdm', False)
+    if use_tqdm:
+      iterable = tqdm(
+          range(n_parallel_runs), desc=f'sim trajs with {self.n_envs} envs',
+          leave=False
+      )
+    else:
+      iterable = range(n_parallel_runs)
+    for i in iterable:
+      tmp = i * self.n_envs
+      n_envs_need = min(num_trajectories - tmp, self.n_envs)
+      method_args_list = [(
+          T_rollout, end_criterion, reset_kwargs_list[tmp + j],
+          action_kwargs_list[tmp + j]
+      ) for j in range(n_envs_need)]
+      res_all = self.env_method_arg(
+          method_name="simulate_one_trajectory",
+          method_args_list=method_args_list, indices=np.arange(n_envs_need)
+      )
+      for j, res in enumerate(res_all):
+        trajectories.append(res[0])
+        results[tmp + j] = res[1]
+        length[tmp + j] = len(res[0])
+        info_list.append(res[2])
+
+    if return_info:
+      return trajectories, results, length, info_list
+    else:
+      return trajectories, results, length
+
+  def simulate_trajectories_zs(
+      self,
+      num_trajectories: int,
+      T_rollout: int,
+      end_criterion: str,
+      adversary: Union[Callable[[np.ndarray, np.ndarray, Any], np.ndarray],
+                       List],
+      reset_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
+      action_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
+      return_info=False,
+      **kwargs,
+  ):
+    if not isinstance(reset_kwargs_list, list):
+      reset_kwargs_list = [reset_kwargs_list for _ in range(num_trajectories)]
+    if not isinstance(action_kwargs_list, list):
+      action_kwargs_list = [
+          action_kwargs_list for _ in range(num_trajectories)
+      ]
+    if not isinstance(adversary, list):
+      adversary_list = [adversary for _ in range(self.n_envs)]
+    else:
+      assert len(adversary) == self.n_envs
+      adversary_list = adversary
+
+    results = np.empty(shape=(num_trajectories,), dtype=int)
+    length = np.empty(shape=(num_trajectories,), dtype=int)
+    trajectories = []
+    info_list = []
+
+    n_parallel_runs = max(int(np.ceil(num_trajectories / self.n_envs)), 1)
+
+    use_tqdm = kwargs.get('use_tqdm', False)
+    if use_tqdm:
+      iterable = tqdm(
+          range(n_parallel_runs), desc=f'sim trajs with {self.n_envs} envs',
+          leave=False
+      )
+    else:
+      iterable = range(n_parallel_runs)
+    for i in iterable:
+      tmp = i * self.n_envs
+      n_envs_need = min(num_trajectories - tmp, self.n_envs)
+      method_args_list = [(
+          T_rollout, end_criterion, adversary_list[j],
+          reset_kwargs_list[tmp + j], action_kwargs_list[tmp + j]
+      ) for j in range(n_envs_need)]
+      res_all = self.env_method_arg(
+          method_name="simulate_one_trajectory",
+          method_args_list=method_args_list, indices=np.arange(n_envs_need)
+      )
+      for j, res in enumerate(res_all):
+        trajectories.append(res[0])
+        results[tmp + j] = res[1]
+        length[tmp + j] = len(res[0])
+        info_list.append(res[2])
+
+    if return_info:
+      return trajectories, results, length, info_list
+    else:
+      return trajectories, results, length
 
   # endregion
 
