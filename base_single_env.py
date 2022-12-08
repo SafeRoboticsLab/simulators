@@ -238,7 +238,7 @@ class BaseSingleEnv(BaseEnv):
           with torch.no_grad():
             # obs_tensor = torch.FloatTensor(obs).to(self.agent.policy.device)
             action, solver_info = self.agent.policy.get_action(
-                state=obs, **action_kwargs
+                obs=obs, **action_kwargs
             )
       else:
         new_joint_pos = controller.get_action()
