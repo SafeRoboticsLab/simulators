@@ -9,7 +9,7 @@ import copy
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
-import imageio
+import imageio.v2 as imageio
 from IPython.display import Image
 import argparse
 from shutil import copyfile

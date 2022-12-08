@@ -86,7 +86,7 @@ class iLQRSpline(iLQR):
             )
         )
 
-        if J_new <= J:  # Improved!
+        if J_new < J:  # Improved!
           if np.abs((J-J_new) / J) < self.tol:  # Small improvement.
             converged = True
 
