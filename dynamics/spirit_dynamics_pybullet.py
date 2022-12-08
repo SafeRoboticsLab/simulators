@@ -5,6 +5,7 @@ from typing import Optional, Tuple, Any
 from .resources.spirit import Spirit
 import time
 import matplotlib.pyplot as plt
+from jaxlib.xla_extension import DeviceArray
 
 class SpiritDynamicsPybullet(BasePybulletDynamics):
     def __init__(self, config: Any, action_space: np.ndarray) -> None:
@@ -282,3 +283,9 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
         plt.axis('off')
         plt.title("Rollout imagine env")
         plt.pause(.00001)
+    
+    def integrate_forward_jax(self, state: DeviceArray, control: DeviceArray) -> Tuple[DeviceArray, DeviceArray]:
+        return super().integrate_forward_jax(state, control)
+    
+    def _integrate_forward(self, state: DeviceArray, control: DeviceArray) -> DeviceArray:
+        return super()._integrate_forward(state, control)
