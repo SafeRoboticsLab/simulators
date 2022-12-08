@@ -192,6 +192,7 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
 
         # check clipped control
         clipped_control = []
+        # TODO: The current control is a nested array, that is the result of running multiprocessing. Fix this to work with Pybullet
         for i, j in enumerate(control):
             if i % 3 == 0:
                 increment = np.clip(j, self.abduction_increment_min, self.abduction_increment_max)
