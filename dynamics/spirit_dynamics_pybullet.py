@@ -10,21 +10,30 @@ from jaxlib.xla_extension import DeviceArray
 class SpiritDynamicsPybullet(BasePybulletDynamics):
     def __init__(self, config: Any, action_space: np.ndarray) -> None:
         #! TODO: FIX THIS, SO THAT THERE WILL BE A SEPARATE DYNAMICS WHEN WE USE ISAACS (BaseDstbDynamics instead of BaseDynamics)
-        super().__init__(config, action_space["ctrl"])
+        if isinstance(action_space, dict):
+            super().__init__(config, action_space["ctrl"])
+            
+            # action range
+            # The 12 joints are categorized into abduction, hip and knee
+            # Joints of similar category share similar max, min
+            # NOTE: This is not the joint range, this is the increment range constraint
+            self.abduction_increment_min = action_space["ctrl"][0, 0]
+            self.abduction_increment_max = action_space["ctrl"][0, 1]
+            self.hip_increment_min = action_space["ctrl"][1, 0]
+            self.hip_increment_max = action_space["ctrl"][1, 1]
+            self.knee_increment_min = action_space["ctrl"][2, 0]
+            self.knee_increment_max = action_space["ctrl"][2, 1]
+        else:
+            super().__init__(config, action_space)
+            self.abduction_increment_min = action_space[0, 0]
+            self.abduction_increment_max = action_space[0, 1]
+            self.hip_increment_min = action_space[1, 0]
+            self.hip_increment_max = action_space[1, 1]
+            self.knee_increment_min = action_space[2, 0]
+            self.knee_increment_max = action_space[2, 1]
 
         self.dim_x = 42
         self.dim_u = 12 # Spirit angular joint position
-
-        # action range
-        # The 12 joints are categorized into abduction, hip and knee
-        # Joints of similar category share similar max, min
-        # NOTE: This is not the joint range, this is the increment range constraint
-        self.abduction_increment_min = action_space["ctrl"][0, 0]
-        self.abduction_increment_max = action_space["ctrl"][0, 1]
-        self.hip_increment_min = action_space["ctrl"][1, 0]
-        self.hip_increment_max = action_space["ctrl"][1, 1]
-        self.knee_increment_min = action_space["ctrl"][2, 0]
-        self.knee_increment_max = action_space["ctrl"][2, 1]
 
         # TODO: Read this value from URDF, or pass from config
         #! This is hardware constraints, different from action range
