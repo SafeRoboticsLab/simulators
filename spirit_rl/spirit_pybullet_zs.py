@@ -43,11 +43,8 @@ class SpiritPybulletZeroSumEnv(BaseZeroSumEnv, SpiritPybulletEnv):
     
     def get_target_margin(self, state: np.ndarray, action: ActionZS, state_nxt: np.ndarray) -> Dict:
         return self.agent.dyn.get_target_margin()
-    
-    def get_done_and_info(
-        self, constraints: Dict, targets: Optional[Dict] = None,
-        final_only: bool = True, end_criterion: Optional[str] = None
-    ) -> Tuple[bool, Dict]:
+
+    def get_done_and_info(self, state: np.ndarray, constraints: Dict, targets: Dict, final_only: bool = True, end_criterion: Optional[str] = None) -> Tuple[bool, Dict]:
         if end_criterion is None:
             end_criterion = self.end_criterion
         
