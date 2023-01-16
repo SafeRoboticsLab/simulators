@@ -6,7 +6,7 @@ import matplotlib
 from .gvr_pybullet_env import GVRPybulletEnv
 from ..base_single_env import BaseSingleEnv
 
-class SpiritPybulletSingleEnv(BaseSingleEnv, GVRPybulletEnv):
+class GVRPybulletSingleEnv(BaseSingleEnv, GVRPybulletEnv):
     def __init__(self, config_env: Any, config_agent: Any) -> None:
         assert config_env.NUM_AGENTS == 1, "This environment only has one agent!"
         BaseSingleEnv.__init__(self, config_env, config_agent)

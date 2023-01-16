@@ -6,13 +6,13 @@ import torch
 import matplotlib
 from ..utils import ActionZS
 
-class SpiritPybulletZeroSumEnv(BaseZeroSumEnv, GVRPybulletEnv):
+class GVRPybulletZeroSumEnv(BaseZeroSumEnv, GVRPybulletEnv):
     """
     A wrapper for a zero-sum game env with a physical agent of using Spirit Pybullet dynamics
 
     Args:
         BaseZeroSumEnv
-        SpiritPybulletEnv
+        GVRPybulletEnv
     """
 
     def __init__(self, config_env: Any, config_agent: Any) -> None:
