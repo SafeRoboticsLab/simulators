@@ -165,7 +165,8 @@ class GVR:
             """
 
             payload_mass = self.payload * self.payload_max
-            payload_height = self.payload * 0.45
+            # payload_height = self.payload * 0.45
+            payload_height = self.payload * 1.5
             payload_definition = payload_definition \
                 .replace('@MASS', str(payload_mass) ) \
                 .replace('@HEIGHT', str(payload_height) ) \
@@ -176,7 +177,7 @@ class GVR:
         
         elif self.envtype == 'spring':
             payload_mass = self.payload * self.payload_max
-            payload_blocks = 10
+            payload_blocks = 6
             payload_active = int(self.payload * payload_blocks)
             block_mass = self.payload_max / float(payload_blocks)
 
@@ -195,10 +196,10 @@ class GVR:
                 <joint name="@JOINTNAME" type="revolute">
                     <parent link="@PARENTLINK"/>
                     <child link="@CHILDLINK"/>
-                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="10.0"/>
+                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="20.0"/>
                     <origin rpy="0 0 0.0" xyz="0.0 0.0 @ZLOCATION"/>
                     <axis xyz="@AXIS"/>
-                    <dynamics damping="0.05"/>
+                    <dynamics damping="0.02"/>
                 </joint>
             """
 
@@ -207,19 +208,19 @@ class GVR:
                     <visual>
                     <origin rpy="0 0 0" xyz="0.0 0.0 @ZLOCATION"/>  <!-- z = height/2 + 0.02 -->
                     <geometry>
-                        <box size="0.15 0.15 0.05"/>
+                        <box size="0.15 0.15 0.2"/>
                     </geometry>
                     <material name="@COLOR"/>
                     </visual>
                     <collision>
                     <origin rpy="0 0 0" xyz="0.00 0.00 @ZLOCATION"/> <!-- z = height/2 + 0.02 -->
                     <geometry>
-                        <box size="0.15 0.15 0.05"/>
+                        <box size="0.15 0.15 0.2"/>
                     </geometry>
                     </collision>
                     <inertial>
                     <!-- CENTER OF MASS -->
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.025"/>
+                    <origin rpy="0 0 0" xyz="0.0 0.0 0.1"/>
                     <mass value="@MASS"/>
                     <!-- box inertia: 1/12*m(y^2+z^2), ... -->
                     <inertia ixx="@IXX" ixy="0" ixz="0" iyy="@IYY" iyz="0" izz="@IZZ"/>
@@ -244,16 +245,16 @@ class GVR:
                         .replace("@JOINTNAME",f"payload{se_-1}_payload{se_}")\
                         .replace("@PARENTLINK",f"payload_block_{se_-1}")\
                         .replace("@CHILDLINK",f"payload_block_{se_}")\
-                        .replace("@ZLOCATION","0.05")\
+                        .replace("@ZLOCATION","0.2")\
                         .replace("@AXIS","0 1 0" if se_ % 2 else "1 0 0")
                 current_block_mass = block_mass if se_ != payload_active else remaining
                 payload_definition += block_definition\
                     .replace("@LINKNAME",f"payload_block_{se_}")\
                     .replace("@COLOR", "Yellow" if se_ % 2 else "Green" )\
-                    .replace("@ZLOCATION","0.05")\
+                    .replace("@ZLOCATION","0.2")\
                     .replace("@MASS",str(block_mass))\
-                    .replace('@IXX', str(1/12 * block_mass * (0.15*0.15 + 0.05 * 0.05))) \
-                    .replace('@IYY', str(1/12 * block_mass * (0.15*0.15 + 0.05 * 0.05))) \
+                    .replace('@IXX', str(1/12 * block_mass * (0.15*0.15 + 0.2 * 0.2))) \
+                    .replace('@IYY', str(1/12 * block_mass * (0.15*0.15 + 0.2 * 0.2))) \
                     .replace('@IZZ', str(1/12 * block_mass * (2 * 0.15*0.15)))
             payload_definition += " \n<!-- END PAYLOAD -->"
         

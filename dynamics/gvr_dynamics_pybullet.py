@@ -150,6 +150,8 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
         else:
             self._apply_force()
         
+        # weird hack from env_hexapod so that the spring payload will work well
+        p.setGravity(0, 0, self.gravity, physicsClientId = self.client)
         p.stepSimulation(physicsClientId = self.client)
 
         if self.gui:

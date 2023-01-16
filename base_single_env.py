@@ -241,10 +241,18 @@ class BaseSingleEnv(BaseEnv):
                 obs=obs, **action_kwargs
             )
       else:
+        #! TODO: FIX THIS SO THAT IT WORKS FOR BOTH SPIRIT AND GVR
+        """
+        # Spirit
         new_joint_pos = controller.get_action()
         action = new_joint_pos - np.array(
             self.agent.dyn.robot.get_joint_position()
         )
+        solver_info = None
+        """
+
+        # GVR
+        action = controller.get_action()
         solver_info = None
 
       # Applies action: `done` and `info` are evaluated at the next state.

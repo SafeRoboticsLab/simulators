@@ -778,312 +778,184 @@
             
                 <link name="payload_block_0">
                     <visual>
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.05"/>  <!-- z = height/2 + 0.02 -->
+                    <origin rpy="0 0 0" xyz="0.0 0.0 0.2"/>  <!-- z = height/2 + 0.02 -->
                     <geometry>
-                        <box size="0.15 0.15 0.05"/>
+                        <box size="0.15 0.15 0.2"/>
                     </geometry>
                     <material name="Green"/>
                     </visual>
                     <collision>
-                    <origin rpy="0 0 0" xyz="0.00 0.00 0.05"/> <!-- z = height/2 + 0.02 -->
+                    <origin rpy="0 0 0" xyz="0.00 0.00 0.2"/> <!-- z = height/2 + 0.02 -->
                     <geometry>
-                        <box size="0.15 0.15 0.05"/>
+                        <box size="0.15 0.15 0.2"/>
                     </geometry>
                     </collision>
                     <inertial>
                     <!-- CENTER OF MASS -->
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.025"/>
-                    <mass value="2.0"/>
+                    <origin rpy="0 0 0" xyz="0.0 0.0 0.1"/>
+                    <mass value="8.333333333333334"/>
                     <!-- box inertia: 1/12*m(y^2+z^2), ... -->
-                    <inertia ixx="0.004166666666666667" ixy="0" ixz="0" iyy="0.004166666666666667" iyz="0" izz="0.0075"/>
+                    <inertia ixx="0.043402777777777776" ixy="0" ixz="0" iyy="0.043402777777777776" iyz="0" izz="0.031249999999999997"/>
                     </inertial>
                 </link>
             
                 <joint name="payload0_payload1" type="revolute">
                     <parent link="payload_block_0"/>
                     <child link="payload_block_1"/>
-                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="10.0"/>
-                    <origin rpy="0 0 0.0" xyz="0.0 0.0 0.05"/>
+                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="20.0"/>
+                    <origin rpy="0 0 0.0" xyz="0.0 0.0 0.2"/>
                     <axis xyz="0 1 0"/>
-                    <dynamics damping="0.05"/>
+                    <dynamics damping="0.02"/>
                 </joint>
             
                 <link name="payload_block_1">
                     <visual>
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.05"/>  <!-- z = height/2 + 0.02 -->
+                    <origin rpy="0 0 0" xyz="0.0 0.0 0.2"/>  <!-- z = height/2 + 0.02 -->
                     <geometry>
-                        <box size="0.15 0.15 0.05"/>
+                        <box size="0.15 0.15 0.2"/>
                     </geometry>
                     <material name="Yellow"/>
                     </visual>
                     <collision>
-                    <origin rpy="0 0 0" xyz="0.00 0.00 0.05"/> <!-- z = height/2 + 0.02 -->
+                    <origin rpy="0 0 0" xyz="0.00 0.00 0.2"/> <!-- z = height/2 + 0.02 -->
                     <geometry>
-                        <box size="0.15 0.15 0.05"/>
+                        <box size="0.15 0.15 0.2"/>
                     </geometry>
                     </collision>
                     <inertial>
                     <!-- CENTER OF MASS -->
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.025"/>
-                    <mass value="2.0"/>
+                    <origin rpy="0 0 0" xyz="0.0 0.0 0.1"/>
+                    <mass value="8.333333333333334"/>
                     <!-- box inertia: 1/12*m(y^2+z^2), ... -->
-                    <inertia ixx="0.004166666666666667" ixy="0" ixz="0" iyy="0.004166666666666667" iyz="0" izz="0.0075"/>
+                    <inertia ixx="0.043402777777777776" ixy="0" ixz="0" iyy="0.043402777777777776" iyz="0" izz="0.031249999999999997"/>
                     </inertial>
                 </link>
             
                 <joint name="payload1_payload2" type="revolute">
                     <parent link="payload_block_1"/>
                     <child link="payload_block_2"/>
-                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="10.0"/>
-                    <origin rpy="0 0 0.0" xyz="0.0 0.0 0.05"/>
+                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="20.0"/>
+                    <origin rpy="0 0 0.0" xyz="0.0 0.0 0.2"/>
                     <axis xyz="1 0 0"/>
-                    <dynamics damping="0.05"/>
+                    <dynamics damping="0.02"/>
                 </joint>
             
                 <link name="payload_block_2">
                     <visual>
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.05"/>  <!-- z = height/2 + 0.02 -->
+                    <origin rpy="0 0 0" xyz="0.0 0.0 0.2"/>  <!-- z = height/2 + 0.02 -->
                     <geometry>
-                        <box size="0.15 0.15 0.05"/>
+                        <box size="0.15 0.15 0.2"/>
                     </geometry>
                     <material name="Green"/>
                     </visual>
                     <collision>
-                    <origin rpy="0 0 0" xyz="0.00 0.00 0.05"/> <!-- z = height/2 + 0.02 -->
+                    <origin rpy="0 0 0" xyz="0.00 0.00 0.2"/> <!-- z = height/2 + 0.02 -->
                     <geometry>
-                        <box size="0.15 0.15 0.05"/>
+                        <box size="0.15 0.15 0.2"/>
                     </geometry>
                     </collision>
                     <inertial>
                     <!-- CENTER OF MASS -->
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.025"/>
-                    <mass value="2.0"/>
+                    <origin rpy="0 0 0" xyz="0.0 0.0 0.1"/>
+                    <mass value="8.333333333333334"/>
                     <!-- box inertia: 1/12*m(y^2+z^2), ... -->
-                    <inertia ixx="0.004166666666666667" ixy="0" ixz="0" iyy="0.004166666666666667" iyz="0" izz="0.0075"/>
+                    <inertia ixx="0.043402777777777776" ixy="0" ixz="0" iyy="0.043402777777777776" iyz="0" izz="0.031249999999999997"/>
                     </inertial>
                 </link>
             
                 <joint name="payload2_payload3" type="revolute">
                     <parent link="payload_block_2"/>
                     <child link="payload_block_3"/>
-                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="10.0"/>
-                    <origin rpy="0 0 0.0" xyz="0.0 0.0 0.05"/>
+                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="20.0"/>
+                    <origin rpy="0 0 0.0" xyz="0.0 0.0 0.2"/>
                     <axis xyz="0 1 0"/>
-                    <dynamics damping="0.05"/>
+                    <dynamics damping="0.02"/>
                 </joint>
             
                 <link name="payload_block_3">
                     <visual>
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.05"/>  <!-- z = height/2 + 0.02 -->
+                    <origin rpy="0 0 0" xyz="0.0 0.0 0.2"/>  <!-- z = height/2 + 0.02 -->
                     <geometry>
-                        <box size="0.15 0.15 0.05"/>
+                        <box size="0.15 0.15 0.2"/>
                     </geometry>
                     <material name="Yellow"/>
                     </visual>
                     <collision>
-                    <origin rpy="0 0 0" xyz="0.00 0.00 0.05"/> <!-- z = height/2 + 0.02 -->
+                    <origin rpy="0 0 0" xyz="0.00 0.00 0.2"/> <!-- z = height/2 + 0.02 -->
                     <geometry>
-                        <box size="0.15 0.15 0.05"/>
+                        <box size="0.15 0.15 0.2"/>
                     </geometry>
                     </collision>
                     <inertial>
                     <!-- CENTER OF MASS -->
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.025"/>
-                    <mass value="2.0"/>
+                    <origin rpy="0 0 0" xyz="0.0 0.0 0.1"/>
+                    <mass value="8.333333333333334"/>
                     <!-- box inertia: 1/12*m(y^2+z^2), ... -->
-                    <inertia ixx="0.004166666666666667" ixy="0" ixz="0" iyy="0.004166666666666667" iyz="0" izz="0.0075"/>
+                    <inertia ixx="0.043402777777777776" ixy="0" ixz="0" iyy="0.043402777777777776" iyz="0" izz="0.031249999999999997"/>
                     </inertial>
                 </link>
             
                 <joint name="payload3_payload4" type="revolute">
                     <parent link="payload_block_3"/>
                     <child link="payload_block_4"/>
-                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="10.0"/>
-                    <origin rpy="0 0 0.0" xyz="0.0 0.0 0.05"/>
+                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="20.0"/>
+                    <origin rpy="0 0 0.0" xyz="0.0 0.0 0.2"/>
                     <axis xyz="1 0 0"/>
-                    <dynamics damping="0.05"/>
+                    <dynamics damping="0.02"/>
                 </joint>
             
                 <link name="payload_block_4">
                     <visual>
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.05"/>  <!-- z = height/2 + 0.02 -->
+                    <origin rpy="0 0 0" xyz="0.0 0.0 0.2"/>  <!-- z = height/2 + 0.02 -->
                     <geometry>
-                        <box size="0.15 0.15 0.05"/>
+                        <box size="0.15 0.15 0.2"/>
                     </geometry>
                     <material name="Green"/>
                     </visual>
                     <collision>
-                    <origin rpy="0 0 0" xyz="0.00 0.00 0.05"/> <!-- z = height/2 + 0.02 -->
+                    <origin rpy="0 0 0" xyz="0.00 0.00 0.2"/> <!-- z = height/2 + 0.02 -->
                     <geometry>
-                        <box size="0.15 0.15 0.05"/>
+                        <box size="0.15 0.15 0.2"/>
                     </geometry>
                     </collision>
                     <inertial>
                     <!-- CENTER OF MASS -->
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.025"/>
-                    <mass value="2.0"/>
+                    <origin rpy="0 0 0" xyz="0.0 0.0 0.1"/>
+                    <mass value="8.333333333333334"/>
                     <!-- box inertia: 1/12*m(y^2+z^2), ... -->
-                    <inertia ixx="0.004166666666666667" ixy="0" ixz="0" iyy="0.004166666666666667" iyz="0" izz="0.0075"/>
+                    <inertia ixx="0.043402777777777776" ixy="0" ixz="0" iyy="0.043402777777777776" iyz="0" izz="0.031249999999999997"/>
                     </inertial>
                 </link>
             
                 <joint name="payload4_payload5" type="revolute">
                     <parent link="payload_block_4"/>
                     <child link="payload_block_5"/>
-                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="10.0"/>
-                    <origin rpy="0 0 0.0" xyz="0.0 0.0 0.05"/>
+                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="20.0"/>
+                    <origin rpy="0 0 0.0" xyz="0.0 0.0 0.2"/>
                     <axis xyz="0 1 0"/>
-                    <dynamics damping="0.05"/>
+                    <dynamics damping="0.02"/>
                 </joint>
             
                 <link name="payload_block_5">
                     <visual>
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.05"/>  <!-- z = height/2 + 0.02 -->
+                    <origin rpy="0 0 0" xyz="0.0 0.0 0.2"/>  <!-- z = height/2 + 0.02 -->
                     <geometry>
-                        <box size="0.15 0.15 0.05"/>
+                        <box size="0.15 0.15 0.2"/>
                     </geometry>
                     <material name="Yellow"/>
                     </visual>
                     <collision>
-                    <origin rpy="0 0 0" xyz="0.00 0.00 0.05"/> <!-- z = height/2 + 0.02 -->
+                    <origin rpy="0 0 0" xyz="0.00 0.00 0.2"/> <!-- z = height/2 + 0.02 -->
                     <geometry>
-                        <box size="0.15 0.15 0.05"/>
+                        <box size="0.15 0.15 0.2"/>
                     </geometry>
                     </collision>
                     <inertial>
                     <!-- CENTER OF MASS -->
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.025"/>
-                    <mass value="2.0"/>
+                    <origin rpy="0 0 0" xyz="0.0 0.0 0.1"/>
+                    <mass value="8.333333333333334"/>
                     <!-- box inertia: 1/12*m(y^2+z^2), ... -->
-                    <inertia ixx="0.004166666666666667" ixy="0" ixz="0" iyy="0.004166666666666667" iyz="0" izz="0.0075"/>
-                    </inertial>
-                </link>
-            
-                <joint name="payload5_payload6" type="revolute">
-                    <parent link="payload_block_5"/>
-                    <child link="payload_block_6"/>
-                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="10.0"/>
-                    <origin rpy="0 0 0.0" xyz="0.0 0.0 0.05"/>
-                    <axis xyz="1 0 0"/>
-                    <dynamics damping="0.05"/>
-                </joint>
-            
-                <link name="payload_block_6">
-                    <visual>
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.05"/>  <!-- z = height/2 + 0.02 -->
-                    <geometry>
-                        <box size="0.15 0.15 0.05"/>
-                    </geometry>
-                    <material name="Green"/>
-                    </visual>
-                    <collision>
-                    <origin rpy="0 0 0" xyz="0.00 0.00 0.05"/> <!-- z = height/2 + 0.02 -->
-                    <geometry>
-                        <box size="0.15 0.15 0.05"/>
-                    </geometry>
-                    </collision>
-                    <inertial>
-                    <!-- CENTER OF MASS -->
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.025"/>
-                    <mass value="2.0"/>
-                    <!-- box inertia: 1/12*m(y^2+z^2), ... -->
-                    <inertia ixx="0.004166666666666667" ixy="0" ixz="0" iyy="0.004166666666666667" iyz="0" izz="0.0075"/>
-                    </inertial>
-                </link>
-            
-                <joint name="payload6_payload7" type="revolute">
-                    <parent link="payload_block_6"/>
-                    <child link="payload_block_7"/>
-                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="10.0"/>
-                    <origin rpy="0 0 0.0" xyz="0.0 0.0 0.05"/>
-                    <axis xyz="0 1 0"/>
-                    <dynamics damping="0.05"/>
-                </joint>
-            
-                <link name="payload_block_7">
-                    <visual>
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.05"/>  <!-- z = height/2 + 0.02 -->
-                    <geometry>
-                        <box size="0.15 0.15 0.05"/>
-                    </geometry>
-                    <material name="Yellow"/>
-                    </visual>
-                    <collision>
-                    <origin rpy="0 0 0" xyz="0.00 0.00 0.05"/> <!-- z = height/2 + 0.02 -->
-                    <geometry>
-                        <box size="0.15 0.15 0.05"/>
-                    </geometry>
-                    </collision>
-                    <inertial>
-                    <!-- CENTER OF MASS -->
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.025"/>
-                    <mass value="2.0"/>
-                    <!-- box inertia: 1/12*m(y^2+z^2), ... -->
-                    <inertia ixx="0.004166666666666667" ixy="0" ixz="0" iyy="0.004166666666666667" iyz="0" izz="0.0075"/>
-                    </inertial>
-                </link>
-            
-                <joint name="payload7_payload8" type="revolute">
-                    <parent link="payload_block_7"/>
-                    <child link="payload_block_8"/>
-                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="10.0"/>
-                    <origin rpy="0 0 0.0" xyz="0.0 0.0 0.05"/>
-                    <axis xyz="1 0 0"/>
-                    <dynamics damping="0.05"/>
-                </joint>
-            
-                <link name="payload_block_8">
-                    <visual>
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.05"/>  <!-- z = height/2 + 0.02 -->
-                    <geometry>
-                        <box size="0.15 0.15 0.05"/>
-                    </geometry>
-                    <material name="Green"/>
-                    </visual>
-                    <collision>
-                    <origin rpy="0 0 0" xyz="0.00 0.00 0.05"/> <!-- z = height/2 + 0.02 -->
-                    <geometry>
-                        <box size="0.15 0.15 0.05"/>
-                    </geometry>
-                    </collision>
-                    <inertial>
-                    <!-- CENTER OF MASS -->
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.025"/>
-                    <mass value="2.0"/>
-                    <!-- box inertia: 1/12*m(y^2+z^2), ... -->
-                    <inertia ixx="0.004166666666666667" ixy="0" ixz="0" iyy="0.004166666666666667" iyz="0" izz="0.0075"/>
-                    </inertial>
-                </link>
-            
-                <joint name="payload8_payload9" type="revolute">
-                    <parent link="payload_block_8"/>
-                    <child link="payload_block_9"/>
-                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="10.0"/>
-                    <origin rpy="0 0 0.0" xyz="0.0 0.0 0.05"/>
-                    <axis xyz="0 1 0"/>
-                    <dynamics damping="0.05"/>
-                </joint>
-            
-                <link name="payload_block_9">
-                    <visual>
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.05"/>  <!-- z = height/2 + 0.02 -->
-                    <geometry>
-                        <box size="0.15 0.15 0.05"/>
-                    </geometry>
-                    <material name="Yellow"/>
-                    </visual>
-                    <collision>
-                    <origin rpy="0 0 0" xyz="0.00 0.00 0.05"/> <!-- z = height/2 + 0.02 -->
-                    <geometry>
-                        <box size="0.15 0.15 0.05"/>
-                    </geometry>
-                    </collision>
-                    <inertial>
-                    <!-- CENTER OF MASS -->
-                    <origin rpy="0 0 0" xyz="0.0 0.0 0.025"/>
-                    <mass value="2.0"/>
-                    <!-- box inertia: 1/12*m(y^2+z^2), ... -->
-                    <inertia ixx="0.004166666666666667" ixy="0" ixz="0" iyy="0.004166666666666667" iyz="0" izz="0.0075"/>
+                    <inertia ixx="0.043402777777777776" ixy="0" ixz="0" iyy="0.043402777777777776" iyz="0" izz="0.031249999999999997"/>
                     </inertial>
                 </link>
              
