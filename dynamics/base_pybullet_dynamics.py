@@ -1,6 +1,7 @@
 from turtle import pos
 from typing import Optional, Tuple, Any
 import numpy as np
+from simulators.dynamics.resources.ramp import Ramp
 from simulators.pybullet_debugger import pybulletDebug
 from .resources.plane import Plane
 from .base_dynamics import BaseDynamics
@@ -39,6 +40,7 @@ class BasePybulletDynamics(BaseDynamics):
         # configure terrain in the dynamics
         self.terrain = config.TERRAIN
         self.terrain_height = config.TERRAIN_HEIGHT
+        self.terrain_gridsize = config.TERRAIN_GRIDSIZE
         self.terrain_friction = config.TERRAIN_FRICTION
 
         self.terrain_data = None
@@ -148,6 +150,9 @@ class BasePybulletDynamics(BaseDynamics):
         p.setRealTimeSimulation(0, physicsClientId = self.client)
         Plane(self.client)
 
+        #! TODO: rewrite this to be more dynamic
+        Ramp(self.client)
+
         if "terrain_data" in kwargs.keys():
             terrain_data = kwargs["terrain_data"]
         else:
@@ -155,9 +160,9 @@ class BasePybulletDynamics(BaseDynamics):
 
         if self.terrain == "rough":
             if terrain_data is None:
-                self._gen_terrain(mesh_scale=[0.2, 0.2, 2.0])
+                self._gen_terrain(mesh_scale=[self.terrain_gridsize, self.terrain_gridsize, 2.0])
             else:
-                self._set_terrain(terrain_data, mesh_scale=[0.2, 0.2, 2.0])
+                self._set_terrain(terrain_data, mesh_scale=[self.terrain_gridsize, self.terrain_gridsize, 2.0])
         
         self._gen_force()
 

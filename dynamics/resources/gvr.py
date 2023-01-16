@@ -5,7 +5,7 @@ import numpy as np
 from simulators.dynamics.resources.utils import *
 
 class GVR:
-    def __init__(self, client, height, orientation, envtype = None, **kwargs):
+    def __init__(self, client, height, orientation, envtype="normal", payload=0.0 , payload_max=10.0, **kwargs):
         self.client = client
         self.height = height
 
@@ -13,13 +13,16 @@ class GVR:
         oy = 0
 
         self.urdf = "gvr_bot/gvrbot_updated.urdf"
+        self.urdf_path = os.path.join(os.path.dirname(__file__), self.urdf)
 
-        if envtype != None:
-            raise NotImplementedError
-        
-        f_name = os.path.join(os.path.dirname(__file__), self.urdf)
+        self.payload = payload
+        self.payload_max = payload_max
+        self.envtype = envtype
 
-        self.id = p.loadURDF(fileName = f_name, basePosition=[ox, oy, self.height], baseOrientation = orientation, physicsClientId = client)
+        if envtype != "normal":
+            self._gen_urdf()
+
+        self.id = p.loadURDF(fileName = self.urdf_path, basePosition=[ox, oy, self.height], baseOrientation = orientation, physicsClientId = client)
 
         '''
         0 b'base_to_L1_wheel'
@@ -122,3 +125,139 @@ class GVR:
         right_vel = [state[1] for state in right_wheel_joint_state]
         return [left_vel[0], right_vel[0]]
 
+    def _gen_urdf(self):
+        fin = open(self.urdf_path)
+        urdf_content = fin.read()
+        fin.close()
+
+        payload_definition = ""
+        
+        # Update payload scale
+        if self.envtype == 'payload':
+            payload_definition = """<!-- ADDING PAYLOAD -->
+                <joint name="body_payload" type="fixed">
+                    <parent link="base_link"/>
+                    <child link="payload"/>
+                </joint>
+                <link name="payload">
+                    <visual>
+                    <origin rpy="0 0 0" xyz="0.0 0.0 @ZLOCATION"/>  <!-- z = height/2 + 0.02 -->
+                    <geometry>
+                        <box size="0.15 0.15 @HEIGHT"/>
+                    </geometry>
+                    <material name="Yellow"/>
+                    </visual>
+                    <collision>
+                    <origin rpy="0 0 0" xyz="0.00 0.00 @ZLOCATION"/> <!-- z = height/2 + 0.02 -->
+                    <geometry>
+                        <box size="0.15 0.15 @HEIGHT"/>
+                    </geometry>
+                    </collision>
+                    <inertial>
+                    <!-- CENTER OF MASS -->
+                    <origin rpy="0 0 0" xyz="0.0 0.0 @ZCOM"/>
+                    <mass value="@MASS"/>
+                    <!-- box inertia: 1/12*m(y^2+z^2), ... -->
+                    <inertia ixx="@IXX" ixy="0" ixz="0" iyy="@IYY" iyz="0" izz="@IZZ"/>
+                    </inertial>
+                </link>
+                <!-- END PAYLOAD --> 
+            """
+
+            payload_mass = self.payload * self.payload_max
+            payload_height = self.payload * 0.45
+            payload_definition = payload_definition \
+                .replace('@MASS', str(payload_mass) ) \
+                .replace('@HEIGHT', str(payload_height) ) \
+                .replace('@ZLOCATION', str(payload_height/2+0.02) ) \
+                .replace('@IXX', str(1/12 * payload_mass * (0.15*0.15 + payload_height * payload_height))) \
+                .replace('@IYY', str(1/12 * payload_mass * (0.15*0.15 + payload_height * payload_height))) \
+                .replace('@IZZ', str(1/12 * payload_mass * (2 * 0.15*0.15)))
+        
+        elif self.envtype == 'spring':
+            payload_mass = self.payload * self.payload_max
+            payload_blocks = 10
+            payload_active = int(self.payload * payload_blocks)
+            block_mass = self.payload_max / float(payload_blocks)
+
+            remaining = 0
+            if not payload_active * block_mass == payload_mass:
+                remaining = payload_mass - payload_active * block_mass
+                
+            fixed_joint_definition = """
+                <joint name="@JOINTNAME" type="fixed">
+                    <parent link="@PARENTLINK"/>
+                    <child link="@CHILDLINK"/>
+                </joint>
+            """
+
+            revolute_joint_definition = """
+                <joint name="@JOINTNAME" type="revolute">
+                    <parent link="@PARENTLINK"/>
+                    <child link="@CHILDLINK"/>
+                    <limit effort="10.0" lower="-0.5" upper="0.5" velocity="10.0"/>
+                    <origin rpy="0 0 0.0" xyz="0.0 0.0 @ZLOCATION"/>
+                    <axis xyz="@AXIS"/>
+                    <dynamics damping="0.05"/>
+                </joint>
+            """
+
+            block_definition = """
+                <link name="@LINKNAME">
+                    <visual>
+                    <origin rpy="0 0 0" xyz="0.0 0.0 @ZLOCATION"/>  <!-- z = height/2 + 0.02 -->
+                    <geometry>
+                        <box size="0.15 0.15 0.05"/>
+                    </geometry>
+                    <material name="@COLOR"/>
+                    </visual>
+                    <collision>
+                    <origin rpy="0 0 0" xyz="0.00 0.00 @ZLOCATION"/> <!-- z = height/2 + 0.02 -->
+                    <geometry>
+                        <box size="0.15 0.15 0.05"/>
+                    </geometry>
+                    </collision>
+                    <inertial>
+                    <!-- CENTER OF MASS -->
+                    <origin rpy="0 0 0" xyz="0.0 0.0 0.025"/>
+                    <mass value="@MASS"/>
+                    <!-- box inertia: 1/12*m(y^2+z^2), ... -->
+                    <inertia ixx="@IXX" ixy="0" ixz="0" iyy="@IYY" iyz="0" izz="@IZZ"/>
+                    </inertial>
+                </link>
+            """
+
+            payload_definition = "<!-- ADDING PAYLOAD -->\n"
+            if remaining > 0.01:
+                total_range = payload_active +1
+            else:
+                total_range = payload_active
+            for se_ in range(total_range):
+                if not se_:
+                    #the fixed joint should always be the first element of the definition
+                    payload_definition += fixed_joint_definition\
+                        .replace("@JOINTNAME","body_payload")\
+                        .replace("@PARENTLINK","base_link")\
+                        .replace("@CHILDLINK",f"payload_block_{se_}")
+                else:
+                    payload_definition += revolute_joint_definition\
+                        .replace("@JOINTNAME",f"payload{se_-1}_payload{se_}")\
+                        .replace("@PARENTLINK",f"payload_block_{se_-1}")\
+                        .replace("@CHILDLINK",f"payload_block_{se_}")\
+                        .replace("@ZLOCATION","0.05")\
+                        .replace("@AXIS","0 1 0" if se_ % 2 else "1 0 0")
+                current_block_mass = block_mass if se_ != payload_active else remaining
+                payload_definition += block_definition\
+                    .replace("@LINKNAME",f"payload_block_{se_}")\
+                    .replace("@COLOR", "Yellow" if se_ % 2 else "Green" )\
+                    .replace("@ZLOCATION","0.05")\
+                    .replace("@MASS",str(block_mass))\
+                    .replace('@IXX', str(1/12 * block_mass * (0.15*0.15 + 0.05 * 0.05))) \
+                    .replace('@IYY', str(1/12 * block_mass * (0.15*0.15 + 0.05 * 0.05))) \
+                    .replace('@IZZ', str(1/12 * block_mass * (2 * 0.15*0.15)))
+            payload_definition += " \n<!-- END PAYLOAD -->"
+        
+        self.urdf_path = self.urdf_path[:-5]+"_tmp.urdf"
+        fout = open(self.urdf_path, "w")
+        fout.write(urdf_content.replace("<!-- PAYLOAD_PLACEHOLDER -->", payload_definition))
+        fout.close()

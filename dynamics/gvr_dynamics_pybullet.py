@@ -37,6 +37,10 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
         self.adv_debug_line_id = None
         self.shielding_status_debug_text_id = None
 
+        self.envtype = config.ENVTYPE
+        self.payload = config.PAYLOAD
+        self.payload_max = config.PAYLOAD_MAX
+
         self.reset()
     
     def reset(self, **kwargs):
@@ -65,9 +69,9 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
             
             if height is None:
                 if self.height_reset:  # Drops from the air.
-                    height = 0.2 + np.random.rand()*0.1
+                    height = 2.4 + np.random.rand()*0.2
                 else:
-                    height = 0.4
+                    height = 2.8
             self.initial_height = height
 
             if rotate is None:
@@ -77,7 +81,8 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
                     rotate = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
             self.initial_rotation = rotate
             
-            self.robot = GVR(self.client, height, rotate, **kwargs)
+            self.robot = GVR(self.client, height, rotate, 
+                envtype=self.envtype, payload=self.payload, payload_max=self.payload_max, **kwargs)
 
             if not is_rollout_shielding_reset:
                 if random_joint_value is None:
