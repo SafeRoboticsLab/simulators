@@ -61,7 +61,7 @@ class GVR:
     
     def apply_action(self, action):
         # first 2 actions are the increment of the left and right flipper angular position, next 2 actions are the target velocity of the left and right wheel, respectively
-        new_flipper_angle = np.array(self.get_flipper_joint_position()) + np.array(action)
+        new_flipper_angle = np.array(self.get_flipper_joint_position()) + np.array(action[0:2])
         for joint in range(p.getNumJoints(self.id)):
             info = p.getJointInfo(self.id, joint)
             if "LF_flipper" in str(info[1]):
@@ -118,5 +118,7 @@ class GVR:
         left_wheel_joint_state = p.getJointStates(self.id, jointIndices = self.left_wheel_index, physicsClientId = self.client)
         right_wheel_joint_state = p.getJointStates(self.id, jointIndices = self.right_wheel_index, physicsClientId = self.client)
         #! NEED CHECK: assume that all wheels of each side is the same, so only take the first wheel vel and return
-        return [left_wheel_joint_state[0], right_wheel_joint_state[0]]
+        left_vel = [state[1] for state in left_wheel_joint_state]
+        right_vel = [state[1] for state in right_wheel_joint_state]
+        return [left_vel[0], right_vel[0]]
 

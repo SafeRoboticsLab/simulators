@@ -53,6 +53,9 @@ class Agent:
       # Prevents from opening a pybullet simulator when we don't need to.
       from .dynamics.spirit_dynamics_pybullet import SpiritDynamicsPybullet
       self.dyn = SpiritDynamicsPybullet(config, action_space)
+    elif config.DYN == "GVRPybullet":
+      from .dynamics.gvr_dynamics_pybullet import GVRDynamicsPybullet
+      self.dyn = GVRDynamicsPybullet(config, action_space)
     else:
       raise ValueError("Dynamics type not supported!")
 
