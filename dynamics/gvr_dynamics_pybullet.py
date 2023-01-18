@@ -12,22 +12,36 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
         #! TODO: FIX THIS, SO THAT THERE WILL BE A SEPARATE DYNAMICS WHEN WE USE ISAACS (BaseDstbDynamics instead of BaseDynamics)
         if isinstance(action_space, dict):
             super().__init__(config, action_space["ctrl"])
-            self.flipper_increment_min = action_space["ctrl"][0, 0]
-            self.flipper_increment_max = action_space["ctrl"][0, 1]
-            self.wheel_velocity_min = action_space["ctrl"][2, 0]
-            self.wheel_velocity_max = action_space["ctrl"][2, 1]
+            if config.FLIPPER:
+                self.flipper_increment_min = action_space["ctrl"][0, 0]
+                self.flipper_increment_max = action_space["ctrl"][0, 1]
+                self.wheel_velocity_min = action_space["ctrl"][2, 0]
+                self.wheel_velocity_max = action_space["ctrl"][2, 1]
+            else:
+                self.wheel_velocity_min = action_space["ctrl"][0, 0]
+                self.wheel_velocity_max = action_space["ctrl"][0, 1]
         else:
             super().__init__(config, action_space)
-            self.flipper_increment_min = action_space[0, 0]
-            self.flipper_increment_max = action_space[0, 1]
-            self.wheel_velocity_min = action_space[2, 0]
-            self.wheel_velocity_max = action_space[2, 1]
+            if config.FLIPPER:
+                self.flipper_increment_min = action_space[0, 0]
+                self.flipper_increment_max = action_space[0, 1]
+                self.wheel_velocity_min = action_space[2, 0]
+                self.wheel_velocity_max = action_space[2, 1]
+            else:
+                self.wheel_velocity_min = action_space[0, 0]
+                self.wheel_velocity_max = action_space[0, 1]
         
-        self.dim_x = 26 # 9 + 9 + 4 + 4
-        self.dim_u = 4
+        if config.FLIPPER:
+            self.dim_u = 4
+            self.dim_x = 26 # 9 + 9 + 4 + 4
+        else:
+            self.dim_u = 2
+            self.dim_x = 22 # 9 + 9 + 2 + 2
 
         self.flipper_min = -1.57
         self.flipper_max = 1.57
+
+        self.has_flipper = config.FLIPPER
 
         self.initial_height = None
         self.initial_rotation = None
@@ -68,40 +82,52 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
                 is_rollout_shielding_reset = False
             
             if height is None:
-                if self.height_reset:  # Drops from the air.
-                    height = 2.4 + np.random.rand()*0.2
+                if self.height_reset:
+                    height = 0.4 + np.random.rand()*0.2
                 else:
-                    height = 2.8
+                    height = 0.6
             self.initial_height = height
 
             if rotate is None:
-                if self.rotate_reset:  # Resets the yaw, pitch, roll.
-                    rotate = p.getQuaternionFromEuler((np.random.rand(3)-0.5) * np.pi * 0.125)
+                if self.rotate_reset:  # Resets the x, y, z.
+                    rotate = p.getQuaternionFromEuler(np.concatenate((
+                            (np.random.rand(2)-0.5) * np.pi * 0.125,
+                            np.array([np.random.uniform(0.0, 2*np.pi)])
+                        ), axis=0))
                 else:
                     rotate = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
             self.initial_rotation = rotate
             
             self.robot = GVR(self.client, height, rotate, 
-                envtype=self.envtype, payload=self.payload, payload_max=self.payload_max, **kwargs)
+                envtype=self.envtype, payload=self.payload, payload_max=self.payload_max, has_flipper=self.has_flipper, **kwargs)
 
             if not is_rollout_shielding_reset:
-                if random_joint_value is None:
-                    random_joint_value = self.get_random_joint_value()
-                self.initial_joint_value = random_joint_value
-                
-                self.robot.reset(random_joint_value)
-                self.robot.apply_position(random_joint_value)
+                if self.has_flipper:
+                    if random_joint_value is None:
+                        random_joint_value = self.get_random_joint_value()
+                    self.initial_joint_value = random_joint_value
+                    
+                    self.robot.reset(random_joint_value)
+                    self.robot.apply_position(random_joint_value)
 
                 for t in range(0, 100):
                     p.stepSimulation(physicsClientId = self.client)
 
             spirit_initial_obs = self.robot.get_obs()
-            self.state = np.concatenate((
-                np.array(spirit_initial_obs, dtype=np.float32), 
-                np.array(spirit_initial_obs, dtype=np.float32), 
-                np.concatenate((random_joint_value, np.array([0.0, 0.0])), axis=0), 
-                np.concatenate((random_joint_value, np.array([0.0, 0.0])), axis=0),
-            ), axis = 0)
+            if self.has_flipper:
+                self.state = np.concatenate((
+                    np.array(spirit_initial_obs, dtype=np.float32), 
+                    np.array(spirit_initial_obs, dtype=np.float32), 
+                    np.concatenate((random_joint_value, np.array([0.0, 0.0])), axis=0), 
+                    np.concatenate((random_joint_value, np.array([0.0, 0.0])), axis=0),
+                ), axis = 0)
+            else:
+                self.state = np.concatenate((
+                    np.array(spirit_initial_obs, dtype=np.float32), 
+                    np.array(spirit_initial_obs, dtype=np.float32), 
+                    np.array([0.0, 0.0]), 
+                    np.array([0.0, 0.0]),
+                ), axis = 0)
 
             if max(self.robot.safety_margin(self.state).values()) <= 0 or is_rollout_shielding_reset:
                 break
@@ -125,22 +151,27 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
             has_adversarial = False
 
         gvr_old_obs = self.robot.get_obs()
-        gvr_old_joint_pos = np.array(self.robot.get_flipper_joint_position(), dtype = np.float32)
+        if self.has_flipper:
+            gvr_old_joint_pos = np.array(self.robot.get_flipper_joint_position(), dtype = np.float32)
         gvr_old_wheel_vel = np.array(self.robot.get_wheel_velocity(), dtype = np.float32)
 
         clipped_control = []
 
-        for i, j in enumerate(control[0:2]):
-            increment = np.clip(j, self.flipper_increment_min, self.flipper_increment_max)
-            if self.flipper_min <= gvr_old_joint_pos[i] + increment <= self.flipper_max:
-                clipped_control.append(increment)
-            else:
-                clipped_control.append(
-                    np.clip(gvr_old_joint_pos[i] + increment, self.flipper_min, self.flipper_max) - gvr_old_joint_pos[i]
-                )
-        
-        for i, j in enumerate(control[2:4]):
-            clipped_control.append(np.clip(j, self.wheel_velocity_min, self.wheel_velocity_max))
+        if self.has_flipper:
+            for i, j in enumerate(control[0:2]):
+                increment = np.clip(j, self.flipper_increment_min, self.flipper_increment_max)
+                if self.flipper_min <= gvr_old_joint_pos[i] + increment <= self.flipper_max:
+                    clipped_control.append(increment)
+                else:
+                    clipped_control.append(
+                        np.clip(gvr_old_joint_pos[i] + increment, self.flipper_min, self.flipper_max) - gvr_old_joint_pos[i]
+                    )
+            
+            for i, j in enumerate(control[2:4]):
+                clipped_control.append(np.clip(j, self.wheel_velocity_min, self.wheel_velocity_max))
+        else:
+            for i, j in enumerate(control[0:2]):
+                clipped_control.append(np.clip(j, self.wheel_velocity_min, self.wheel_velocity_max))
         
         self.robot.apply_action(clipped_control)
         if has_adversarial:
@@ -169,14 +200,22 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
             self.render()
         
         gvr_new_obs = np.array(self.robot.get_obs(), dtype = np.float32)
-        gvr_new_joint_pos = np.array(self.robot.get_flipper_joint_position(), dtype = np.float32)
+        if self.has_flipper:
+            gvr_new_joint_pos = np.array(self.robot.get_flipper_joint_position(), dtype = np.float32)
         gvr_new_wheel_vel = np.array(self.robot.get_wheel_velocity(), dtype = np.float32)
 
-        self.state = np.concatenate((
-            gvr_new_obs, 
-            gvr_old_obs, 
-            np.concatenate((gvr_new_joint_pos, gvr_new_wheel_vel), axis=0), 
-            np.concatenate((gvr_old_joint_pos, gvr_old_wheel_vel), axis=0)), axis=0)
+        if self.has_flipper:
+            self.state = np.concatenate((
+                gvr_new_obs, 
+                gvr_old_obs, 
+                np.concatenate((gvr_new_joint_pos, gvr_new_wheel_vel), axis=0), 
+                np.concatenate((gvr_old_joint_pos, gvr_old_wheel_vel), axis=0)), axis=0)
+        else:
+            self.state = np.concatenate((
+                gvr_new_obs, 
+                gvr_old_obs, 
+                gvr_new_wheel_vel, 
+                gvr_old_wheel_vel), axis=0)
         
         self.cnt += 1
 

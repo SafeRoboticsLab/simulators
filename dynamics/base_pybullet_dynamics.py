@@ -27,6 +27,7 @@ class BasePybulletDynamics(BaseDynamics):
 
         # configure force in the dynamics
         self.force = float(config.FORCE)
+        self.force_info = config.FORCE_INFO
         self.elapsed_force_applied = 0
         self.force_applied_reset = config.FORCE_RESET_TIME
 
@@ -151,7 +152,7 @@ class BasePybulletDynamics(BaseDynamics):
         Plane(self.client)
 
         #! TODO: rewrite this to be more dynamic
-        Ramp(self.client)
+        # Ramp(self.client)
 
         if "terrain_data" in kwargs.keys():
             terrain_data = kwargs["terrain_data"]
@@ -182,11 +183,23 @@ class BasePybulletDynamics(BaseDynamics):
         """
         # create a random force applied on the robot
         self.elapsed_force_applied = 0
-        if self.force_random:
+        if self.force_info != None:
+            self.force_applied_force_vector = np.array([
+                np.random.uniform(self.force_info["vector"][0][0], self.force_info["vector"][0][1]),
+                np.random.uniform(self.force_info["vector"][1][0], self.force_info["vector"][1][1]),
+                np.random.uniform(self.force_info["vector"][2][0], self.force_info["vector"][2][1])
+            ]) * self.force
+            self.force_applied_position_vector = np.array([
+                np.random.uniform(self.force_info["position"][0][0], self.force_info["position"][0][1]),
+                np.random.uniform(self.force_info["position"][1][0], self.force_info["position"][1][1]),
+                np.random.uniform(self.force_info["position"][2][0], self.force_info["position"][2][1])
+            ])
+        elif self.force_random:
             self.force_applied_force_vector = np.array([np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)]) * self.force
+            self.force_applied_position_vector = np.array([np.random.uniform(-0.1, 0.1), np.random.uniform(-0.1, 0.1), np.random.uniform(0, 0.5)])
         else:
             self.force_applied_force_vector = np.array([np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-50, 5)]) * self.force
-        self.force_applied_position_vector = np.array([np.random.uniform(-0.1, 0.1), np.random.uniform(-0.1, 0.1), np.random.uniform(0, 0.5)])
+            self.force_applied_position_vector = np.array([np.random.uniform(-0.1, 0.1), np.random.uniform(-0.1, 0.1), np.random.uniform(0, 0.5)])
     
     def _apply_adversarial_force(self, force_vector, position_vector):
         self.force_applied_force_vector = force_vector * self.force

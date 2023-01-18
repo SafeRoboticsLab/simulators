@@ -5,7 +5,7 @@ import numpy as np
 from simulators.dynamics.resources.utils import *
 
 class GVR:
-    def __init__(self, client, height, orientation, envtype="normal", payload=0.0 , payload_max=10.0, **kwargs):
+    def __init__(self, client, height, orientation, envtype="normal", payload=0.0 , payload_max=10.0, has_flipper=False, **kwargs):
         self.client = client
         self.height = height
 
@@ -18,6 +18,8 @@ class GVR:
         self.payload = payload
         self.payload_max = payload_max
         self.envtype = envtype
+
+        self.has_flipper = has_flipper
 
         if envtype != "normal":
             self._gen_urdf()
@@ -51,9 +53,9 @@ class GVR:
         23 b'base_to_RF_flipper'
         '''
 
-        self.flipper_joint_index = [22, 23]
         self.left_wheel_index = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         self.right_wheel_index = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+        self.flipper_joint_index = [22, 23]
 
     def get_ids(self):
         return self.id, self.client
@@ -64,18 +66,26 @@ class GVR:
     
     def apply_action(self, action):
         # first 2 actions are the increment of the left and right flipper angular position, next 2 actions are the target velocity of the left and right wheel, respectively
-        new_flipper_angle = np.array(self.get_flipper_joint_position()) + np.array(action[0:2])
+        # if there is no flipper, action will only be for the wheels
+        if self.has_flipper:
+            new_flipper_angle = np.array(self.get_flipper_joint_position()) + np.array(action[0:2])
         for joint in range(p.getNumJoints(self.id)):
             info = p.getJointInfo(self.id, joint)
-            if "LF_flipper" in str(info[1]):
-                p.setJointMotorControl2(self.id, joint, p.POSITION_CONTROL, targetPosition = new_flipper_angle[0], force=info[10], maxVelocity=info[11])
-            elif "RF_flipper" in str(info[1]):
-                p.setJointMotorControl2(self.id, joint, p.POSITION_CONTROL, targetPosition = new_flipper_angle[1], force=info[10], maxVelocity=info[11])
+            if self.has_flipper:
+                if "LF_flipper" in str(info[1]):
+                    p.setJointMotorControl2(self.id, joint, p.POSITION_CONTROL, targetPosition = new_flipper_angle[0], force=info[10], maxVelocity=info[11])
+                elif "RF_flipper" in str(info[1]):
+                    p.setJointMotorControl2(self.id, joint, p.POSITION_CONTROL, targetPosition = new_flipper_angle[1], force=info[10], maxVelocity=info[11])
+                else:
+                    if "base_to_L" in str(info[1]):
+                        p.setJointMotorControl2(self.id, joint, p.VELOCITY_CONTROL, targetVelocity = action[2])
+                    elif "base_to_R" in str(info[1]):
+                        p.setJointMotorControl2(self.id, joint, p.VELOCITY_CONTROL, targetVelocity = action[3])
             else:
                 if "base_to_L" in str(info[1]):
-                    p.setJointMotorControl2(self.id, joint, p.VELOCITY_CONTROL, targetVelocity = action[2])
+                        p.setJointMotorControl2(self.id, joint, p.VELOCITY_CONTROL, targetVelocity = action[0])
                 elif "base_to_R" in str(info[1]):
-                    p.setJointMotorControl2(self.id, joint, p.VELOCITY_CONTROL, targetVelocity = action[3])
+                    p.setJointMotorControl2(self.id, joint, p.VELOCITY_CONTROL, targetVelocity = action[1])
     
     def apply_position(self, action):
         # only apply for flippers
@@ -129,6 +139,73 @@ class GVR:
         fin = open(self.urdf_path)
         urdf_content = fin.read()
         fin.close()
+
+        flipper_definition = """
+            <!-- FRONT LEFT FLIPPER-->
+
+            <joint name="base_to_LF_flipper" type="revolute">
+                <parent link="base_link"/>
+                <child link="LF_flipper_main"/>
+                <limit effort="30.0" lower="-1.57079632679" upper="1.57079632679" velocity="7.0"/>
+                <!--Add the wheel thickness and the half width of the flipper and 7 mm to get the y offset-->
+                <origin xyz="0.2605 -0.2418 0.0125"/>
+                <axis xyz="0 1 0"/>
+                <dynamics damping="0.0"/>
+            </joint>
+
+            <link name="LF_flipper_main">
+                <visual>
+                <geometry>
+                    <mesh filename="gvrbot_step_files/flipper.stl" scale="0.001 0.001 0.001"/>
+                </geometry>
+                <origin rpy="0 0 1.57075" xyz="0 0 0"/>
+                <material name="Blue" />
+                </visual>
+                <collision>
+                <geometry>
+                    <mesh filename="gvrbot_step_files/flipper.stl" scale="0.001 0.001 0.001"/>
+                </geometry>
+                <origin rpy="0 0 1.57075" xyz="0 0 0"/>
+                </collision>
+                <inertial>
+                    <mass value="1.026" />
+                    <origin rpy="0 0 0" xyz="0.03 0 0 " />
+                    <inertia ixx="0.000926" ixy="0" ixz="0" iyy="0.001459" iyz="0" izz="0.00825" />
+                </inertial>
+            </link>
+            
+            <!-- FRONT RIGHT FLIPPER-->
+
+            <joint name="base_to_RF_flipper" type="revolute">
+                <parent link="base_link"/>
+                <child link="RF_flipper_main"/>
+                <limit effort="30.0" lower="-1.57079632679" upper="1.57079632679" velocity="7.0"/>
+                <origin xyz="0.2605 0.2418 0.0125"/>
+                <axis xyz="0 1 0"/>
+                <dynamics damping="0.0"/>
+            </joint>
+
+            <link name="RF_flipper_main">
+                <visual>
+                <geometry>
+                    <mesh filename="gvrbot_step_files/flipper.stl" scale="0.001 0.001 0.001"/>
+                </geometry>
+                <origin rpy="0 0 1.57075" xyz="0 0 0"/>
+                <material name="Blue" />
+                </visual>
+                <collision>
+                <geometry>
+                    <mesh filename="gvrbot_step_files/flipper.stl" scale="0.001 0.001 0.001"/>
+                </geometry>
+                <origin rpy="0 0 1.57075" xyz="0 0 0"/>
+                </collision>
+                <inertial>
+                    <mass value="1.026" />
+                    <origin rpy="0 0 0" xyz="0.03 0 0" />
+                    <inertia ixx="0.000926" ixy="0" ixz="0" iyy="0.001459" iyz="0" izz="0.00825" />
+                </inertial>
+            </link>
+        """
 
         payload_definition = ""
         
@@ -258,7 +335,69 @@ class GVR:
                     .replace('@IZZ', str(1/12 * block_mass * (2 * 0.15*0.15)))
             payload_definition += " \n<!-- END PAYLOAD -->"
         
+        elif self.envtype == "sail":
+            payload_definition = """
+                <!-- ADDING PAYLOAD -->
+                <joint name="body_payload" type="fixed">
+                    <parent link="base_link"/>
+                    <child link="sail_base"/>
+                </joint>
+
+                <link name="sail_base">
+                    <visual>
+                        <origin rpy="0 0 0" xyz="-0.194 0.0 0.48"/>
+                        <geometry>
+                            <box size="0.03 0.05 0.90"/>
+                        </geometry>
+                        <material name="Black"/>
+                    </visual>
+                    <collision>
+                        <origin rpy="0 0 0" xyz="-0.194 0 0.48"/>
+                        <geometry>
+                            <box size="0.03 0.05 0.90"/>
+                        </geometry>
+                    </collision>
+                    <inertial>
+                        <origin rpy="0 0 0" xyz="0.015 0.025 0.45"/>
+                        <mass value="1.0"/>
+                        <inertia ixx="0.017" ixy="0.0" ixz="0.0" iyy="0.017" iyz="0.0" izz="0.00007"/>
+                    </inertial>
+                </link>
+
+                <joint name="sail_connector" type="fixed">
+                    <parent link="sail_base"/>
+                    <child link="sail_panel"/>
+                </joint>
+
+                <link name="sail_panel">
+                    <visual>
+                        <origin rpy="0 0 0" xyz="0.271 0.0 0.53"/>
+                        <geometry>
+                            <box size="0.9 0.02 0.8"/>
+                        </geometry>
+                        <material name="Black"/>
+                    </visual>
+                    <collision>
+                        <origin rpy="0 0 0" xyz="0.271 0 0.53"/>
+                        <geometry>
+                            <box size="0.9 0.02 0.8"/>
+                        </geometry>
+                    </collision>
+                    <inertial>
+                        <origin rpy="0 0 0" xyz="0.45 0.01 0.4"/>
+                        <mass value="1.0"/>
+                        <inertia ixx="0.053" ixy="0.0" ixz="0.0" iyy="0.12" iyz="0.0" izz="0.067"/>
+                    </inertial>
+                </link>
+                <!-- END PAYLOAD -->
+            """
+        
         self.urdf_path = self.urdf_path[:-5]+"_tmp.urdf"
         fout = open(self.urdf_path, "w")
-        fout.write(urdf_content.replace("<!-- PAYLOAD_PLACEHOLDER -->", payload_definition))
+        
+        new_content = urdf_content.replace("<!-- PAYLOAD_PLACEHOLDER -->", payload_definition)
+        if self.has_flipper:
+            new_content = new_content.replace("<!-- FLIPPERS_PLACEHOLDER -->", flipper_definition)
+        
+        fout.write(new_content)
         fout.close()
