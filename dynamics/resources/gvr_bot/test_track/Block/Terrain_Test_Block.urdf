@@ -1,23 +1,40 @@
 <?xml version="1.0" ?>
-<robot name="Terrain_Test_Block.urdf">
-	<link name="Terrain_Block">
-		<visual>
-			<origin xyz="0 0 0" rpy="0 0 0" />
-			<geometry>
-				<mesh filename="./Terrain_Test_Block_meters.obj" scale="1.0 1.0 1.0" />
-			</geometry>
-			<material name="texture">
-				<color rgba="1.0 1.0 1.0 1.0" />
-			</material>
-		</visual>
-		<collision>
-			<geometry>
-				<mesh filename="./Terrain_Test_Block_meters.obj" scale="1.0 1.0 1.0" />
-			</geometry>
-		<origin xyz="0 0 0" rpy="0 0 0" /></collision>
-		<inertial>
-			<mass value="1000.0" />
-			<inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0" />
-		</inertial>
+<robot name="terrain_block">
+  
+  <link name="world">
+  </link>
+  
+  <link name="block">
+    <contact>
+      <lateral_friction value="1.0"/>
+      <rolling_friction value="0.0"/>
+      <contact_cfm value="0.0"/>
+      <contact_erp value="1.0"/>
+    </contact>
+    <visual>
+		<origin xyz="0 0 0" rpy="0 0 0" />
+		<geometry>
+			<mesh filename="./Terrain_Test_Block_meters.obj" scale="1.0 1.0 1.0" />
+		</geometry>
+		<material name="texture">
+			<color rgba="1.0 0 0 1.0" />
+		</material>
+	</visual>
+	<collision>
+		<geometry>
+			<mesh filename="./Terrain_Test_Block_meters.obj" scale="1.0 1.0 1.0" />
+		</geometry>
+	<origin xyz="0 0 0" rpy="0 0 0" /></collision>
+	<inertial>
+		<mass value="1000.0" />
+		<inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0" />
+	</inertial>
 	</link>
+  
+  <joint name="ramp_to_plane" type="fixed">
+    <parent link="world"/>
+    <child link="block"/>
+    <origin xyz="0 0 0" rpy="1.57079 0 0"/>
+  </joint>
+
 </robot>
