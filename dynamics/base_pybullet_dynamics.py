@@ -37,6 +37,7 @@ class BasePybulletDynamics(BaseDynamics):
         self.force_applied_force_vector = None
         self.force_applied_position_vector = None
         self.force_random = config.FORCE_RANDOM
+        self.link_name = config.LINK_NAME
 
         # configure terrain in the dynamics
         self.terrain = config.TERRAIN
@@ -211,8 +212,11 @@ class BasePybulletDynamics(BaseDynamics):
             self._gen_force()
         else:
             self.elapsed_force_applied += 1
-
-        p.applyExternalForce(self.robot.id, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME, physicsClientId = self.client)
+        
+        if self.link_name is not None:
+            p.applyExternalForce(self.robot.id, self.robot.get_link_id(self.link_name), self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME, physicsClientId = self.client)
+        else:
+            p.applyExternalForce(self.robot.id, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME, physicsClientId = self.client)
         p.addUserDebugLine(self.force_applied_position_vector, self.force_applied_position_vector + self.force_applied_force_vector, lineColorRGB=[0, 0, 1], lineWidth=2.0, lifeTime=0.1, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
     
     def _gen_terrain(self, terrain_height: Optional[int]=None, mesh_scale: Optional[np.ndarray]=None):

@@ -142,3 +142,13 @@ class GVR:
         left_vel = [state[1] for state in left_wheel_joint_state]
         right_vel = [state[1] for state in right_wheel_joint_state]
         return [left_vel[0], right_vel[0]]
+    
+    def get_link_id(self, name):
+        _link_name_to_index = {p.getBodyInfo(self.id)[0].decode('UTF-8'):-1,}
+        
+        for _id in range(p.getNumJoints(self.id)):
+            _name = p.getJointInfo(self.id, _id)[12].decode('UTF-8')
+            _link_name_to_index[_name] = _id
+        
+        return _link_name_to_index[name]
+
