@@ -101,13 +101,14 @@ class GVR:
             )
     
     def apply_position(self, action:float):
-        # only apply for flippers
-        for joint in range(p.getNumJoints(self.id)):
-            info = p.getJointInfo(self.id, joint)
-            if "LF_flipper" in str(info[1]):
-                p.setJointMotorControl2(self.id, joint, p.POSITION_CONTROL, targetPosition = action, force=info[10], maxVelocity=info[11])
-            elif "RF_flipper" in str(info[1]):
-                p.setJointMotorControl2(self.id, joint, p.POSITION_CONTROL, targetPosition = action, force=info[10], maxVelocity=info[11])
+        for joint in self.flipper_joint_index:
+            p.setJointMotorControl2(
+                self.id, 
+                joint, 
+                p.POSITION_CONTROL,
+                targetPosition = action, 
+                maxVelocity=self.max_flipper_vel
+            )
     
     def get_obs(self):
         # similar to spirit.py
@@ -151,4 +152,12 @@ class GVR:
             _link_name_to_index[_name] = _id
         
         return _link_name_to_index[name]
+    
+    def linc_get_pos(self):
+        """
+        Return the position list of 3 floats and orientation as list of
+        4 floats in [x,y,z,w] order. Use pb.getEulerFromQuaternion to convert
+        the quaternion to Euler if needed.
+        """
+        return p.getBasePositionAndOrientation(self.id, physicsClientId = self.client)
 

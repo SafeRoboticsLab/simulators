@@ -26,7 +26,10 @@ class BasePybulletDynamics(BaseDynamics):
         self.gravity = -9.81
 
         # configure force in the dynamics
-        self.force = float(config.FORCE)
+        if config.APPLY_FORCE:
+            self.force = float(config.FORCE)
+        else:
+            self.force = 0.0
         self.force_info = config.FORCE_INFO
         self.elapsed_force_applied = 0
         self.force_applied_reset = config.FORCE_RESET_TIME
@@ -215,9 +218,10 @@ class BasePybulletDynamics(BaseDynamics):
         
         if self.link_name is not None:
             p.applyExternalForce(self.robot.id, self.robot.get_link_id(self.link_name), self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME, physicsClientId = self.client)
+            p.addUserDebugLine(self.force_applied_position_vector, self.force_applied_position_vector + self.force_applied_force_vector, lineColorRGB=[0, 0, 1], lineWidth=2.0, lifeTime=0.1, physicsClientId=self.client, parentObjectUniqueId=self.robot.id, parentLinkIndex=self.robot.get_link_id(self.link_name))
         else:
             p.applyExternalForce(self.robot.id, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME, physicsClientId = self.client)
-        p.addUserDebugLine(self.force_applied_position_vector, self.force_applied_position_vector + self.force_applied_force_vector, lineColorRGB=[0, 0, 1], lineWidth=2.0, lifeTime=0.1, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
+            p.addUserDebugLine(self.force_applied_position_vector, self.force_applied_position_vector + self.force_applied_force_vector, lineColorRGB=[0, 0, 1], lineWidth=2.0, lifeTime=0.1, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
     
     def _gen_terrain(self, terrain_height: Optional[int]=None, mesh_scale: Optional[np.ndarray]=None):
         """

@@ -5,5 +5,5 @@ class NaiveGVRController():
         self.vel = vel
     
     def get_action(self):
-        # return a naive constant control, with 0.0 flipper increment, and constant vel for both wheels
-        return np.array([0.0, 0.0, self.vel, self.vel])
+        # return a naive constant control to constantly going straight, with 0 flipper pos
+        return np.array([self.vel, 0.0, 0.0])
