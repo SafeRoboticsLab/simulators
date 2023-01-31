@@ -5,7 +5,7 @@ import numpy as np
 from simulators.dynamics.resources.utils import *
 
 class GVR:
-    def __init__(self, client, height, orientation, envtype="normal", payload=0.0 , payload_max=10.0, **kwargs):
+    def __init__(self, client, height, orientation, envtype="normal", **kwargs):
         self.client = client
         self.height = height
 
@@ -15,8 +15,6 @@ class GVR:
         self.urdf = "gvr_bot/gvrbot_updated.urdf"
         self.urdf_path = os.path.join(os.path.dirname(__file__), self.urdf)
 
-        self.payload = payload
-        self.payload_max = payload_max
         self.envtype = envtype
 
         if envtype != "normal":
@@ -139,15 +137,15 @@ class GVR:
     
     def safety_margin(self, state):
         return {
-            "roll": abs(state[3]) - math.pi * 0.15,
-            "pitch": abs(state[4]) - math.pi * 0.15
+            "roll": abs(state[3]) - math.pi * 0.2,
+            "pitch": abs(state[4]) - math.pi * 0.2
         }
     
     def target_margin(self, state):
         # for now, let's just use target_margin smaller than safety_margin, as we are running avoidonly anyway (not using target margin)
         return {
-            "roll": abs(state[3]) - math.pi * 0.05,
-            "pitch": abs(state[4]) - math.pi * 0.05
+            "roll": abs(state[3]) - math.pi * 0.1,
+            "pitch": abs(state[4]) - math.pi * 0.1
         }
     
     def get_flipper_state(self):
@@ -158,13 +156,13 @@ class GVR:
     def get_track_velocity(self):
         lt_ang_vel = 0
         for i in range(len(self.left_wheel_index)):
-            left_track_state = p.getJointState(self.car, self.left_wheel_index[i])
+            left_track_state = p.getJointState(self.id, self.left_wheel_index[i], physicsClientId = self.client)
             lt_rad, lt_vel, lt_force, lt_torque = left_track_state
             lt_ang_vel += lt_vel/len(self.left_wheel_index)
 
         rt_ang_vel = 0
         for i in range(len(self.right_wheel_index)):
-            right_track_state = p.getJointState(self.car, self.right_wheel_index[i])
+            right_track_state = p.getJointState(self.id, self.right_wheel_index[i], physicsClientId = self.client)
             rt_rad, rt_vel, rt_force, rt_torque = right_track_state
             rt_ang_vel += rt_vel/len(self.right_wheel_index)
         

@@ -12,22 +12,23 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
         #! TODO: FIX THIS, SO THAT THERE WILL BE A SEPARATE DYNAMICS WHEN WE USE ISAACS (BaseDstbDynamics instead of BaseDynamics)
         if isinstance(action_space, dict):
             super().__init__(config, action_space["ctrl"])
-            self.flipper_increment_min = action_space["ctrl"][0, 0]
-            self.flipper_increment_max = action_space["ctrl"][0, 1]
-            self.wheel_velocity_min = action_space["ctrl"][2, 0]
-            self.wheel_velocity_max = action_space["ctrl"][2, 1]
+            ctrl_action_space = action_space["ctrl"]
         else:
             super().__init__(config, action_space)
-            self.flipper_increment_min = action_space[0, 0]
-            self.flipper_increment_max = action_space[0, 1]
-            self.wheel_velocity_min = action_space[2, 0]
-            self.wheel_velocity_max = action_space[2, 1]
+            ctrl_action_space = action_space
+
+        self.linear_vel_min = ctrl_action_space[0, 0]
+        self.linear_vel_max = ctrl_action_space[0, 1]
+        self.angular_vel_min = ctrl_action_space[1, 0]
+        self.angular_vel_max = ctrl_action_space[1, 1]
+        self.flipper_increment_min = ctrl_action_space[2, 0]
+        self.flipper_increment_max = ctrl_action_space[2, 1]
+
+        self.flipper_max = 3.14
+        self.flipper_min = -3.14
         
         self.dim_u = 3 # user's input linear_x, angular_z, flip_pos
         self.dim_x = 16
-
-        self.flipper_min = -3.14
-        self.flipper_max = 3.14
 
         self.initial_height = None
         self.initial_rotation = None
@@ -38,8 +39,6 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
         self.shielding_status_debug_text_id = None
 
         self.envtype = config.ENVTYPE
-        self.payload = config.PAYLOAD
-        self.payload_max = config.PAYLOAD_MAX
 
         self.reset()
     
@@ -85,7 +84,7 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
             self.initial_rotation = rotate
             
             self.robot = GVR(self.client, height, rotate, 
-                envtype=self.envtype, payload=self.payload, payload_max=self.payload_max, **kwargs)
+                envtype=self.envtype, **kwargs)
 
             if not is_rollout_shielding_reset:
                 if random_joint_value is None:
@@ -98,7 +97,7 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
                 for t in range(0, 100):
                     p.stepSimulation(physicsClientId = self.client)
 
-            self.state = self.robot.get_obs()
+            self.state = np.array(self.robot.get_obs(), dtype = np.float32)
 
             if max(self.robot.safety_margin(self.state).values()) <= 0 or is_rollout_shielding_reset:
                 break
@@ -129,6 +128,10 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
         else:
             has_adversarial = False
         
+        # clip the increment of flippers
+        flipper_cur_pos, _ = self.robot.get_flipper_state()
+        control[2] = np.clip(flipper_cur_pos + np.clip(control[2], self.flipper_increment_min, self.flipper_increment_max), self.flipper_min, self.flipper_max)
+        
         self.robot.apply_action(control)
         
         if has_adversarial:
@@ -138,8 +141,6 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
         else:
             self._apply_force()
         
-        # weird hack from env_hexapod so that the spring payload will work well
-        p.setGravity(0, 0, self.gravity, physicsClientId = self.client)
         p.stepSimulation(physicsClientId = self.client)
 
         if self.gui:
