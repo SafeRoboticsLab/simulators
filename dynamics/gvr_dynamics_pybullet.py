@@ -24,10 +24,10 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
             self.wheel_velocity_max = action_space[2, 1]
         
         self.dim_u = 3 # user's input linear_x, angular_z, flip_pos
-        self.dim_x = 26 # 9 + 9 + 4 + 4
+        self.dim_x = 16
 
-        self.flipper_min = -1.57
-        self.flipper_max = 1.57
+        self.flipper_min = -3.14
+        self.flipper_max = 3.14
 
         self.initial_height = None
         self.initial_rotation = None
@@ -98,14 +98,7 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
                 for t in range(0, 100):
                     p.stepSimulation(physicsClientId = self.client)
 
-            spirit_initial_obs = self.robot.get_obs()
-
-            self.state = np.concatenate((
-                np.array(spirit_initial_obs, dtype=np.float32), 
-                np.array(spirit_initial_obs, dtype=np.float32), 
-                np.array([0.0, 0.0, random_joint_value, random_joint_value]), 
-                np.array([0.0, 0.0, random_joint_value, random_joint_value]),
-            ), axis = 0)
+            self.state = self.robot.get_obs()
 
             if max(self.robot.safety_margin(self.state).values()) <= 0 or is_rollout_shielding_reset:
                 break
@@ -120,6 +113,14 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
         return np.random.uniform(self.flipper_min, self.flipper_max)
     
     def integrate_forward(self, state: np.ndarray, control: np.ndarray, num_segment: Optional[int] = 1, noise: Optional[np.ndarray] = None, noise_type: Optional[str] = 'unif', adversary: Optional[np.ndarray] = None, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        State: 16-D
+            x, y, z, 
+            x_dot, y_dot, z_dot,
+            yaw, pitch, roll,
+            w_x, 
+        Action: 3-D
+        """
         # the control is user's control: 
         #! TODO: CHECK IF THE CLIPPED CONTROL IS CORRECT HERE, CURRENTLY NOT CLIPPING
 
@@ -127,10 +128,6 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
             has_adversarial = True
         else:
             has_adversarial = False
-
-        gvr_old_obs = self.robot.get_obs()
-        gvr_old_joint_pos = np.array(self.robot.get_flipper_joint_position(), dtype = np.float32) #2D
-        gvr_old_wheel_vel = np.array(self.robot.get_wheel_velocity(), dtype = np.float32) #2D
         
         self.robot.apply_action(control)
         
@@ -159,15 +156,7 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
         elif self.gui_imaginary:
             self.render()
         
-        gvr_new_obs = np.array(self.robot.get_obs(), dtype = np.float32)
-        gvr_new_joint_pos = np.array(self.robot.get_flipper_joint_position(), dtype = np.float32)
-        gvr_new_wheel_vel = np.array(self.robot.get_wheel_velocity(), dtype = np.float32)
-
-        self.state = np.concatenate((
-            gvr_new_obs, 
-            gvr_old_obs, 
-            np.concatenate((gvr_new_wheel_vel, gvr_new_joint_pos), axis=0), 
-            np.concatenate((gvr_old_wheel_vel, gvr_old_joint_pos), axis=0)), axis=0)
+        self.state = np.array(self.robot.get_obs(), dtype = np.float32)
         
         self.cnt += 1
 

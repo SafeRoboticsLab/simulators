@@ -46,7 +46,7 @@ class GVR:
 
         self.max_linear_vel = 2 #from AndrosBot Guide
         self.max_angular_vel = 3 # approximation so far, need to refine
-        self.max_wheel_vel = 20 #rad/s from max linear velocity
+        self.max_wheel_vel = 25 #rad/s from max linear velocity
         self.max_flipper_vel = 0.5 # rad/s slow deployment approximate
         self.Rw = 0.0862 #m wheel radius
         self.W = 0.35 #m wheelbase
@@ -68,37 +68,47 @@ class GVR:
         """_summary_
 
         Args:
-            action (np.ndarray): 3-D action [linear_x, angular_z, flip_pos_increment]
+            action (np.ndarray): 3-D action [linear_x, angular_z, flip_pos]
         """
         action = np.zeros(len(self.body_indices))
         left_vel = (user_action[0] - user_action[1]*self.W/2)/self.Rw
         right_vel = (user_action[0] + user_action[1]*self.W/2)/self.Rw
 
-        left_vel = np.clip(left_vel, -self.max_wheel_vel, self.max_wheel_vel)
-        right_vel = np.clip(right_vel, -self.max_wheel_vel, self.max_wheel_vel)
+        if abs(left_vel) >= (right_vel):
+            if abs(left_vel) > self.max_wheel_vel:
+                ratio = right_vel/left_vel
+                left_vel = np.clip(left_vel, -self.max_wheel_vel, self.max_wheel_vel)
+                right_vel = left_vel*ratio
+        else:
+            if abs(right_vel) > self.max_wheel_vel:
+                ratio = left_vel/right_vel
+                right_vel = np.clip(right_vel, -self.max_wheel_vel, self.max_wheel_vel)
+                left_vel = right_vel*ratio
 
         action[self.left_wheel_index] = left_vel
         action[self.right_wheel_index] = right_vel
 
-        max_wheel_torque = 1.8*np.ones_like(action)
-        kP_p = 0.8*np.ones_like(action)
-        kP_v = 2*np.ones_like(action)
+        max_wheel_torque = 3.0*np.ones_like(action)
+        kP_v_drive = 1.5*np.ones_like(action)
+
+        max_flipper_torque = 30*np.ones_like(self.flipper_joint_index)
+        kP_v_flipper = 1*np.ones_like(self.flipper_joint_index)
 
         p.setJointMotorControlArray(
             bodyUniqueId=self.id,
             jointIndices=self.body_indices,
             controlMode=p.VELOCITY_CONTROL,
             targetVelocities=list(action),
-            forces=max_wheel_torque)
+            forces=max_wheel_torque,
+            velocityGains = kP_v_drive)
             
-        for joint in self.flipper_joint_index:
-            p.setJointMotorControl2(
-                self.id, 
-                joint, 
-                p.POSITION_CONTROL,
-                targetPosition = user_action[2], 
-                maxVelocity=self.max_flipper_vel
-            )
+        p.setJointMotorControl2(
+            bodyUniqueId=self.id,
+            jointIndex=self.flipper_joint_index[0],
+            controlMode=p.POSITION_CONTROL,
+            targetPosition=user_action[2],
+            force=max_flipper_torque[0]
+        )
     
     def apply_position(self, action:float):
         for joint in self.flipper_joint_index:
@@ -111,38 +121,54 @@ class GVR:
             )
     
     def get_obs(self):
-        # similar to spirit.py
+        """Get observation 16-D:
+            x, y, z, x_dot, y_dot, z_dot,
+            yaw, pitch, roll,
+            w_x, w_y, w_z,
+            flipper_pos, flipper_angular_vel,
+            v_left, v_right
+
+        Returns:
+            observation (Tuple): 16-D observation
+        """
         pos, ang = p.getBasePositionAndOrientation(self.id, physicsClientId = self.client)
         ang = p.getEulerFromQuaternion(ang, physicsClientId = self.client)
-        vel = p.getBaseVelocity(self.id, physicsClientId = self.client)[0][:]
-        observation = (pos + ang + vel)
+        linear_vel, angular_vel = p.getBaseVelocity(self.id, physicsClientId = self.client)
+        observation = (pos + linear_vel + ang + angular_vel + self.get_flipper_state() +  self.get_track_velocity())
         return observation
     
     def safety_margin(self, state):
         return {
-            "roll": abs(state[3]) - math.pi * 0.2,
-            "pitch": abs(state[4]) - math.pi * 0.2
+            "roll": abs(state[3]) - math.pi * 0.15,
+            "pitch": abs(state[4]) - math.pi * 0.15
         }
     
     def target_margin(self, state):
         # for now, let's just use target_margin smaller than safety_margin, as we are running avoidonly anyway (not using target margin)
         return {
-            "roll": abs(state[3]) - math.pi * 0.1,
-            "pitch": abs(state[4]) - math.pi * 0.1
+            "roll": abs(state[3]) - math.pi * 0.05,
+            "pitch": abs(state[4]) - math.pi * 0.05
         }
     
-    def get_flipper_joint_position(self):
-        joint_state = p.getJointStates(self.id, jointIndices = self.flipper_joint_index, physicsClientId = self.client)
-        position = [state[0] for state in joint_state]
-        return position
+    def get_flipper_state(self):
+        flip_state = p.getJointState(self.id, self.flipper_joint_index[0], physicsClientId = self.client)
+        flip_pos, flip_vel, flip_force, flip_torque = flip_state
+        return flip_pos, flip_vel
     
-    def get_wheel_velocity(self):
-        left_wheel_joint_state = p.getJointStates(self.id, jointIndices = self.left_wheel_index, physicsClientId = self.client)
-        right_wheel_joint_state = p.getJointStates(self.id, jointIndices = self.right_wheel_index, physicsClientId = self.client)
-        #! NEED CHECK: assume that all wheels of each side is the same, so only take the first wheel vel and return
-        left_vel = [state[1] for state in left_wheel_joint_state]
-        right_vel = [state[1] for state in right_wheel_joint_state]
-        return [left_vel[0], right_vel[0]]
+    def get_track_velocity(self):
+        lt_ang_vel = 0
+        for i in range(len(self.left_wheel_index)):
+            left_track_state = p.getJointState(self.car, self.left_wheel_index[i])
+            lt_rad, lt_vel, lt_force, lt_torque = left_track_state
+            lt_ang_vel += lt_vel/len(self.left_wheel_index)
+
+        rt_ang_vel = 0
+        for i in range(len(self.right_wheel_index)):
+            right_track_state = p.getJointState(self.car, self.right_wheel_index[i])
+            rt_rad, rt_vel, rt_force, rt_torque = right_track_state
+            rt_ang_vel += rt_vel/len(self.right_wheel_index)
+        
+        return lt_ang_vel, rt_ang_vel
     
     def get_link_id(self, name):
         _link_name_to_index = {p.getBodyInfo(self.id)[0].decode('UTF-8'):-1,}

@@ -64,7 +64,7 @@
       <mass value="16.4"/>
       <!-- moments of inertia around the COM in the output frame of reference --> 
       <!-- must negate the products of inertia from CAD output (see wiki.ros.org/urdf/XML/link for details)-->
-      <inertia ixx="0.267" ixy="0.008646" ixz="-0.0140668" iyy="0.4712" iyz="0.00285" izz="0.068"/>
+      <inertia ixx="0.267" ixy="0.008646" ixz="-0.0140668" iyy="0.4712" iyz="0.00285" izz="0.668"/>
     </inertial>
   </link>
   <!-- LINKS/JOINTS -->
@@ -105,7 +105,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -137,7 +137,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -169,7 +169,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
   
@@ -201,7 +201,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -233,7 +233,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -265,7 +265,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -297,7 +297,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -329,7 +329,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -361,7 +361,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -393,7 +393,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -428,7 +428,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
   
@@ -465,7 +465,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link>
   
@@ -498,7 +498,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -530,7 +530,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
   
@@ -562,7 +562,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -594,7 +594,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -626,7 +626,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -658,7 +658,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -690,7 +690,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -722,7 +722,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -754,7 +754,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
 
@@ -789,7 +789,7 @@
       <inertial> 
           <origin rpy="1.57075 0 0"/>
           <mass value="0.12455"/>
-          <inertia ixx="0.0026963" ixy="0" ixz="0" iyy="0.0026963" iyz="0" izz="0.004187"/>
+          <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
   </link> 
     
@@ -800,9 +800,9 @@
   <joint name="base_to_flippers" type="continuous">
     <parent link="base_link"/>
     <child link="LF_flipper_main"/>
-    <limit effort="1.0" velocity="1.2"/>
+    <!--<limit effort="1.0" velocity="4"/>-->
     <!--Add the wheel thickness and the half width of the flipper and 7 mm to get the y offset-->
-    <origin xyz="0.2605 -0.2418 0.0125"/>
+    <origin rpy="0 -3.14 0" xyz="0.2605 -0.2418 0.0125"/>
     <axis xyz="0 1 0"/>
     <dynamics damping="0.0"/>
   </joint>
@@ -835,11 +835,11 @@
  
   <!-- FRONT RIGHT FLIPPER-->
 
-  <joint name="base_to_RF_flipper" type="continuous">
-      <parent link="base_link"/>
+  <joint name="LF_to_RF_flipper" type="fixed">
+      <parent link="LF_flipper_main"/>
       <child link="RF_flipper_main"/>
-     <limit effort="1.0" velocity="0.5"/>
-      <origin xyz="0.2605 0.2418 0.0125"/>
+      <!--<limit effort="1.0" velocity="4"/>-->
+      <origin xyz="0 0.4836 0"/>
       <axis xyz="0 1 0"/>
       <dynamics damping="0.0"/>
   </joint>
