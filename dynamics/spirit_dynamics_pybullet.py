@@ -245,7 +245,10 @@ class SpiritDynamicsPybullet(BasePybulletDynamics):
             if has_adversarial:
                 if self.adv_debug_line_id is not None:
                     p.removeUserDebugItem(self.adv_debug_line_id)
-                self.adv_debug_line_id = p.addUserDebugLine(position_vector, position_vector + force_vector * self.force, lineColorRGB=[0, 0, 1], lineWidth=2.0, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
+                if self.link_name is not None:
+                    self.adv_debug_line_id = p.addUserDebugLine(position_vector, position_vector + force_vector * self.force, lineColorRGB=[0, 0, 1], lineWidth=2.0, lifeTime=0.1, physicsClientId=self.client, parentObjectUniqueId=self.robot.id, parentLinkIndex=self.robot.get_link_id(self.link_name))
+                else:
+                    self.adv_debug_line_id = p.addUserDebugLine(position_vector, position_vector + force_vector * self.force, lineColorRGB=[0, 0, 1], lineWidth=2.0, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
             time.sleep(self.dt)
             
             if self.video_output_file is not None:

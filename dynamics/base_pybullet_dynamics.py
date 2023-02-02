@@ -27,7 +27,7 @@ class BasePybulletDynamics(BaseDynamics):
 
         # configure force in the dynamics
         if config.APPLY_FORCE:
-            self.force = float(config.FORCE)
+            self.force = float(config.FORCE) * float(config.FORCE_SCALE)
         else:
             self.force = 0.0
         self.force_info = config.FORCE_INFO
@@ -208,7 +208,10 @@ class BasePybulletDynamics(BaseDynamics):
     def _apply_adversarial_force(self, force_vector, position_vector):
         self.force_applied_force_vector = force_vector * self.force
         self.force_applied_position_vector = position_vector 
-        p.applyExternalForce(self.robot.id, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME, physicsClientId = self.client)
+        if self.link_name is not None:
+            p.applyExternalForce(self.robot.id, self.robot.get_link_id(self.link_name), self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME, physicsClientId = self.client)
+        else:
+            p.applyExternalForce(self.robot.id, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME, physicsClientId = self.client)
 
     def _apply_force(self):
         if self.elapsed_force_applied > self.force_applied_reset:

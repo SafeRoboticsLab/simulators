@@ -14,12 +14,16 @@ import sys
 
 class pybulletDebug:
 
-  def __init__(self):
+  def __init__(self, control=[0.0, 0.0, 0.0]):
     #Camera paramers to be able to yaw pitch and zoom the camera (Focus remains
     # on the robot)
     self.cyaw = 45
     self.cpitch = -20
     self.cdist = 2
+
+    # up/down, left/right
+    self.control = control
+
     time.sleep(0.5)
 
   def cam_and_robotstates(self, boxId):
@@ -42,6 +46,26 @@ class pybulletDebug:
       self.cdist += .02
     if keys.get(120):  #X
       self.cdist -= .02
+    
+    if self.control is not None:
+      if keys.get(65309): # Enter Key
+        self.control = [0.0, 0.0, 0.0]
+      if keys.get(65297):  # Right Arrow
+        self.control[0] = np.clip(self.control[0] + 0.1, -2.0, 2.0)
+      if keys.get(65298):  # Left Arrow
+        self.control[0] = np.clip(self.control[0] - 0.1, -2.0, 2.0)
+      if keys.get(65296):  # Up Arrow
+        self.control[1] = np.clip(self.control[1] + 0.1, -3.0, 3.0)
+      if keys.get(65295):  # Down Arrow
+        self.control[1] = np.clip(self.control[1] - 0.1, -3.0, 3.0)
+      if keys.get(50):  # 2 Key
+        self.control[2] = np.clip(self.control[2] - 0.05, -0.5, 0.5)
+      if keys.get(51):  # 3 Key
+        self.control[2] = np.clip(self.control[2] + 0.05, -0.5, 0.5)
+    
     if keys.get(27):  #ESC
       p.disconnect()
       sys.exit()
+  
+  def get_action(self):
+    return np.array(self.control)
