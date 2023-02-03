@@ -111,17 +111,16 @@ class BasePybulletDynamics(BaseDynamics):
                 '-vcodec', 'mpeg4',
                 '-vb', '20M',
                 self.video_output_file]
-            #print(command)
             self.ffmpeg_pipe = subprocess.Popen(
                 command, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
 
     def _save_frames(self):
         """
         Write frame at each step.
-        24 FPS dt =1/240 : every 10 frames
+        24 FPS dt = 1/240 : every 10 frames
         """
-        if self.video_output_file is not None and \
-                self.cnt % (int(1. / (self.dt * 24))) == 0:
+        # if self.video_output_file is not None and self.cnt % (int(1. / (self.dt * 24))) == 0:
+        if self.video_output_file is not None:
             camera = p.getDebugVisualizerCamera(physicsClientId=self.client)
             img = p.getCameraImage(
                 camera[0], camera[1],
@@ -134,8 +133,12 @@ class BasePybulletDynamics(BaseDynamics):
             p.disconnect()
         except p.error as e:
             print("Warning (destructor of simulator):", e)
+        
+        self.close_video_stream()
+    
+    def close_video_stream(self):        
         try:
-            if self.video_output_file is not None:
+            if self.gui and self.video_output_file is not None:
                 self.ffmpeg_pipe.stdin.close()
                 self.ffmpeg_pipe.stderr.close()
                 ret = self.ffmpeg_pipe.wait()
@@ -146,6 +149,12 @@ class BasePybulletDynamics(BaseDynamics):
     def reset(self, **kwargs):
         if "video_output_file" in kwargs.keys():
             self.video_output_file = kwargs["video_output_file"]
+        
+        if "adversarial_sequence" in kwargs.keys():
+            self.adversarial_sequence = kwargs["adversarial_sequence"]
+        else:
+            # clean adversarial sequence, so that any adversarial sequence passed during a reset will only be used once
+            self.adversarial_sequence = None
             
         self.cnt = 0
         p.resetSimulation(physicsClientId = self.client)
@@ -218,13 +227,38 @@ class BasePybulletDynamics(BaseDynamics):
             self._gen_force()
         else:
             self.elapsed_force_applied += 1
+
+        if self.adv_debug_line_id is not None:
+            p.removeUserDebugItem(self.adv_debug_line_id)
         
         if self.link_name is not None:
             p.applyExternalForce(self.robot.id, self.robot.get_link_id(self.link_name), self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME, physicsClientId = self.client)
-            p.addUserDebugLine(self.force_applied_position_vector, self.force_applied_position_vector + self.force_applied_force_vector, lineColorRGB=[0, 0, 1], lineWidth=2.0, lifeTime=0.1, physicsClientId=self.client, parentObjectUniqueId=self.robot.id, parentLinkIndex=self.robot.get_link_id(self.link_name))
+            self.adv_debug_line_id = p.addUserDebugLine(self.force_applied_position_vector, self.force_applied_position_vector + self.force_applied_force_vector, lineColorRGB=[0, 0, 1], lineWidth=2.0, physicsClientId=self.client, parentObjectUniqueId=self.robot.id, parentLinkIndex=self.robot.get_link_id(self.link_name))
         else:
             p.applyExternalForce(self.robot.id, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME, physicsClientId = self.client)
-            p.addUserDebugLine(self.force_applied_position_vector, self.force_applied_position_vector + self.force_applied_force_vector, lineColorRGB=[0, 0, 1], lineWidth=2.0, lifeTime=0.1, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
+            self.adv_debug_line_id = p.addUserDebugLine(self.force_applied_position_vector, self.force_applied_position_vector + self.force_applied_force_vector, lineColorRGB=[0, 0, 1], lineWidth=2.0, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
+    
+    def _apply_dstb_from_adversarial_sequence(self):
+        if self.adversarial_sequence is None:
+            return False
+        try:
+            self.force = self.adversarial_sequence[self.cnt]["force"]
+            self.force_applied_force_vector = self.adversarial_sequence[self.cnt]["force_applied_force_vector"]
+            self.force_applied_position_vector = self.adversarial_sequence[self.cnt]["force_applied_position_vector"]
+        except IndexError:
+            return False
+        
+        if self.adv_debug_line_id is not None:
+            p.removeUserDebugItem(self.adv_debug_line_id)
+
+        if self.link_name is not None:
+            p.applyExternalForce(self.robot.id, self.robot.get_link_id(self.link_name), self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME, physicsClientId = self.client)
+            self.adv_debug_line_id = p.addUserDebugLine(self.force_applied_position_vector, self.force_applied_position_vector + self.force_applied_force_vector, lineColorRGB=[0, 0, 1], lineWidth=2.0, physicsClientId=self.client, parentObjectUniqueId=self.robot.id, parentLinkIndex=self.robot.get_link_id(self.link_name))
+        else:
+            p.applyExternalForce(self.robot.id, -1, self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME, physicsClientId = self.client)
+            self.adv_debug_line_id = p.addUserDebugLine(self.force_applied_position_vector, self.force_applied_position_vector + self.force_applied_force_vector, lineColorRGB=[0, 0, 1], lineWidth=2.0, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
+        
+        return True
     
     def _gen_terrain(self, terrain_height: Optional[int]=None, mesh_scale: Optional[np.ndarray]=None):
         """

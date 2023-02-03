@@ -134,12 +134,13 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
         
         self.robot.apply_action(control)
         
-        if has_adversarial:
-            force_vector = adversary[0:3]
-            position_vector = adversary[3:]
-            self._apply_adversarial_force(force_vector=force_vector, position_vector=position_vector)
-        else:
-            self._apply_force()
+        if not self._apply_dstb_from_adversarial_sequence():
+            if has_adversarial:
+                force_vector = adversary[0:3]
+                position_vector = adversary[3:]
+                self._apply_adversarial_force(force_vector=force_vector, position_vector=position_vector)
+            else:
+                self._apply_force()
         
         p.stepSimulation(physicsClientId = self.client)
 
@@ -148,7 +149,7 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
                 if self.adv_debug_line_id is not None:
                     p.removeUserDebugItem(self.adv_debug_line_id)
                 if self.link_name is not None:
-                    self.adv_debug_line_id = p.addUserDebugLine(position_vector, position_vector + force_vector * self.force, lineColorRGB=[0, 0, 1], lineWidth=2.0, lifeTime=0.1, physicsClientId=self.client, parentObjectUniqueId=self.robot.id, parentLinkIndex=self.robot.get_link_id(self.link_name))
+                    self.adv_debug_line_id = p.addUserDebugLine(position_vector, position_vector + force_vector * self.force, lineColorRGB=[0, 0, 1], lineWidth=2.0, physicsClientId=self.client, parentObjectUniqueId=self.robot.id, parentLinkIndex=self.robot.get_link_id(self.link_name))
                 else:
                     self.adv_debug_line_id = p.addUserDebugLine(position_vector, position_vector + force_vector * self.force, lineColorRGB=[0, 0, 1], lineWidth=2.0, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
             time.sleep(self.dt)
