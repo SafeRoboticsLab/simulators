@@ -121,7 +121,7 @@ class GVR:
     def get_obs(self):
         """Get observation 16-D:
             x, y, z, x_dot, y_dot, z_dot,
-            yaw, pitch, roll,
+            roll, pitch, yaw
             w_x, w_y, w_z,
             flipper_pos, flipper_angular_vel,
             v_left, v_right
@@ -137,15 +137,17 @@ class GVR:
     
     def safety_margin(self, state):
         return {
-            "roll": abs(state[3]) - math.pi * 0.2,
-            "pitch": abs(state[4]) - math.pi * 0.2
+            "roll": abs(state[6]) - math.pi * 0.2,
+            "pitch": abs(state[7]) - math.pi * 0.2,
+            "body_ang_x": abs(state[9]) - math.pi * 0.25,
+            "body_ang_y": abs(state[10]) - math.pi * 0.25
         }
     
     def target_margin(self, state):
         # for now, let's just use target_margin smaller than safety_margin, as we are running avoidonly anyway (not using target margin)
         return {
-            "roll": abs(state[3]) - math.pi * 0.1,
-            "pitch": abs(state[4]) - math.pi * 0.1
+            "roll": abs(state[6]) - math.pi * 0.1,
+            "pitch": abs(state[7]) - math.pi * 0.1
         }
     
     def get_flipper_state(self):
