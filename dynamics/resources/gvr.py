@@ -2,6 +2,7 @@ import pybullet as p
 import os
 import math
 import numpy as np
+from scipy.spatial.transform import Rotation
 from simulators.dynamics.resources.utils import *
 
 class GVR:
@@ -119,35 +120,39 @@ class GVR:
             )
     
     def get_obs(self):
-        """Get observation 16-D:
-            x, y, z, x_dot, y_dot, z_dot,
+        """Get observation 13-D:
+            x_dot, y_dot, z_dot,
             roll, pitch, yaw
             w_x, w_y, w_z,
             flipper_pos, flipper_angular_vel,
             v_left, v_right
 
         Returns:
-            observation (Tuple): 16-D observation
+            observation (Tuple): 13-D observation
         """
         pos, ang = p.getBasePositionAndOrientation(self.id, physicsClientId = self.client)
+        rotmat = Rotation.from_quat(ang).as_matrix()
         ang = p.getEulerFromQuaternion(ang, physicsClientId = self.client)
         linear_vel, angular_vel = p.getBaseVelocity(self.id, physicsClientId = self.client)
-        observation = (pos + linear_vel + ang + angular_vel + self.get_flipper_state() +  self.get_track_velocity())
+        robot_body_linear_vel = (np.linalg.inv(rotmat)@np.array(linear_vel).T)   
+        robot_body_angular_vel = (np.linalg.inv(rotmat)@np.array(angular_vel).T)
+        observation = (tuple(robot_body_linear_vel) + ang + tuple(robot_body_angular_vel) + self.get_flipper_state() +  self.get_track_velocity())
         return observation
     
     def safety_margin(self, state):
         return {
-            "roll": abs(state[6]) - math.pi * 0.2,
-            "pitch": abs(state[7]) - math.pi * 0.2,
-            "body_ang_x": abs(state[9]) - math.pi * 0.25,
-            "body_ang_y": abs(state[10]) - math.pi * 0.25
+            "roll": abs(state[3]) - math.pi * 1./9.,
+            "pitch": abs(state[4]) - math.pi * 1./6.,
+            "body_ang_x": abs(state[6]) - math.pi * 0.25,
+            "body_ang_y": abs(state[7]) - math.pi * 0.25,
+            "linear_x": abs(state[0]) - 1.0
         }
     
     def target_margin(self, state):
         # for now, let's just use target_margin smaller than safety_margin, as we are running avoidonly anyway (not using target margin)
         return {
-            "roll": abs(state[6]) - math.pi * 0.1,
-            "pitch": abs(state[7]) - math.pi * 0.1
+            "roll": abs(state[3]) - math.pi * 0.1,
+            "pitch": abs(state[4]) - math.pi * 0.1
         }
     
     def get_flipper_state(self):

@@ -26,9 +26,6 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
 
         self.flipper_max = 3.14
         self.flipper_min = -3.14
-        
-        self.dim_u = 3 # user's input linear_x, angular_z, flip_pos
-        self.dim_x = 16
 
         self.initial_height = None
         self.initial_rotation = None
