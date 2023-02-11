@@ -94,8 +94,10 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
                 self.robot.reset(random_joint_value)
                 self.robot.apply_position(random_joint_value)
 
+                p.setGravity(0, 0, self.gravity*0.1, physicsClientId = self.client)
                 for t in range(0, 100):
                     p.stepSimulation(physicsClientId = self.client)
+                p.setGravity(0, 0, self.gravity, physicsClientId = self.client)
 
             self.state = np.array(self.robot.get_obs(), dtype = np.float32)
 
@@ -113,11 +115,12 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
     
     def integrate_forward(self, state: np.ndarray, control: np.ndarray, num_segment: Optional[int] = 1, noise: Optional[np.ndarray] = None, noise_type: Optional[str] = 'unif', adversary: Optional[np.ndarray] = None, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         """
-        State: 16-D
-            x, y, z, 
+        State: 13-D
             x_dot, y_dot, z_dot,
-            yaw, pitch, roll,
-            w_x, 
+            roll, pitch, yaw
+            w_x, w_y, w_z,
+            flipper_pos, flipper_angular_vel,
+            v_left, v_right
         Action: 3-D
         """
         # the control is user's control: 
