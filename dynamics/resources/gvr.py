@@ -69,6 +69,8 @@ class GVR:
         Args:
             action (np.ndarray): 3-D action [linear_x, angular_z, flip_pos]
         """
+        # scale the user's input with the actual real-life reaction
+        user_action[1] = user_action[1] * 5.5
         action = np.zeros(len(self.body_indices))
         left_vel = (user_action[0] - user_action[1]*self.W/2)/self.Rw
         right_vel = (user_action[0] + user_action[1]*self.W/2)/self.Rw

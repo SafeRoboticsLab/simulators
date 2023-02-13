@@ -21,11 +21,11 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
         self.linear_vel_max = ctrl_action_space[0, 1]
         self.angular_vel_min = ctrl_action_space[1, 0]
         self.angular_vel_max = ctrl_action_space[1, 1]
-        self.flipper_increment_min = ctrl_action_space[2, 0]
-        self.flipper_increment_max = ctrl_action_space[2, 1]
+        self.flipper_min = ctrl_action_space[2, 0]
+        self.flipper_max = ctrl_action_space[2, 1]
 
-        self.flipper_max = 3.14
-        self.flipper_min = -3.14
+        self.flipper_increment_min = self.dt/10*2.6
+        self.flipper_increment_max = self.dt/10*2.6
 
         self.dim_u = 3 # user's input linear_x, angular_z, flip_pos
         self.dim_x = 13
