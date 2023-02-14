@@ -40,6 +40,8 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
 
         self.envtype = config.ENVTYPE
 
+        self.use_flipper = config.USE_FLIPPER
+
         self.reset()
     
     def reset(self, **kwargs):
@@ -88,7 +90,10 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
 
             if not is_rollout_shielding_reset:
                 if random_joint_value is None:
-                    random_joint_value = self.get_random_joint_value()
+                    if self.use_flipper:
+                        random_joint_value = self.get_random_joint_value()
+                    else:
+                        random_joint_value = 1.57
                 self.initial_joint_value = random_joint_value
                 
                 self.robot.reset(random_joint_value)
@@ -98,6 +103,11 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
                 for t in range(0, 100):
                     p.stepSimulation(physicsClientId = self.client)
                 p.setGravity(0, 0, self.gravity, physicsClientId = self.client)
+
+                # set random state (linear and angular velocity) to the robot
+                random_linear_velocity = np.random.uniform(-1.0, 1.0, 3)
+                random_angular_velocity = np.random.uniform(-0.7, 0.7, 3)
+                p.resetBaseVelocity(self.robot.id, linearVelocity=random_linear_velocity, angularVelocity=random_angular_velocity, physicsClientId=self.client)
 
             self.state = np.array(self.robot.get_obs(), dtype = np.float32)
 

@@ -147,7 +147,7 @@ class GVR:
             "pitch": abs(state[4]) - math.pi * 1./6.,
             "body_ang_x": abs(state[6]) - math.pi * 0.5,
             "body_ang_y": abs(state[7]) - math.pi * 0.5,
-            "linear_x": abs(state[0]) - 1.0
+            "linear_x": abs(state[0]) - 0.7
         }
     
     def target_margin(self, state):
