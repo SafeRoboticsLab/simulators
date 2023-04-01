@@ -27,12 +27,12 @@ class BaseMultiAgentEnv(BaseEnv):
   state: Dict[str, np.ndarray]
 
   def __init__(
-      self, config_env: Any, config_agent: List[Any],
+      self, cfg_env: Any, cfg_agent: List[Any],
       agent_name_list: Optional[List[str]] = None
   ) -> None:
-    super().__init__(config_env)
+    super().__init__(cfg_env)
     self.env_type = "multi-agent"
-    self.num_agents: int = config_env.NUM_AGENTS
+    self.num_agents: int = cfg_env.num_agents
     if agent_name_list is None:
       agent_name_list = [f'agent_{i}' for i in range(self.num_agents)]
     else:
@@ -44,40 +44,38 @@ class BaseMultiAgentEnv(BaseEnv):
     self.agents = {}
     self.integrate_kwargs = {}
     for i, a_name in enumerate(agent_name_list):
-      tmp_action_space = np.array(config_agent[i].ACTION_RANGE)
+      tmp_action_space = np.array(cfg_agent[i].action_range)
       _action_space[a_name] = spaces.Box(
           low=tmp_action_space[:, 0], high=tmp_action_space[:, 1]
       )
       self.action_dim[a_name] = _action_space[a_name].low.shape
-      self.agents[a_name] = Agent(
-          config_agent[i], action_space=tmp_action_space
-      )
-      self.integrate_kwargs[a_name] = config_agent[i].AGENT_INTEGRATE_KWARGS
+      self.agents[a_name] = Agent(cfg_agent[i], action_space=tmp_action_space)
+      self.integrate_kwargs[a_name] = cfg_agent[i].AGENT_INTEGRATE_KWARGS
     self.action_space = spaces.Dict(_action_space)
 
-    self.build_rst_sapce(config_env, config_agent)
-    self.build_obs_space(config_env, config_agent)
-    self.seed(config_env.SEED)
+    self.build_rst_sapce(cfg_env, cfg_agent)
+    self.build_obs_space(cfg_env, cfg_agent)
+    self.seed(cfg_env.seed)
     self.state = self.reset_sample_space.sample()  # Overriden by reset later.
 
-  def build_rst_sapce(self, config_env: Any, config_agent: List[Any]):
+  def build_rst_sapce(self, cfg_env: Any, cfg_agent: List[Any]):
     _rst_space = {}
     self.state_dim = {}
     for i, a_name in enumerate(self.agent_name_list):
       self.state_dim[a_name] = self.agents[a_name].dyn.dim_x
-      rst_spec = np.array(config_agent[i].RST_RANGE)
+      rst_spec = np.array(cfg_agent[i].rst_range)
       _rst_space[a_name] = build_space(
           space_spec=rst_spec, space_dim=self.state_dim[a_name]
       )
     self.reset_sample_space = spaces.Dict(_rst_space)
 
-  def build_obs_space(self, config_env: Any, config_agent: List[Any]):
+  def build_obs_space(self, cfg_env: Any, cfg_agent: List[Any]):
     _obs_space = {}
     self.observation_dim = {}
     for i, a_name in enumerate(self.agent_name_list):
-      obs_spec = np.array(config_agent[i].OBS_RANGE)
+      obs_spec = np.array(cfg_agent[i].obs_spec)
       _obs_space[a_name] = build_space(
-          space_spec=obs_spec, space_dim=config_agent[i].OBS_DIM
+          space_spec=obs_spec, space_dim=cfg_agent[i].obs_dim
       )
       self.observation_dim[a_name] = _obs_space[a_name].low.shape
     self.observation_space = spaces.Dict(_obs_space)

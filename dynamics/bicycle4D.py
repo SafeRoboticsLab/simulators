@@ -16,20 +16,20 @@ from .base_dynamics import BaseDynamics
 
 class Bicycle4D(BaseDynamics):
 
-  def __init__(self, config: Any, action_space: np.ndarray) -> None:
+  def __init__(self, cfg: Any, action_space: np.ndarray) -> None:
     """
     Implements the bicycle dynamics (for Princeton race car). The state is the
     center of the rear axis.
 
     Args:
-        config (Any): an object specifies configuration.
+        cfg (Any): an object specifies configuration.
         action_space (np.ndarray): action space.
     """
-    super().__init__(config, action_space)
+    super().__init__(cfg, action_space)
     self.dim_x = 4  # [x, y, v, psi].
 
     # load parameters
-    self.wheelbase: float = config.WHEELBASE  # vehicle chassis length
+    self.wheelbase: float = cfg.wheelbase  # vehicle chassis length
 
   @partial(jax.jit, static_argnames='self')
   def integrate_forward_jax(

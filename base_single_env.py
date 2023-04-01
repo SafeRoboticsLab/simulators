@@ -20,21 +20,21 @@ class BaseSingleEnv(BaseEnv):
   """Implements an environment of a single agent.
   """
 
-  def __init__(self, config_env: Any, config_agent: Any) -> None:
-    super().__init__(config_env)
+  def __init__(self, cfg_env: Any, cfg_agent: Any) -> None:
+    super().__init__(cfg_env)
     self.env_type = "single-agent"
 
     # Action Space.
-    action_space = np.array(config_agent.ACTION_RANGE, dtype=np.float32)
+    action_space = np.array(cfg_agent.action_range, dtype=np.float32)
     self.action_dim = action_space.shape[0]
     self.action_dim_ctrl = action_space.shape[0]
-    self.agent = Agent(config_agent, action_space)
+    self.agent = Agent(cfg_agent, action_space)
     self.action_space = spaces.Box(
         low=action_space[:, 0], high=action_space[:, 1]
     )
     self.state_dim = self.agent.dyn.dim_x
 
-    self.integrate_kwargs = getattr(config_env, "INTEGRATE_KWARGS", {})
+    self.integrate_kwargs = getattr(cfg_env, "integrate_kwargs", {})
     if "noise" in self.integrate_kwargs:
       if self.integrate_kwargs['noise'] is not None:
         self.integrate_kwargs['noise'] = np.array(
@@ -218,7 +218,9 @@ class BaseSingleEnv(BaseEnv):
 
     # Initializes robot.
     if warmup:
-      init_control = np.zeros((self.action_dim, self.agent.policy.N))
+      init_control = np.zeros(
+          (self.action_dim, self.agent.policy.plan_horizon)
+      )
     if policy_type == 'shield':
       shield_ind = []
     result = 0

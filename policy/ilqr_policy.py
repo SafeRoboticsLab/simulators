@@ -20,9 +20,9 @@ from ..cost.base_cost import BaseCost
 class iLQR(BasePolicy):
 
   def __init__(
-      self, id: str, config, dyn: BaseDynamics, cost: BaseCost, **kwargs
+      self, id: str, cfg, dyn: BaseDynamics, cost: BaseCost, **kwargs
   ) -> None:
-    super().__init__(id, config)
+    super().__init__(id, cfg)
     self.policy_type = "iLQR"
     self.dyn = copy.deepcopy(dyn)
     self.cost = copy.deepcopy(cost)
@@ -30,14 +30,14 @@ class iLQR(BasePolicy):
     # iLQR parameters
     self.dim_x = dyn.dim_x
     self.dim_u = dyn.dim_u
-    self.N = config.N
-    self.max_iter = config.MAX_ITER
+    self.plan_horizon = cfg.plan_horizon
+    self.max_iter = cfg.max_iter
     self.tol = 1e-3  # ILQR update tolerance.
-    self.eps = getattr(config, "EPS", 1e-6)  # Numerical issue for Quu inverse.
+    self.eps = getattr(cfg, "eps", 1e-6)  # Numerical issue for Quu inverse.
     # Stepsize scheduler.
     # TODO: Other line search methods
     self.alphas = 0.5**(np.arange(25))
-    self.horizon_indices = jnp.arange(self.N).reshape(1, -1)
+    self.horizon_indices = jnp.arange(self.plan_horizon).reshape(1, -1)
 
   def get_action(
       self, obs: np.ndarray, controls: Optional[np.ndarray] = None,
@@ -48,9 +48,9 @@ class iLQR(BasePolicy):
     # `controls` include control input at timestep N-1, which is a dummy
     # control of zeros.
     if controls is None:
-      controls = jnp.zeros((self.dim_u, self.N))
+      controls = jnp.zeros((self.dim_u, self.plan_horizon))
     else:
-      assert controls.shape[1] == self.N
+      assert controls.shape[1] == self.plan_horizon
       controls = jnp.array(controls)
 
     # Rolls out the nominal trajectory and gets the initial cost.
@@ -143,11 +143,12 @@ class iLQR(BasePolicy):
       U = U.at[:, i].set(u_clip)
       return X, U
 
-    X = jnp.zeros((self.dim_x, self.N))
-    U = jnp.zeros((self.dim_u, self.N))  #  Assumes the last ctrl are zeros.
+    X = jnp.zeros((self.dim_x, self.plan_horizon))
+    U = jnp.zeros((self.dim_u, self.plan_horizon)
+                 )  #  Assumes the last ctrl are zeros.
     X = X.at[:, 0].set(nominal_states[:, 0])
 
-    X, U = jax.lax.fori_loop(0, self.N - 1, _rollout_step, (X, U))
+    X, U = jax.lax.fori_loop(0, self.plan_horizon - 1, _rollout_step, (X, U))
     return X, U
 
   @partial(jax.jit, static_argnames='self')
@@ -163,10 +164,10 @@ class iLQR(BasePolicy):
       U = U.at[:, i].set(u_clip)
       return X, U
 
-    X = jnp.zeros((self.dim_x, self.N))
+    X = jnp.zeros((self.dim_x, self.plan_horizon))
     X = X.at[:, 0].set(initial_state)
     X, U = jax.lax.fori_loop(
-        0, self.N - 1, _rollout_nominal_step, (X, controls)
+        0, self.plan_horizon - 1, _rollout_nominal_step, (X, controls)
     )
     return X, U
 
@@ -195,7 +196,7 @@ class iLQR(BasePolicy):
     @jax.jit
     def backward_pass_looper(i, _carry):
       V_x, V_xx, ks, Ks = _carry
-      n = self.N - 2 - i
+      n = self.plan_horizon - 2 - i
 
       Q_x = c_x[:, n] + fx[:, :, n].T @ V_x
       Q_u = c_u[:, n] + fu[:, :, n].T @ V_x
@@ -214,21 +215,21 @@ class iLQR(BasePolicy):
       return V_x, V_xx, ks, Ks
 
     # Initializes.
-    Ks = jnp.zeros((self.dim_u, self.dim_x, self.N - 1))
-    ks = jnp.zeros((self.dim_u, self.N - 1))
+    Ks = jnp.zeros((self.dim_u, self.dim_x, self.plan_horizon - 1))
+    ks = jnp.zeros((self.dim_u, self.plan_horizon - 1))
     V_x = c_x[:, -1]
     V_xx = c_xx[:, :, -1]
     reg_mat = self.eps * jnp.eye(self.dim_u)
 
     V_x, V_xx, ks, Ks = jax.lax.fori_loop(
-        0, self.N - 1, backward_pass_looper, (V_x, V_xx, ks, Ks)
+        0, self.plan_horizon - 1, backward_pass_looper, (V_x, V_xx, ks, Ks)
     )
     return Ks, ks
 
   # def _check_shape(self, array_dict: dict):
   #   for key, value in array_dict.items():
-  #     assert value.shape[-1] == self.N - 1, (
+  #     assert value.shape[-1] == self.plan_horizon - 1, (
   #         "The length of {} should be {} but get {}.".format(
-  #             key, self.N - 1, value.shape[-1]
+  #             key, self.plan_horizon - 1, value.shape[-1]
   #         )
   #     )

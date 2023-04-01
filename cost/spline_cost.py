@@ -13,16 +13,16 @@ from ..race_car.track import Track
 
 class BaseSplineCost(ABC):
 
-  def __init__(self, config):
+  def __init__(self, cfg):
     super().__init__()
-    self.config = copy.deepcopy(config)
+    self.cfg = copy.deepcopy(cfg)
 
     # System parameters.
-    self.state_box_limits = np.asarray(config.STATE_BOX_LIMITS)
+    self.state_box_limit = np.asarray(cfg.state_box_limit)
 
     # Racing cost parameters.
-    self.track_width_right: float = config.TRACK_WIDTH_RIGHT
-    self.track_width_left: float = config.TRACK_WIDTH_LEFT
+    self.track_width_right: float = cfg.track_width_right
+    self.track_width_left: float = cfg.track_width_left
 
   @abstractmethod
   def get_stage_cost(
@@ -130,7 +130,7 @@ class SplineBarrierCost(BaseSplineCost):
       self, clip_min: Optional[float], clip_max: Optional[float], q1: float,
       q2: float, cost: BaseSplineCost
   ):
-    super().__init__(cost.config)
+    super().__init__(cost.cfg)
     self.clip_min = clip_min
     self.clip_max = clip_max
     self.q1 = q1
@@ -152,24 +152,24 @@ class SplineBarrierCost(BaseSplineCost):
 class SplineRoadBoundaryCost(BaseSplineCost):
 
   def __init__(
-      self, config, x_dim: int = 0, y_dim: int = 1, yaw_dim: int = 3,
+      self, cfg, x_dim: int = 0, y_dim: int = 1, yaw_dim: int = 3,
       buffer: float = 0.
   ):
-    super().__init__(config)
+    super().__init__(cfg)
     self.x_dim = x_dim
     self.y_dim = y_dim
     self.yaw_dim = yaw_dim
 
-    self.state_box_limits = config.STATE_BOX_LIMITS
+    self.state_box_limit = cfg.state_box_limit
     self.offset = jnp.array(
-        [[self.state_box_limits[0], self.state_box_limits[2]],
-         [self.state_box_limits[0], self.state_box_limits[3]],
-         [self.state_box_limits[1], self.state_box_limits[2]],
-         [self.state_box_limits[1], self.state_box_limits[3]]]
+        [[self.state_box_limit[0], self.state_box_limit[2]],
+         [self.state_box_limit[0], self.state_box_limit[3]],
+         [self.state_box_limit[1], self.state_box_limit[2]],
+         [self.state_box_limit[1], self.state_box_limit[3]]]
     )
 
-    self.track_width_right = config.TRACK_WIDTH_RIGHT
-    self.track_width_left = config.TRACK_WIDTH_LEFT
+    self.track_width_right = cfg.track_width_right
+    self.track_width_left = cfg.track_width_left
     self.buffer = buffer
 
   @partial(jax.jit, static_argnames='self')
@@ -211,12 +211,12 @@ class SplineRoadBoundaryCost(BaseSplineCost):
 
 class SplineYawCost(BaseSplineCost):
 
-  def __init__(self, config, yaw_dim: int = 3):
-    super().__init__(config)
+  def __init__(self, cfg, yaw_dim: int = 3):
+    super().__init__(cfg)
     self.yaw_dim = yaw_dim
-    self.yaw_min = config.YAW_MIN
-    self.yaw_max = config.YAW_MAX
-    self.bidirectional = getattr(config, "BIDIRECTIONAL", True)
+    self.yaw_min = cfg.yaw_min
+    self.yaw_max = cfg.yaw_max
+    self.bidirectional = getattr(cfg, "bidirectional", True)
 
   @partial(jax.jit, static_argnames='self')
   def get_stage_cost(

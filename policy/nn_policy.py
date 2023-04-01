@@ -13,8 +13,8 @@ from .base_policy import BasePolicy
 
 class NeuralNetworkControlSystem(BasePolicy):
 
-  def __init__(self, id: str, actor: torch.nn.Module, config: Any, **kwargs):
-    super().__init__(id, config)
+  def __init__(self, id: str, actor: torch.nn.Module, cfg: Any, **kwargs):
+    super().__init__(id, cfg)
     self.policy_type = "NNCS"
 
     # Constructs NNs.
@@ -22,12 +22,11 @@ class NeuralNetworkControlSystem(BasePolicy):
     self.actor.to(self.device)
 
     # Loads weights if specified
-    if hasattr(config, 'ACTOR_PATH'):
-      actor_path = config.ACTOR_PATH
+    if hasattr(cfg, 'actor_path'):
       self.actor.load_state_dict(
-          torch.load(actor_path, map_location=self.device)
+          torch.load(cfg.actor_path, map_location=self.device)
       )
-      print("--> Load actor wights from {}".format(actor_path))
+      print("--> Load actor wights from {}".format(cfg.actor_path))
 
   def update_policy(self, actor: torch.nn.Module):
     self.actor.load_state_dict(actor.state_dict())

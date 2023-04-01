@@ -16,41 +16,40 @@ from ..cost.spline_cost import (
 
 class Bicycle5DCost(BaseSplineCost):
 
-  def __init__(self, config):
-    super().__init__(config)
+  def __init__(self, cfg):
+    super().__init__(cfg)
 
     # Racing cost parameters.
-    self.v_ref: float = config.V_REF  # reference velocity.
-    self.w_vel: float = config.W_VEL
-    self.w_contour: float = config.W_CONTOUR
-    self.w_theta: float = config.W_THETA
-    self.w_accel: float = config.W_ACCEL
-    self.w_omega: float = config.W_OMEGA
-    self.wheelbase: float = config.WHEELBASE
-    self.track_offset: float = config.TRACK_OFFSET
+    self.v_ref: float = cfg.v_ref  # reference velocity.
+    self.w_vel: float = cfg.w_vel
+    self.w_contour: float = cfg.w_contour
+    self.w_theta: float = cfg.w_theta
+    self.w_accel: float = cfg.w_accel
+    self.w_omega: float = cfg.w_omega
+    self.wheelbase: float = cfg.wheelbase
+    self.track_offset: float = cfg.track_offset
 
     # Soft constraint parameters.
-    self.q1_yaw: float = config.Q1_YAW
-    self.q2_yaw: float = config.Q2_YAW
-    self.q1_road: float = config.Q1_ROAD
-    self.q2_road: float = config.Q2_ROAD
-    self.q1_obs: float = config.Q1_OBS
-    self.q2_obs: float = config.Q2_OBS
-    self.yaw_min: float = config.YAW_MIN
-    self.yaw_max: float = config.YAW_MAX
-    self.obs_spec = [np.asarray(x) for x in config.OBS_SPEC]
-    self.obs_precision = list(getattr(config, "OBS_PRECISION", [31, 11]))
-    self.barrier_clip_min: float = config.BARRIER_CLIP_MIN
-    self.barrier_clip_max: float = config.BARRIER_CLIP_MAX
-    self.buffer: float = getattr(config, "BUFFER", 0.)
+    self.q1_yaw: float = cfg.q1_yaw
+    self.q2_yaw: float = cfg.q2_yaw
+    self.q1_road: float = cfg.q1_road
+    self.q2_road: float = cfg.q2_road
+    self.q1_obs: float = cfg.q1_obs
+    self.q2_obs: float = cfg.q2_obs
+    self.yaw_min: float = cfg.yaw_min
+    self.yaw_max: float = cfg.yaw_max
+    self.obs_spec = [np.asarray(x) for x in cfg.obs_spec]
+    self.obs_precision = list(getattr(cfg, "obs_precision", [31, 11]))
+    self.barrier_clip_min: float = cfg.barrier_clip_min
+    self.barrier_clip_max: float = cfg.barrier_clip_max
+    self.buffer: float = getattr(cfg, "buffer", 0.)
     self.yaw_barrier_cost = SplineBarrierCost(
         self.barrier_clip_min, self.barrier_clip_max, self.q1_yaw, self.q2_yaw,
-        SplineYawCost(config)
+        SplineYawCost(cfg)
     )
     self.road_barrier_cost = SplineBarrierCost(
-        self.barrier_clip_min, self.barrier_clip_max,
-        self.q1_road, self.q2_road,
-        SplineRoadBoundaryCost(config=config, buffer=self.buffer)
+        self.barrier_clip_min, self.barrier_clip_max, self.q1_road,
+        self.q2_road, SplineRoadBoundaryCost(cfg=cfg, buffer=self.buffer)
     )
     self.obs_barrier_cost: List[BarrierCost] = []
     for box_spec in self.obs_spec:
@@ -59,18 +58,18 @@ class Bicycle5DCost(BaseSplineCost):
               self.barrier_clip_min, self.barrier_clip_max, self.q1_obs,
               self.q2_obs,
               BoxObsBoxFootprintCost(
-                  state_box_limits=self.state_box_limits, box_spec=box_spec,
+                  state_box_limit=self.state_box_limit, box_spec=box_spec,
                   precision=self.obs_precision, buffer=self.buffer
               )
           )
       )
 
-    self.has_vel_constr: bool = config.HAS_VEL_CONSTR
+    self.has_vel_constr: bool = cfg.has_vel_constr
     if self.has_vel_constr:
-      self.q1_v: float = config.Q1_V
-      self.q2_v: float = config.Q2_V
-      self.v_min: float = config.V_MIN
-      self.v_max: float = config.V_MAX
+      self.q1_v: float = cfg.q1_v
+      self.q2_v: float = cfg.q2_v
+      self.v_min: float = cfg.v_min
+      self.v_max: float = cfg.v_max
       self.vel_max_barrier_cost = BarrierCost(
           self.barrier_clip_min, self.barrier_clip_max, self.q1_v, self.q2_v,
           UpperHalfCost(value=self.v_max, dim=2)
@@ -80,12 +79,12 @@ class Bicycle5DCost(BaseSplineCost):
           LowerHalfCost(value=self.v_min, dim=2)
       )
 
-    self.has_delta_constr: bool = config.HAS_DELTA_CONSTR
+    self.has_delta_constr: bool = cfg.has_delta_constr
     if self.has_delta_constr:
-      self.q1_delta: float = config.Q1_DELTA
-      self.q2_delta: float = config.Q2_DELTA
-      self.delta_min: float = config.DELTA_MIN
-      self.delta_max: float = config.DELTA_MAX
+      self.q1_delta: float = cfg.q1_delta
+      self.q2_delta: float = cfg.q2_delta
+      self.delta_min: float = cfg.delta_min
+      self.delta_max: float = cfg.delta_max
       self.delta_max_barrier_cost = BarrierCost(
           self.barrier_clip_min, self.barrier_clip_max, self.q1_delta,
           self.q2_delta, UpperHalfCost(value=self.delta_max, dim=4)
@@ -147,47 +146,45 @@ class Bicycle5DCost(BaseSplineCost):
 
 class Bicycle5DConstraint(BaseSplineCost):
 
-  def __init__(self, config):
-    super().__init__(config)
+  def __init__(self, cfg):
+    super().__init__(cfg)
 
-    self.yaw_min = config.YAW_MIN
-    self.yaw_max = config.YAW_MAX
+    self.yaw_min = cfg.yaw_min
+    self.yaw_max = cfg.yaw_max
 
-    self.obs_spec = config.OBS_SPEC
-    self.obs_precision = getattr(config, "OBS_PRECISION", [31, 11])
-    if hasattr(config, "BUFFER"):
-      self.buffer: float = config.BUFFER
+    self.obs_spec = cfg.obs_spec
+    self.obs_precision = getattr(cfg, "obs_precision", [31, 11])
+    if hasattr(cfg, "buffer"):
+      self.buffer: float = cfg.buffer
       print(
           f"Adds buffer ({self.buffer}) around obstacles and road boundaries."
       )
     else:
       self.buffer = 0.
 
-    self.yaw_constraint = SplineYawCost(config)
+    self.yaw_constraint = SplineYawCost(cfg)
 
-    self.road_constraint = SplineRoadBoundaryCost(
-        config=config, buffer=self.buffer
-    )
+    self.road_constraint = SplineRoadBoundaryCost(cfg=cfg, buffer=self.buffer)
     self.obs_constraint = []
     for box_spec in self.obs_spec:
       self.obs_constraint.append(
           BoxObsBoxFootprintCost(
-              state_box_limits=self.state_box_limits, box_spec=box_spec,
+              state_box_limit=self.state_box_limit, box_spec=box_spec,
               precision=self.obs_precision, buffer=self.buffer
           )
       )
 
-    self.has_vel_constr = config.HAS_VEL_CONSTR
+    self.has_vel_constr = cfg.has_vel_constr
     if self.has_vel_constr:
-      self.v_min = config.V_MIN
-      self.v_max = config.V_MAX
+      self.v_min = cfg.v_min
+      self.v_max = cfg.v_max
       self.vel_max_constraint = UpperHalfCost(value=self.v_max, dim=2)
       self.vel_min_constraint = LowerHalfCost(value=self.v_min, dim=2)
 
-    self.has_delta_constr = config.HAS_DELTA_CONSTR
+    self.has_delta_constr = cfg.has_delta_constr
     if self.has_delta_constr:
-      self.delta_min = config.DELTA_MIN
-      self.delta_max = config.DELTA_MAX
+      self.delta_min = cfg.delta_min
+      self.delta_max = cfg.delta_max
       self.delta_max_constraint = UpperHalfCost(value=self.delta_max, dim=4)
       self.delta_min_constraint = LowerHalfCost(value=self.delta_min, dim=4)
 
@@ -287,9 +284,9 @@ class Bicycle5DConstraint(BaseSplineCost):
 
 class Bicycle5DSquareConstraint(BaseSplineCost):
 
-  def __init__(self, config):
-    super().__init__(config)
-    self.constraint = Bicycle5DConstraint(config)
+  def __init__(self, cfg):
+    super().__init__(cfg)
+    self.constraint = Bicycle5DConstraint(cfg)
 
   @partial(jax.jit, static_argnames='self')
   def get_stage_cost(
@@ -314,12 +311,12 @@ class Bicycle5DSquareConstraint(BaseSplineCost):
 
 class Bicycle5DReachabilityCost(BaseSplineCost):
 
-  def __init__(self, config):
+  def __init__(self, cfg):
     super().__init__()
-    self.constraint = Bicycle5DSquareConstraint(config)
-    R = jnp.array([[config.W_ACCEL, 0.0], [0.0, config.W_OMEGA]])
+    self.constraint = Bicycle5DSquareConstraint(cfg)
+    R = jnp.array([[cfg.w_accel, 0.0], [0.0, cfg.w_omega]])
     self.ctrl_cost = QuadraticControlCost(R=R, r=jnp.zeros(2))
-    self.N = config.N
+    self.plan_horizon = cfg.plan_horizon
 
   @partial(jax.jit, static_argnames='self')
   def get_stage_cost(
@@ -357,9 +354,9 @@ class Bicycle5DReachabilityCost(BaseSplineCost):
 class Bicycle5DRefTrajCost(BaseSplineCost):
 
   def __init__(
-      self, config, ref_traj: np.ndarray, ref_ctrl: Optional[np.ndarray] = None
+      self, cfg, ref_traj: np.ndarray, ref_ctrl: Optional[np.ndarray] = None
   ):
-    super().__init__(config)
+    super().__init__(cfg)
 
     # Racing cost parameters.
     self.ref_traj = jnp.asarray(ref_traj)
@@ -368,48 +365,47 @@ class Bicycle5DRefTrajCost(BaseSplineCost):
     else:
       assert ref_ctrl.shape[1] == ref_traj.shape[1]
       self.ref_ctrl = jnp.asarray(ref_ctrl)
-    if isinstance(config.W_REF, float):
-      self.w_ref: DeviceArray = jnp.eye(5) * config.W_REF
+    if isinstance(cfg.w_ref, float):
+      self.w_ref: DeviceArray = jnp.eye(5) * cfg.w_ref
     else:
-      assert isinstance(config.W_REF, list)
-      assert len(config.W_REF) == 5
-      self.w_ref: DeviceArray = jnp.diag(jnp.asarray(config.W_REF)).copy()
-    self.w_accel: float = config.W_ACCEL
-    self.w_omega: float = config.W_OMEGA
+      assert isinstance(cfg.w_ref, list)
+      assert len(cfg.w_ref) == 5
+      self.w_ref: DeviceArray = jnp.diag(jnp.asarray(cfg.w_ref)).copy()
+    self.w_accel: float = cfg.w_accel
+    self.w_omega: float = cfg.w_omega
     self.R = jnp.asarray([[self.w_accel, 0.], [0., self.w_omega]])
-    self.wheelbase: float = config.WHEELBASE
+    self.wheelbase: float = cfg.wheelbase
 
     # Soft constraint parameters.
-    self.barrier_clip_min: float = config.BARRIER_CLIP_MIN
-    self.barrier_clip_max: float = config.BARRIER_CLIP_MAX
-    self.buffer: float = getattr(config, "BUFFER", 0.)
-    self.has_yaw_constr: bool = config.HAS_YAW_CONSTR
+    self.barrier_clip_min: float = cfg.barrier_clip_min
+    self.barrier_clip_max: float = cfg.barrier_clip_max
+    self.buffer: float = getattr(cfg, "buffer", 0.)
+    self.has_yaw_constr: bool = cfg.has_yaw_constr
     if self.has_yaw_constr:
-      self.q1_yaw: float = config.Q1_YAW
-      self.q2_yaw: float = config.Q2_YAW
-      self.yaw_min: float = config.YAW_MIN
-      self.yaw_max: float = config.YAW_MAX
+      self.q1_yaw: float = cfg.q1_yaw
+      self.q2_yaw: float = cfg.q2_yaw
+      self.yaw_min: float = cfg.yaw_min
+      self.yaw_max: float = cfg.yaw_max
       self.yaw_barrier_cost = SplineBarrierCost(
           self.barrier_clip_min, self.barrier_clip_max, self.q1_yaw,
-          self.q2_yaw, SplineYawCost(config)
+          self.q2_yaw, SplineYawCost(cfg)
       )
 
-    self.has_road_constr: bool = config.HAS_ROAD_CONSTR
+    self.has_road_constr: bool = cfg.has_road_constr
     if self.has_road_constr:
-      self.q1_road: float = config.Q1_ROAD
-      self.q2_road: float = config.Q2_ROAD
+      self.q1_road: float = cfg.q1_road
+      self.q2_road: float = cfg.q2_road
       self.road_barrier_cost = SplineBarrierCost(
           self.barrier_clip_min, self.barrier_clip_max, self.q1_road,
-          self.q2_road,
-          SplineRoadBoundaryCost(config=config, buffer=self.buffer)
+          self.q2_road, SplineRoadBoundaryCost(cfg=cfg, buffer=self.buffer)
       )
 
-    self.has_obs_constr: bool = config.HAS_OBS_CONSTR
+    self.has_obs_constr: bool = cfg.has_obs_constr
     if self.has_obs_constr:
-      self.q1_obs: float = config.Q1_OBS
-      self.q2_obs: float = config.Q2_OBS
-      self.obs_spec = [np.asarray(x) for x in config.OBS_SPEC]
-      self.obs_precision = list(getattr(config, "OBS_PRECISION", [31, 11]))
+      self.q1_obs: float = cfg.q1_obs
+      self.q2_obs: float = cfg.q2_obs
+      self.obs_spec = [np.asarray(x) for x in cfg.obs_spec]
+      self.obs_precision = list(getattr(cfg, "obs_precision", [31, 11]))
       self.obs_barrier_cost: List[BarrierCost] = []
       for box_spec in self.obs_spec:
         self.obs_barrier_cost.append(
@@ -417,18 +413,18 @@ class Bicycle5DRefTrajCost(BaseSplineCost):
                 self.barrier_clip_min, self.barrier_clip_max, self.q1_obs,
                 self.q2_obs,
                 BoxObsBoxFootprintCost(
-                    state_box_limits=self.state_box_limits, box_spec=box_spec,
+                    state_box_limit=self.state_box_limit, box_spec=box_spec,
                     precision=self.obs_precision, buffer=self.buffer
                 )
             )
         )
 
-    self.has_vel_constr: bool = config.HAS_VEL_CONSTR
+    self.has_vel_constr: bool = cfg.has_vel_constr
     if self.has_vel_constr:
-      self.q1_v: float = config.Q1_V
-      self.q2_v: float = config.Q2_V
-      self.v_min: float = config.V_MIN
-      self.v_max: float = config.V_MAX
+      self.q1_v: float = cfg.q1_v
+      self.q2_v: float = cfg.q2_v
+      self.v_min: float = cfg.v_min
+      self.v_max: float = cfg.v_max
       self.vel_max_barrier_cost = BarrierCost(
           self.barrier_clip_min, self.barrier_clip_max, self.q1_v, self.q2_v,
           UpperHalfCost(value=self.v_max, dim=2)
@@ -438,12 +434,12 @@ class Bicycle5DRefTrajCost(BaseSplineCost):
           LowerHalfCost(value=self.v_min, dim=2)
       )
 
-    self.has_delta_constr: bool = config.HAS_DELTA_CONSTR
+    self.has_delta_constr: bool = cfg.has_delta_constr
     if self.has_delta_constr:
-      self.q1_delta: float = config.Q1_DELTA
-      self.q2_delta: float = config.Q2_DELTA
-      self.delta_min: float = config.DELTA_MIN
-      self.delta_max: float = config.DELTA_MAX
+      self.q1_delta: float = cfg.q1_delta
+      self.q2_delta: float = cfg.q2_delta
+      self.delta_min: float = cfg.delta_min
+      self.delta_max: float = cfg.delta_max
       self.delta_max_barrier_cost = BarrierCost(
           self.barrier_clip_min, self.barrier_clip_max, self.q1_delta,
           self.q2_delta, UpperHalfCost(value=self.delta_max, dim=4)

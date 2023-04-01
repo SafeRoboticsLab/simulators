@@ -15,45 +15,43 @@ import argparse
 from shutil import copyfile
 import jax
 from jax import numpy as jnp
+from omegaconf import OmegaConf
 
 from simulators import (
-    RaceCarSingle5DEnv, load_config, PrintLogger, Bicycle5DCost,
-    Bicycle5DReachabilityCost, Bicycle5DRefTrajCost
+    RaceCarSingle5DEnv, PrintLogger, Bicycle5DCost, Bicycle5DReachabilityCost,
+    Bicycle5DRefTrajCost
 )
 
 jax.config.update('jax_platform_name', 'cpu')
 
 
-def main(config_file):
-  # region: Sets environment
-  config = load_config(config_file)
-  cfg_env = config['environment']
-  cfg_agent = config['agent']
-  cfg_solver = config['solver']
-  cfg_cost = config['cost']
-  cfg_cost.N = cfg_solver.N
+def main(config_file: str):
+  cfg = OmegaConf.load(config_file)
 
-  env = RaceCarSingle5DEnv(cfg_env, cfg_agent, cfg_cost)
+  # region: Sets environment
+  cfg.cost.plan_horizon = cfg.solver.plan_horizon
+
+  env = RaceCarSingle5DEnv(cfg.environment, cfg.agent, cfg.cost)
   env.step_keep_constraints = True
-  x_cur = np.array(getattr(cfg_solver, "INIT_STATE", [0., 0., 1., 0., 0.]))
+  x_cur = np.array(getattr(cfg.solver, "init_state", [0., 0., 1., 0., 0.]))
   env.reset(x_cur)
 
   # endregion
 
   # region: Constructs placeholder and initializes iLQR
-  max_iter_receding = cfg_solver.MAX_ITER_RECEDING
+  max_iter_receding = cfg.solver.max_iter_receding
   ref_traj = None
   #! hacky
-  config_ilqr_cost = copy.deepcopy(cfg_cost)
-  config_ilqr_cost.BUFFER = getattr(cfg_solver, "BUFFER", 0.)
-  if cfg_cost.COST_TYPE == "Reachability":
+  config_ilqr_cost = copy.deepcopy(cfg.cost)
+  config_ilqr_cost.buffer = getattr(cfg.solver, "buffer", 0.)
+  if cfg.cost.cost_type == "Reachability":
     policy_type = "iLQRReachabilitySpline"
     cost = Bicycle5DReachabilityCost(config_ilqr_cost)
     env.cost = cost  #! hacky
   else:
     policy_type = "iLQRSpline"
-    if cfg_solver.USE_TRAJ_COST:
-      len_ref_traj = max_iter_receding + cfg_solver.N
+    if cfg.solver.use_traj_cost:
+      len_ref_traj = max_iter_receding + cfg.solver.plan_horizon
       center_line = env.track.center_line_data
       dist = np.linalg.norm(center_line - x_cur[:2, np.newaxis], axis=0)
       start_idx = np.argmin(dist)
@@ -68,27 +66,26 @@ def main(config_file):
       )
       ref_traj[2, :] = 1.5
 
-      cfg_traj_cost = config['traj_cost']
-      cfg_traj_cost.STATE_BOX_LIMITS = cfg_agent.BOX_LIMIT
-      cfg_traj_cost.WHEELBASE = cfg_agent.WHEELBASE
-      cfg_traj_cost.TRACK_WIDTH_LEFT = cfg_env.TRACK_WIDTH_LEFT
-      cfg_traj_cost.TRACK_WIDTH_RIGHT = cfg_env.TRACK_WIDTH_RIGHT
-      cfg_traj_cost.OBS_SPEC = cfg_env.OBS_SPEC
-      cost = Bicycle5DRefTrajCost(cfg_traj_cost, jnp.asarray(ref_traj))
+      cfg.traj_cost.state_box_limit = cfg.agent.state_box_limit
+      cfg.traj_cost.wheelbase = cfg.agent.wheelbase
+      cfg.traj_cost.track_width_left = cfg.environment.track_width_left
+      cfg.traj_cost.track_width_right = cfg.environment.track_width_right
+      cfg.traj_cost.obs_spec = cfg.environment.obs_spec
+      cost = Bicycle5DRefTrajCost(cfg.traj_cost, jnp.asarray(ref_traj))
       env.cost = cost
     else:
       cost = Bicycle5DCost(config_ilqr_cost)
 
   env.agent.init_policy(
-      policy_type=policy_type, config=cfg_solver, cost=cost, track=env.track,
+      policy_type=policy_type, cfg=cfg.solver, cost=cost, track=env.track,
       ref_traj=ref_traj
   )
-  fig_folder = os.path.join(cfg_solver.OUT_FOLDER, "figure")
+  fig_folder = os.path.join(cfg.solver.out_folder, "figure")
   fig_prog_folder = os.path.join(fig_folder, "progress")
   os.makedirs(fig_prog_folder, exist_ok=True)
-  copyfile(config_file, os.path.join(cfg_solver.OUT_FOLDER, 'config.yaml'))
-  sys.stdout = PrintLogger(os.path.join(cfg_solver.OUT_FOLDER, 'log.txt'))
-  sys.stderr = PrintLogger(os.path.join(cfg_solver.OUT_FOLDER, 'log.txt'))
+  copyfile(config_file, os.path.join(cfg.solver.out_folder, 'config.yaml'))
+  sys.stdout = PrintLogger(os.path.join(cfg.solver.out_folder, 'log.txt'))
+  sys.stderr = PrintLogger(os.path.join(cfg.solver.out_folder, 'log.txt'))
   # endregion
 
   # region: Runs iLQR
@@ -107,7 +104,7 @@ def main(config_file):
   ):
     solver_info = plan_hist[-1]
     fig, ax = plt.subplots(
-        1, 1, figsize=(cfg_solver.FIG_SIZE_X, cfg_solver.FIG_SIZE_Y)
+        1, 1, figsize=(cfg.solver.fig_size_x, cfg.solver.fig_size_y)
     )
     ax.axis(env.visual_extent)
     ax.set_aspect('equal')
@@ -120,10 +117,10 @@ def main(config_file):
         solver_info['states'][[0, 1, 3], -1]
     )
     ego_fut.plot(ax, color=c_ego, lw=1.5, alpha=.5)
-    if cfg_solver.CMAP:
+    if cfg.solver.cmap:
       env.render_state_cost_map(
-          ax=ax, nx=cfg_solver.CMAP_RES_X, ny=cfg_solver.CMAP_RES_Y,
-          vmin=cfg_solver.CMAP_MIN, vmax=cfg_solver.CMAP_MAX,
+          ax=ax, nx=cfg.solver.cmap_res_x, ny=cfg.solver.cmap_res_y,
+          vmin=cfg.solver.cmap_min, vmax=cfg.solver.cmap_max,
           vel=state_hist[-1][2], yaw=state_hist[-1][3],
           delta=state_hist[-1][4], time_idx=time_idx
       )
@@ -137,7 +134,7 @@ def main(config_file):
     states = np.array(state_hist).T  # last one is the next state.
     sc = ax.scatter(
         states[0, :-1], states[1, :-1], s=24, c=states[2, :-1], cmap=cm.jet,
-        vmin=cfg_agent.V_MIN, vmax=cfg_agent.V_MAX, edgecolor='none',
+        vmin=cfg.agent.v_min, vmax=cfg.agent.v_max, edgecolor='none',
         marker='o'
     )
     cbar = fig.colorbar(sc, ax=ax)
@@ -164,7 +161,7 @@ def main(config_file):
       env, state_hist, action_hist, plan_hist, step_hist, *args, **kwargs
   ):
     fig, axes = plt.subplots(
-        2, 1, figsize=(cfg_solver.FIG_SIZE_X, 2 * cfg_solver.FIG_SIZE_Y)
+        2, 1, figsize=(cfg.solver.fig_size_x, 2 * cfg.solver.fig_size_y)
     )
 
     for ax in axes:
@@ -177,12 +174,12 @@ def main(config_file):
 
     states = np.array(state_hist).T
     # ctrls = np.array(action_hist).T
-    # action_space = np.array(cfg_agent.ACTION_RANGE, dtype=np.float32)
+    # action_space = np.array(cfg.agent.action_range, dtype=np.float32)
 
     ax = axes[0]
     sc = ax.scatter(
         states[0, :], states[1, :], s=24, c=states[2, :], cmap=cm.jet,
-        vmin=cfg_agent.V_MIN, vmax=cfg_agent.V_MAX, edgecolor='none',
+        vmin=cfg.agent.v_min, vmax=cfg.agent.v_max, edgecolor='none',
         marker='o'
     )
     cbar = fig.colorbar(sc, ax=ax)
@@ -191,7 +188,7 @@ def main(config_file):
     ax = axes[1]
     sc = ax.scatter(
         states[0, :], states[1, :], s=24, c=states[4, :], cmap=cm.jet,
-        vmin=cfg_agent.DELTA_MIN, vmax=cfg_agent.DELTA_MAX, edgecolor='none',
+        vmin=cfg.agent.delta_min, vmax=cfg.agent.delta_max, edgecolor='none',
         marker='o'
     )
     cbar = fig.colorbar(sc, ax=ax)
@@ -224,7 +221,7 @@ def main(config_file):
 
   # region: Visualizes
   gif_path = os.path.join(fig_folder, 'rollout.gif')
-  frame_skip = getattr(cfg_solver, "FRAME_SKIP", 1)
+  frame_skip = getattr(cfg.solver, "frame_skip", 1)
   with imageio.get_writer(gif_path, mode='I') as writer:
     for i in range(len(nominal_states) - 1):
       if frame_skip != 1 and i % frame_skip != 0:

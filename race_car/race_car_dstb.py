@@ -26,17 +26,17 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
   """
 
   # region: init
-  def __init__(self, config_env, config_agent, config_cost) -> None:
-    super().__init__(config_env, config_agent)
+  def __init__(self, cfg_env, cfg_agent, cfg_cost) -> None:
+    super().__init__(cfg_env, cfg_agent)
 
     # Constructs track.
-    self.track_width_right = config_env.TRACK_WIDTH_RIGHT
-    self.track_width_left = config_env.TRACK_WIDTH_LEFT
-    if hasattr(config_env, "TRACK_FILE"):
+    self.track_width_right = cfg_env.track_width_right
+    self.track_width_left = cfg_env.track_width_left
+    if hasattr(cfg_env, "track_file"):
       self.track_len = None
-      center_line = get_centerline_from_traj(config_env.TRACK_FILE)
+      center_line = get_centerline_from_traj(cfg_env.track_file)
     else:
-      self.track_len = config_env.TRACK_LEN
+      self.track_len = cfg_env.track_len
       _center_line_x = np.linspace(
           start=0., stop=self.track_len, num=1000, endpoint=True
       ).reshape(1, -1)
@@ -46,30 +46,30 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
     self.track = Track(
         center_line=center_line, width_left=self.track_width_left,
         width_right=self.track_width_right,
-        loop=getattr(config_env, 'LOOP', True)
+        loop=getattr(cfg_env, 'loop', True)
     )
 
     # Observations.
-    self.failure_thr = getattr(config_env, "FAILURE_THR", 0.)
-    self.reset_thr = getattr(config_env, "RESET_THR", 0.)
-    self.obs_type = getattr(config_env, "OBS_TYPE", "perfect")
+    self.failure_thr = getattr(cfg_env, "failure_thr", 0.)
+    self.reset_thr = getattr(cfg_env, "reset_thr", 0.)
+    self.obs_type = getattr(cfg_env, "obs_type", "perfect")
     self.step_keep_constraints = True
     self.step_keep_targets = False
 
     # Constructs the cost and constraint. Assume the same constraint.
-    config_cost.STATE_BOX_LIMITS = config_agent.BOX_LIMIT
-    config_cost.WHEELBASE = config_agent.WHEELBASE
-    config_cost.TRACK_WIDTH_LEFT = config_env.TRACK_WIDTH_LEFT
-    config_cost.TRACK_WIDTH_RIGHT = config_env.TRACK_WIDTH_RIGHT
-    config_cost.OBS_SPEC = config_env.OBS_SPEC
-    self.cost_type = getattr(config_cost, "COST_TYPE", "Lagrange")
+    cfg_cost.state_box_limit = cfg_agent.state_box_limit
+    cfg_cost.wheelbase = cfg_agent.wheelbase
+    cfg_cost.track_width_left = cfg_env.track_width_left
+    cfg_cost.track_width_right = cfg_env.track_width_right
+    cfg_cost.obs_spec = cfg_env.obs_spec
+    self.cost_type = getattr(cfg_cost, "cost_type", "Lagrange")
     if self.cost_type == "Lagrange":
-      self.cost = Bicycle5DCost(config_cost)
+      self.cost = Bicycle5DCost(cfg_cost)
     else:
       assert self.cost_type == "Reachability"
-      self.cost = Bicycle5DReachabilityCost(config_cost)
-    self.constraint = Bicycle5DConstraint(config_cost)
-    self.g_x_fail = config_env.G_X_FAIL
+      self.cost = Bicycle5DReachabilityCost(cfg_cost)
+    self.constraint = Bicycle5DConstraint(cfg_cost)
+    self.g_x_fail = cfg_env.g_x_fail
 
     # Visualization.
     track_cat = np.concatenate(
@@ -105,9 +105,9 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
       self.obs_vertices_list.append(rot_offset + box_center)
 
     # Initializes.
-    self.reset_rej_sampling = getattr(config_env, "RESET_REJ_SAMPLING", True)
-    self.build_obs_rst_space(config_env, config_agent, config_cost)
-    self.seed(config_env.SEED)
+    self.reset_rej_sampling = getattr(cfg_env, "reset_rej_sampling", True)
+    self.build_obs_rst_space(cfg_env, cfg_agent, cfg_cost)
+    self.seed(cfg_env.seed)
     self.reset()
 
   # endregion
@@ -278,11 +278,11 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
   # endregion
 
   # region: gym
-  def build_obs_rst_space(self, config_env, config_agent, config_cost):
+  def build_obs_rst_space(self, cfg_env, cfg_agent, cfg_cost):
     # Reset Sample Space. Note that the first two dimension is in the local
     # frame and it needs to call track.local2global() to get the (x, y)
     # position in the global frame.
-    reset_space = np.array(config_env.RESET_SPACE, dtype=np.float32)
+    reset_space = np.array(cfg_env.reset_space, dtype=np.float32)
     self.reset_sample_sapce = spaces.Box(
         low=reset_space[:, 0], high=reset_space[:, 1]
     )
@@ -297,30 +297,30 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
       low = np.zeros((self.state_dim,))
       low[0] = x_min
       low[1] = y_min
-      low[2] = config_agent.V_MIN
+      low[2] = cfg_agent.v_min
       low[3] = -np.pi
-      low[4] = config_agent.DELTA_MIN
+      low[4] = cfg_agent.delta_min
       high = np.zeros((self.state_dim,))
       high[0] = x_max
       high[1] = y_max
-      high[2] = config_agent.V_MAX
+      high[2] = cfg_agent.v_max
       high[3] = np.pi
-      high[4] = config_agent.DELTA_MAX
+      high[4] = cfg_agent.delta_max
     elif self.obs_type == "cos_sin":
       low = np.zeros((self.state_dim + 1,))
       low[0] = x_min
       low[1] = y_min
-      low[2] = config_agent.V_MIN
+      low[2] = cfg_agent.v_min
       low[3] = -1.
       low[4] = -1.
-      low[5] = config_agent.DELTA_MIN
+      low[5] = cfg_agent.delta_min
       high = np.zeros((self.state_dim + 1,))
       high[0] = x_max
       high[1] = y_max
-      high[2] = config_agent.V_MAX
+      high[2] = cfg_agent.v_max
       high[3] = 1.
       high[4] = 1.
-      high[5] = config_agent.DELTA_MAX
+      high[5] = cfg_agent.delta_max
     else:
       raise ValueError("Observation type {} is not supported!")
     self.observation_space = spaces.Box(

@@ -16,11 +16,11 @@ class BasePolicy(ABC):
   critic_agents_order: Optional[List]
   policy_observable: Optional[List]
 
-  def __init__(self, id: str, config) -> None:
+  def __init__(self, id: str, cfg) -> None:
     super().__init__()
     self.id = id
-    self.config = config
-    self.device = torch.device(config.DEVICE)
+    self.cfg = cfg
+    self.device = torch.device(cfg.device)
     self.policy_observable = None
     self._critic = None
     self.critic_agents_order = None

@@ -266,7 +266,7 @@ class Track:
 
 
 if __name__ == '__main__':
-  from utils import get_centerline_from_traj
+  from utils.utils import get_centerline_from_traj
   center_line = get_centerline_from_traj("./outerloop_center_smooth.csv")
   track = Track(
       center_line=center_line, width_left=.3, width_right=.3, loop=True

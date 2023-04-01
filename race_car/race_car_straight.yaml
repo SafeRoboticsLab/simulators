@@ -1,24 +1,24 @@
 environment:
-  SEED: 0
-  NUM_AGENTS: 1
+  seed: 0
+  num_agents: 1
   # TRACK
-  TRACK_LEN: 20
-  TRACK_WIDTH_RIGHT: .6
-  TRACK_WIDTH_LEFT: .6
-  # LOOP: true
-  TIMEOUT: 100
+  track_len: 20
+  track_width_right: .6
+  track_width_left: .6
+  # loop: true
+  timeout: 100
   # DONE FLAG PARAM
-  END_CRITERION: failure
-  G_X_FAIL: 0.25
-  OBS_TYPE: perfect
-  OBS_SPEC:
+  end_criterion: failure
+  g_x_fail: 0.25
+  obs_type: perfect
+  obs_spec:
     - [2, -0.4, 0., 0.25, 0.1]
     - [5, 0.4, 0., 0.25, 0.1]
     - [8, 0.1, 0., 0.25, 0.1]
     - [11, -0.1, 0., 0.25, 0.1]
     - [14, -0.4, 0., 0.25, 0.1]
     - [14, 0.4, 0., 0.25, 0.1]
-  RESET_SPACE:
+  reset_space:
     - [0., 1.]
     - [-0.4, 0.4]
     - [0.5, 1.5]
@@ -26,69 +26,69 @@ environment:
     - [-0.15, 0.15]
 
 cost:
-  BIDIRECTIONAL: false
-  COST_TYPE: Lagrange
+  bidirectional: false
+  cost_type: Lagrange
   # CONSTRAINT PARAM
-  Q1_ROAD: 1.
-  Q2_ROAD: 10.
-  Q1_YAW: 1.
-  Q2_YAW: 10.
-  Q1_OBS: 1.
-  Q2_OBS: 10.
+  q1_road: 1.
+  q2_road: 10.
+  q1_yaw: 1.
+  q2_yaw: 10.
+  q1_obs: 1.
+  q2_obs: 10.
   # COST PARAM
-  TRACK_OFFSET: 0.5
-  W_VEL: 4.
-  W_CONTOUR: 4.
-  W_THETA: 0.
-  W_ACCEL: 0.01
-  W_OMEGA: 0.01
-  V_REF: 1.5
-  BARRIER_CLIP_MIN: -0.25
-  BARRIER_CLIP_MAX: 5.0
+  track_offset: 0.5
+  w_vel: 4.
+  w_contour: 4.
+  w_theta: 0.
+  w_accel: 0.01
+  w_omega: 0.01
+  v_ref: 1.5
+  barrier_clip_min: -0.25
+  barrier_clip_max: 5.0
   #
-  YAW_MIN: -1.5707
-  YAW_MAX: 1.5707
-  HAS_VEL_CONSTR: false
-  HAS_DELTA_CONSTR: false
-  # V_MIN: 0.4
-  # V_MAX: 2.
-  # DELTA_MIN: -0.35
-  # DELTA_MAX: 0.35
-  # Q1_V: 1.
-  # Q2_V: 10.
-  # Q1_DELTA: 1.
-  # Q2_DELTA: 10.
+  yaw_min: -1.5707
+  yaw_max: 1.5707
+  has_vel_constr: false
+  has_delta_constr: false
+  # v_min: 0.4
+  # v_max: 2.
+  # delta_min: -0.35
+  # delta_max: 0.35
+  # q1_v: 1.
+  # q2_v: 10.
+  # q1_delta: 1.
+  # q2_delta: 10.
 
 agent:
-  AGENT_ID: ego
-  DYN: Bicycle5D
-  FOOTPRINT: Box
-  BOX_LIMIT: [0., 0.5, -0.1, 0.1]
-  ACTION_RANGE:
+  agent_id: ego
+  dyn: Bicycle5D
+  footprint: Box
+  state_box_limit: [0., 0.5, -0.1, 0.1]
+  action_range:
     - [-3.5, 3.5]
     - [-5., 5.]
-  WEIGHT : 2.99  # kg
+  weight : 2.99  # kg
   # CAR DYNAMICS
-  WHEELBASE: 0.257
-  DT: 0.1
-  NUM_SEGMENT: 10  #! deprecated
-  DELTA_MIN: -0.35
-  DELTA_MAX: 0.35
-  V_MIN: 0.
-  V_MAX: 2.
+  wheelbase: 0.257
+  dt: 0.1
+  num_segment: 10  #! deprecated
+  delta_min: -0.35
+  delta_max: 0.35
+  v_min: 0.
+  v_max: 2.
 
 solver:
-  INIT_STATE: [0., 0., 0.8, 0.0, 0.0]
-  N: 20
-  MAX_ITER: 50
-  MAX_ITER_RECEDING: 150
-  OUT_FOLDER: experiments/ilqr/bic5D/straight/
-  DEVICE: cpu
-  FIG_SIZE_X: 20
-  FIG_SIZE_Y: 4
-  CMAP: true
-  CMAP_RES_X: 2000
-  CMAP_RES_Y: 20
-  CMAP_MIN: 0.
-  CMAP_MAX: 10.
-  USE_TRAJ_COST: false
+  init_state: [0., 0., 0.8, 0.0, 0.0]
+  plan_horizon: 20
+  max_iter: 50
+  max_iter_receding: 150
+  out_folder: experiments/ilqr/bic5D/straight/
+  device: cpu
+  fig_size_x: 20
+  fig_size_y: 4
+  cmap: true
+  cmap_res_x: 2000
+  cmap_res_y: 20
+  cmap_min: 0.
+  cmap_max: 10.
+  use_traj_cost: false

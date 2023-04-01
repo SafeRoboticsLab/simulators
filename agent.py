@@ -42,17 +42,17 @@ class Agent:
   agents_policy: Dict[str, BasePolicy]
   agents_order: Optional[List]
 
-  def __init__(self, config, action_space: np.ndarray, env=None) -> None:
-    if config.DYN == "Bicycle4D":
-      self.dyn = Bicycle4D(config, action_space)
-    elif config.DYN == "Bicycle5D":
-      self.dyn = Bicycle5D(config, action_space)
-    elif config.DYN == "BicycleDstb5D":
-      self.dyn = BicycleDstb5D(config, action_space)
-    elif config.DYN == "SpiritPybullet":
+  def __init__(self, cfg, action_space: np.ndarray, env=None) -> None:
+    if cfg.dyn == "Bicycle4D":
+      self.dyn = Bicycle4D(cfg, action_space)
+    elif cfg.dyn == "Bicycle5D":
+      self.dyn = Bicycle5D(cfg, action_space)
+    elif cfg.dyn == "BicycleDstb5D":
+      self.dyn = BicycleDstb5D(cfg, action_space)
+    elif cfg.dyn == "SpiritPybullet":
       # Prevents from opening a pybullet simulator when we don't need to.
       from .dynamics.spirit_dynamics_pybullet import SpiritDynamicsPybullet
-      self.dyn = SpiritDynamicsPybullet(config, action_space)
+      self.dyn = SpiritDynamicsPybullet(cfg, action_space)
     else:
       raise ValueError("Dynamics type not supported!")
 
@@ -61,19 +61,19 @@ class Agent:
     except Exception as e:
       print("WARNING: Cannot copy env - {}".format(e))
 
-    if config.FOOTPRINT == "Ellipse":
-      ego_a = config.LENGTH / 2.0
-      ego_b = config.WIDTH / 2.0
-      ego_q = np.array([config.CENTER, 0])[:, np.newaxis]
+    if cfg.footprint == "Ellipse":
+      ego_a = cfg.LENGTH / 2.0
+      ego_b = cfg.WIDTH / 2.0
+      ego_q = np.array([cfg.CENTER, 0])[:, np.newaxis]
       ego_Q = np.diag([ego_a**2, ego_b**2])
       self.footprint = Ellipse(q=ego_q, Q=ego_Q)
-    elif config.FOOTPRINT == "Box":  # TODO
-      self.footprint = BoxFootprint(box_limit=config.BOX_LIMIT)
+    elif cfg.footprint == "Box":  # TODO
+      self.footprint = BoxFootprint(box_limit=cfg.state_box_limit)
 
     # Policy should be initialized by `init_policy()`.
     self.policy = None
     self.safety_policy = None
-    self.id: str = config.AGENT_ID
+    self.id: str = cfg.agent_id
     self.ego_observable = None
     self.agents_policy = {}
     self.agents_order = None
@@ -300,21 +300,19 @@ class Agent:
     return _action, _solver_info
 
   def init_policy(
-      self, policy_type: str, config, cost: Optional[BaseCost] = None, **kwargs
+      self, policy_type: str, cfg, cost: Optional[BaseCost] = None, **kwargs
   ):
     if policy_type == "iLQR":
-      self.policy = iLQR(self.id, config, self.dyn, cost, **kwargs)
+      self.policy = iLQR(self.id, cfg, self.dyn, cost, **kwargs)
     elif policy_type == "iLQRSpline":
-      self.policy = iLQRSpline(self.id, config, self.dyn, cost, **kwargs)
+      self.policy = iLQRSpline(self.id, cfg, self.dyn, cost, **kwargs)
     elif policy_type == "iLQRReachabilitySpline":
       self.policy = iLQRReachabilitySpline(
-          self.id, config, self.dyn, cost, **kwargs
+          self.id, cfg, self.dyn, cost, **kwargs
       )
     # elif policy_type == "MPC":
     elif policy_type == "NNCS":
-      self.policy = NeuralNetworkControlSystem(
-          id=self.id, config=config, **kwargs
-      )
+      self.policy = NeuralNetworkControlSystem(id=self.id, cfg=cfg, **kwargs)
     else:
       raise ValueError(
           "The policy type ({}) is not supported!".format(policy_type)

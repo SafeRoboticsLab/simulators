@@ -15,24 +15,24 @@ from .base_dstb_dynamics import BaseDstbDynamics
 
 class BicycleDstb5D(BaseDstbDynamics):
 
-  def __init__(self, config: Any, action_space: Dict[str, np.ndarray]) -> None:
+  def __init__(self, cfg: Any, action_space: Dict[str, np.ndarray]) -> None:
     """
     Implements the bicycle dynamics (for Princeton race car). The state is the
     center of the rear axis.
 
     Args:
-        config (Any): an object specifies configuration.
+        cfg (Any): an object specifies cfguration.
         action_space (np.ndarray): action space.
     """
-    super().__init__(config, action_space)
+    super().__init__(cfg, action_space)
     self.dim_x = 5  # [x, y, v, psi, delta].
 
     # load parameters
-    self.wheelbase: float = config.WHEELBASE  # vehicle chassis length
-    self.delta_min = config.DELTA_MIN
-    self.delta_max = config.DELTA_MAX
-    self.v_min = config.V_MIN
-    self.v_max = config.V_MAX
+    self.wheelbase: float = cfg.wheelbase  # vehicle chassis length
+    self.delta_min = cfg.delta_min
+    self.delta_max = cfg.delta_max
+    self.v_min = cfg.v_min
+    self.v_max = cfg.v_max
 
   @partial(jax.jit, static_argnames='self')
   def integrate_forward_jax(

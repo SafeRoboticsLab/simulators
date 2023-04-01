@@ -24,9 +24,9 @@ class iLQRReachabilitySpline(iLQRSpline):
     # `controls` include control input at timestep N-1, which is a dummy
     # control of zeros.
     if controls is None:
-      controls = jnp.zeros((self.dim_u, self.N))
+      controls = jnp.zeros((self.dim_u, self.plan_horizon))
     else:
-      assert controls.shape[1] == self.N
+      assert controls.shape[1] == self.plan_horizon
       controls = jnp.array(controls)
 
     # Rolls out the nominal trajectory and gets the initial cost.
@@ -135,7 +135,7 @@ class iLQRReachabilitySpline(iLQRSpline):
 
     @jax.jit
     def critical_pt(i, _carry):
-      idx = self.N - 1 - i
+      idx = self.plan_horizon - 1 - i
       critical, fut_cost = _carry
       critical, fut_cost = jax.lax.cond(
           state_costs[idx] > fut_cost, true_func, false_func,
@@ -143,10 +143,10 @@ class iLQRReachabilitySpline(iLQRSpline):
       )
       return critical, fut_cost
 
-    critical = jnp.zeros(shape=(self.N,), dtype=bool)
-    critical = critical.at[self.N - 1].set(True)
+    critical = jnp.zeros(shape=(self.plan_horizon,), dtype=bool)
+    critical = critical.at[self.plan_horizon - 1].set(True)
     critical, fut_cost = jax.lax.fori_loop(
-        1, self.N - 1, critical_pt, (critical, state_costs[-1])
+        1, self.plan_horizon - 1, critical_pt, (critical, state_costs[-1])
     )  # backward until timestep 1
     return critical, fut_cost
 
@@ -234,7 +234,7 @@ class iLQRReachabilitySpline(iLQRSpline):
     @jax.jit
     def backward_pass_looper(i, _carry):
       V_x, V_xx, ks, Ks, critical = _carry
-      idx = self.N - 2 - i
+      idx = self.plan_horizon - 2 - i
 
       V_x, V_xx, ks, Ks = jax.lax.cond(
           critical[idx], true_func, false_func, (idx, V_x, V_xx, ks, Ks)
@@ -242,13 +242,14 @@ class iLQRReachabilitySpline(iLQRSpline):
       return V_x, V_xx, ks, Ks, critical
 
     # Initializes.
-    Ks = jnp.zeros((self.dim_u, self.dim_x, self.N - 1))
-    ks = jnp.zeros((self.dim_u, self.N - 1))
+    Ks = jnp.zeros((self.dim_u, self.dim_x, self.plan_horizon - 1))
+    ks = jnp.zeros((self.dim_u, self.plan_horizon - 1))
     V_x = c_x[:, -1]
     V_xx = c_xx[:, :, -1]
     reg_mat = self.eps * jnp.eye(self.dim_u)
 
     _, _, ks, Ks, _ = jax.lax.fori_loop(
-        0, self.N - 1, backward_pass_looper, (V_x, V_xx, ks, Ks, critical)
+        0, self.plan_horizon - 1, backward_pass_looper,
+        (V_x, V_xx, ks, Ks, critical)
     )
     return Ks, ks

@@ -24,19 +24,19 @@ class BaseZeroSumEnv(BaseEnv):
   maximizing the cost is called 'dstb'.
   """
 
-  def __init__(self, config_env: Any, config_agent: Any) -> None:
-    assert config_env.NUM_AGENTS == 2, (
+  def __init__(self, cfg_env: Any, cfg_agent: Any) -> None:
+    assert cfg_env.num_agents == 2, (
         "Zero-Sum Game currently only supports two agents!"
     )
-    super().__init__(config_env)
+    super().__init__(cfg_env)
     self.env_type = "zero-sum"
 
     # Action Space.
-    ctrl_space = np.array(config_agent.ACTION_RANGE['CTRL'], dtype=np.float32)
+    ctrl_space = np.array(cfg_agent.action_range.ctrl, dtype=np.float32)
     self.action_space_ctrl = spaces.Box(
         low=ctrl_space[:, 0], high=ctrl_space[:, 1]
     )
-    dstb_space = np.array(config_agent.ACTION_RANGE['DSTB'], dtype=np.float32)
+    dstb_space = np.array(cfg_agent.action_range.dstb, dtype=np.float32)
     self.action_space_dstb = spaces.Box(
         low=dstb_space[:, 0], high=dstb_space[:, 1]
     )
@@ -46,10 +46,10 @@ class BaseZeroSumEnv(BaseEnv):
     self.action_dim_ctrl = ctrl_space.shape[0]
     self.action_dim_dstb = dstb_space.shape[0]
     tmp_action_space = {'ctrl': ctrl_space, 'dstb': dstb_space}
-    self.agent = Agent(config_agent, tmp_action_space)
+    self.agent = Agent(cfg_agent, tmp_action_space)
     self.state_dim = self.agent.dyn.dim_x
 
-    self.integrate_kwargs = getattr(config_env, "INTEGRATE_KWARGS", {})
+    self.integrate_kwargs = getattr(cfg_env, "integrate_kwargs", {})
     if "noise" in self.integrate_kwargs:
       if self.integrate_kwargs['noise'] is not None:
         self.integrate_kwargs['noise'] = np.array(
@@ -245,9 +245,9 @@ class BaseZeroSumEnv(BaseEnv):
     # Initializes robot.
     if warmup:
       if policy_type == 'safety':
-        n_ctrls = self.agent.safety_policy.N
+        n_ctrls = self.agent.safety_policy.plan_horizon
       else:
-        n_ctrls = self.agent.policy.N
+        n_ctrls = self.agent.policy.plan_horizon
       init_control = np.zeros((self.action_dim_ctrl, n_ctrls))
     if policy_type == 'shield':
       shield_ind = []

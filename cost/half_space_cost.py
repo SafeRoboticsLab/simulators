@@ -46,7 +46,7 @@ class LowerHalfCost(BaseCost):
 class UpperHalfBoxFootprintCost(BaseCost):
 
   def __init__(
-      self, dim: str, value: float, state_box_limits: np.ndarray,
+      self, dim: str, value: float, state_box_limit: np.ndarray,
       x_dim: int = 0, y_dim: int = 1, yaw_dim: int = 3
   ):
     super().__init__()
@@ -58,10 +58,10 @@ class UpperHalfBoxFootprintCost(BaseCost):
       self.state_ret_dim = y_dim
 
     self.value = value
-    self.offset = jnp.array([[state_box_limits[0], state_box_limits[2]],
-                             [state_box_limits[0], state_box_limits[3]],
-                             [state_box_limits[1], state_box_limits[2]],
-                             [state_box_limits[1], state_box_limits[3]]])
+    self.offset = jnp.array([[state_box_limit[0], state_box_limit[2]],
+                             [state_box_limit[0], state_box_limit[3]],
+                             [state_box_limit[1], state_box_limit[2]],
+                             [state_box_limit[1], state_box_limit[3]]])
     self.yaw_dim = yaw_dim
 
   @partial(jax.jit, static_argnames='self')
@@ -80,7 +80,7 @@ class UpperHalfBoxFootprintCost(BaseCost):
 class LowerHalfBoxFootprintCost(BaseCost):
 
   def __init__(
-      self, dim: str, value: float, state_box_limits: np.ndarray,
+      self, dim: str, value: float, state_box_limit: np.ndarray,
       x_dim: int = 0, y_dim: int = 1, yaw_dim: int = 3
   ):
     super().__init__()
@@ -91,10 +91,10 @@ class LowerHalfBoxFootprintCost(BaseCost):
       self.dim = 1
       self.state_ret_dim = y_dim
     self.value = value
-    self.offset = jnp.array([[state_box_limits[0], state_box_limits[2]],
-                             [state_box_limits[0], state_box_limits[3]],
-                             [state_box_limits[1], state_box_limits[2]],
-                             [state_box_limits[1], state_box_limits[3]]])
+    self.offset = jnp.array([[state_box_limit[0], state_box_limit[2]],
+                             [state_box_limit[0], state_box_limit[3]],
+                             [state_box_limit[1], state_box_limit[2]],
+                             [state_box_limit[1], state_box_limit[3]]])
     self.yaw_dim = yaw_dim
 
   @partial(jax.jit, static_argnames='self')

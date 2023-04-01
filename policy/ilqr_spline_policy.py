@@ -18,14 +18,14 @@ from ..race_car.track import Track
 class iLQRSpline(iLQR):
 
   def __init__(
-      self, id: str, config, dyn: BaseDynamics, cost: BaseCost, track: Track,
+      self, id: str, cfg, dyn: BaseDynamics, cost: BaseCost, track: Track,
       ref_traj: Optional[np.ndarray] = None, **kwargs
   ) -> None:
-    super().__init__(id, config, dyn, cost)
+    super().__init__(id, cfg, dyn, cost)
     self.track = copy.deepcopy(track)
-    self.update_ref_traj = getattr(config, "UPDATE_REF_TRAJ", False)
+    self.update_ref_traj = getattr(cfg, "update_ref_traj", False)
     if self.update_ref_traj:
-      assert ref_traj.ndim == 2 and ref_traj.shape[1] >= self.N
+      assert ref_traj.ndim == 2 and ref_traj.shape[1] >= self.plan_horizon
       assert hasattr(cost, "ref_traj")
       self.update_ref_traj = True
       self.ref_traj = ref_traj.copy()
@@ -43,9 +43,9 @@ class iLQRSpline(iLQR):
     # `controls` include control input at timestep N-1, which is a dummy
     # control of zeros.
     if controls is None:
-      controls = jnp.zeros((self.dim_u, self.N))
+      controls = jnp.zeros((self.dim_u, self.plan_horizon))
     else:
-      assert controls.shape[1] == self.N
+      assert controls.shape[1] == self.plan_horizon
       controls = jnp.array(controls)
 
     # Rolls out the nominal trajectory and gets the initial cost.

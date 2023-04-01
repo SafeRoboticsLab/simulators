@@ -9,9 +9,9 @@ class LinearPolicy(BasePolicy):
 
   def __init__(
       self, id: str, nominal_states: np.ndarray, nominal_controls: np.ndarray,
-      K_closed_loop: np.ndarray, k_open_loop: np.ndarray, config: Any, **kwargs
+      K_closed_loop: np.ndarray, k_open_loop: np.ndarray, cfg: Any, **kwargs
   ):
-    super().__init__(id, config)
+    super().__init__(id, cfg)
     self.policy_type = "Linear"
 
     # Params

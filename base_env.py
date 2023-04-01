@@ -15,11 +15,11 @@ from .utils import GenericAction, GenericState
 
 class BaseEnv(gym.Env, ABC):
 
-  def __init__(self, config_env) -> None:
+  def __init__(self, cfg_env) -> None:
     gym.Env.__init__(self)
     self.cnt = 0
-    self.timeout = config_env.TIMEOUT
-    self.end_criterion = config_env.END_CRITERION
+    self.timeout = cfg_env.timeout
+    self.end_criterion = cfg_env.end_criterion
 
   @abstractmethod
   def step(self,

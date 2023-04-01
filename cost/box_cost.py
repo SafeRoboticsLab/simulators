@@ -38,16 +38,16 @@ class BoxObsCost(BaseCost):
 class BoxObsBoxFootprintCost(BaseCost):
 
   def __init__(
-      self, state_box_limits: np.ndarray, box_spec: np.ndarray,
+      self, state_box_limit: np.ndarray, box_spec: np.ndarray,
       precision: np.ndarray, x_dim: int = 0, y_dim: int = 1, yaw_dim: int = 3,
       buffer: float = 0.
   ):
     super().__init__()
     offset_xs = np.linspace(
-        state_box_limits[0], state_box_limits[1], precision[0]
+        state_box_limit[0], state_box_limit[1], precision[0]
     )
     offset_ys = np.linspace(
-        state_box_limits[2], state_box_limits[3], precision[1]
+        state_box_limit[2], state_box_limit[3], precision[1]
     )
     offset_xv, offset_yv = np.meshgrid(offset_xs, offset_ys, indexing='ij')
     offset = np.concatenate(
