@@ -33,8 +33,14 @@ class iLQR(BasePolicy):
     self.plan_horizon = cfg.plan_horizon
     self.max_iter = cfg.max_iter
     self.tol = 1e-3  # ILQR update tolerance.
-    self.eps = getattr(cfg, "eps", 1e-6)  # Numerical issue for Quu inverse.
-    # Stepsize scheduler.
+
+    # regularization parameters
+    self.reg_min = float(cfg.reg_min)
+    self.reg_max = float(cfg.reg_max)
+    self.reg_init = float(cfg.reg_init)
+    self.reg_scale_up = float(cfg.reg_scale_up)
+    self.reg_scale_down = float(cfg.reg_scale_down)
+
     # TODO: Other line search methods
     self.alphas = 0.5**(np.arange(25))
     self.horizon_indices = jnp.arange(self.plan_horizon).reshape(1, -1)
@@ -42,7 +48,7 @@ class iLQR(BasePolicy):
   def get_action(
       self, obs: np.ndarray, controls: Optional[np.ndarray] = None,
       agents_action: Optional[Dict] = None, **kwargs
-  ) -> np.ndarray:  # TODO: iLQR based on others actions?
+  ) -> np.ndarray:
     status = 0
 
     # `controls` include control input at timestep N-1, which is a dummy
@@ -60,6 +66,7 @@ class iLQR(BasePolicy):
     J = self.cost.get_traj_cost(
         states, controls, time_indices=self.horizon_indices
     )
+    reg = self.reg_init
 
     converged = False
     time0 = time.time()
@@ -70,8 +77,9 @@ class iLQR(BasePolicy):
           states, controls, time_indices=self.horizon_indices
       )
       fx, fu = self.dyn.get_jacobian(states[:, :-1], controls[:, :-1])
-      K_closed_loop, k_open_loop = self.backward_pass(
-          c_x=c_x, c_u=c_u, c_xx=c_xx, c_uu=c_uu, c_ux=c_ux, fx=fx, fu=fu
+      K_closed_loop, k_open_loop, reg = self.backward_pass(
+          c_x=c_x, c_u=c_u, c_xx=c_xx, c_uu=c_uu, c_ux=c_ux, fx=fx, fu=fu,
+          reg=reg
       )
       updated = False
       for alpha in self.alphas:
@@ -88,12 +96,15 @@ class iLQR(BasePolicy):
           states = X_new
           controls = U_new
           updated = True
+          reg = max(self.reg_min, reg / self.reg_scale_down)
           break
 
-      # Terminates early if there is no update within alphas.
+      # Terminates early if the line search fails and reg >= reg_max.
       if not updated:
-        status = 2
-        break
+        reg = reg * self.reg_scale_up
+        if reg > self.reg_max:
+          status = 2
+          break
 
       # Terminates early if the objective improvement is negligible.
       if converged:
@@ -174,8 +185,9 @@ class iLQR(BasePolicy):
   @partial(jax.jit, static_argnames='self')
   def backward_pass(
       self, c_x: DeviceArray, c_u: DeviceArray, c_xx: DeviceArray,
-      c_uu: DeviceArray, c_ux: DeviceArray, fx: DeviceArray, fu: DeviceArray
-  ) -> Tuple[DeviceArray, DeviceArray]:
+      c_uu: DeviceArray, c_ux: DeviceArray, fx: DeviceArray, fu: DeviceArray,
+      reg: float
+  ) -> Tuple[DeviceArray, DeviceArray, float]:
     """
     Jitted backward pass looped computation.
 
@@ -193,43 +205,76 @@ class iLQR(BasePolicy):
         ks (DeviceArray): gain vectors (dim_u, N - 1)
     """
 
-    @jax.jit
-    def backward_pass_looper(i, _carry):
-      V_x, V_xx, ks, Ks = _carry
-      n = self.plan_horizon - 2 - i
-
-      Q_x = c_x[:, n] + fx[:, :, n].T @ V_x
-      Q_u = c_u[:, n] + fu[:, :, n].T @ V_x
-      Q_xx = c_xx[:, :, n] + fx[:, :, n].T @ V_xx @ fx[:, :, n]
-      Q_ux = c_ux[:, :, n] + fu[:, :, n].T @ V_xx @ fx[:, :, n]
-      Q_uu = c_uu[:, :, n] + fu[:, :, n].T @ V_xx @ fu[:, :, n]
-
-      Q_uu_inv = jnp.linalg.inv(Q_uu + reg_mat)
-
-      Ks = Ks.at[:, :, n].set(-Q_uu_inv @ Q_ux)
-      ks = ks.at[:, n].set(-Q_uu_inv @ Q_u)
-
-      V_x = Q_x + Q_ux.T @ ks[:, n]
-      V_xx = Q_xx + Q_ux.T @ Ks[:, :, n]
-
+    def init():
+      Ks = jnp.zeros((self.dim_u, self.dim_x, self.plan_horizon - 1))
+      ks = jnp.zeros((self.dim_u, self.plan_horizon - 1))
+      V_x = c_x[:, -1]
+      V_xx = c_xx[:, :, -1]
       return V_x, V_xx, ks, Ks
 
-    # Initializes.
-    Ks = jnp.zeros((self.dim_u, self.dim_x, self.plan_horizon - 1))
-    ks = jnp.zeros((self.dim_u, self.plan_horizon - 1))
-    V_x = c_x[:, -1]
-    V_xx = c_xx[:, :, -1]
-    reg_mat = self.eps * jnp.eye(self.dim_u)
+    @jax.jit
+    def backward_pass_looper(val):
+      V_x, V_xx, ks, Ks, t, reg = val
+      Q_x = c_x[:, t] + fx[:, :, t].T @ V_x
+      Q_u = c_u[:, t] + fu[:, :, t].T @ V_x
+      Q_xx = c_xx[:, :, t] + fx[:, :, t].T @ V_xx @ fx[:, :, t]
+      Q_ux = c_ux[:, :, t] + fu[:, :, t].T @ V_xx @ fx[:, :, t]
+      Q_uu = c_uu[:, :, t] + fu[:, :, t].T @ V_xx @ fu[:, :, t]
 
-    V_x, V_xx, ks, Ks = jax.lax.fori_loop(
-        0, self.plan_horizon - 1, backward_pass_looper, (V_x, V_xx, ks, Ks)
+      # The regularization is added to Vxx for robustness.
+      # Ref: http://roboticexplorationlab.org/papers/iLQR_Tutorial.pdf
+      reg_mat = reg * jnp.eye(self.dim_x)
+      V_xx_reg = V_xx + reg_mat
+      Q_ux_reg = c_ux[:, :, t] + fu[:, :, t].T @ V_xx_reg @ fx[:, :, t]
+      Q_uu_reg = c_uu[:, :, t] + fu[:, :, t].T @ V_xx_reg @ fu[:, :, t]
+
+      @jax.jit
+      def isposdef(fx, reg):
+        # If the regularization is too large, but the matrix is still not
+        # positive definite, we will let the backward pass continue to avoid
+        # infinite loop.
+        return (jnp.all(jnp.linalg.eigvalsh(fx) > 0) | (reg >= self.reg_max))
+
+      @jax.jit
+      def false_func(val):
+        V_x, V_xx, ks, Ks = init()
+        updated_reg = self.reg_scale_up * reg
+        updated_reg = jax.lax.cond(
+            updated_reg <= self.reg_max, lambda x: x, lambda x: self.reg_max,
+            updated_reg
+        )
+        return V_x, V_xx, ks, Ks, self.plan_horizon - 2, updated_reg
+
+      @jax.jit
+      def true_func(val):
+        Ks, ks = val
+        Q_uu_reg_inv = jnp.linalg.inv(Q_uu_reg)
+
+        Ks = Ks.at[:, :, t].set(-Q_uu_reg_inv @ Q_ux_reg)
+        ks = ks.at[:, t].set(-Q_uu_reg_inv @ Q_u)
+
+        V_x = (
+            Q_x + Ks[:, :, t].T @ Q_u + Q_ux.T @ ks[:, t]
+            + Ks[:, :, t].T @ Q_uu @ ks[:, t]
+        )
+        V_xx = (
+            Q_xx + Ks[:, :, t].T @ Q_ux + Q_ux.T @ Ks[:, :, t]
+            + Ks[:, :, t].T @ Q_uu @ Ks[:, :, t]
+        )
+        return V_x, V_xx, ks, Ks, t - 1, reg
+
+      return jax.lax.cond(
+          isposdef(Q_uu_reg, reg), true_func, false_func, (Ks, ks)
+      )
+
+    @jax.jit
+    def cond_fun(val):
+      _, _, _, _, t, _ = val
+      return t >= 0
+
+    V_x, V_xx, ks, Ks = init()  # Initializes.
+    V_x, V_xx, ks, Ks, t, reg = jax.lax.while_loop(
+        cond_fun, backward_pass_looper,
+        (V_x, V_xx, ks, Ks, self.plan_horizon - 2, reg)
     )
-    return Ks, ks
-
-  # def _check_shape(self, array_dict: dict):
-  #   for key, value in array_dict.items():
-  #     assert value.shape[-1] == self.plan_horizon - 1, (
-  #         "The length of {} should be {} but get {}.".format(
-  #             key, self.plan_horizon - 1, value.shape[-1]
-  #         )
-  #     )
+    return Ks, ks, reg

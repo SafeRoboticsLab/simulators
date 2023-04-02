@@ -64,6 +64,7 @@ class iLQRSpline(iLQR):
         states, controls, closest_pt, slope, theta,
         time_indices=self.horizon_indices
     )
+    reg = self.reg_init
 
     converged = False
     time0 = time.time()
@@ -75,8 +76,9 @@ class iLQRSpline(iLQR):
           time_indices=self.horizon_indices
       )
       fx, fu = self.dyn.get_jacobian(states[:, :-1], controls[:, :-1])
-      K_closed_loop, k_open_loop = self.backward_pass(
-          c_x=c_x, c_u=c_u, c_xx=c_xx, c_uu=c_uu, c_ux=c_ux, fx=fx, fu=fu
+      K_closed_loop, k_open_loop, reg = self.backward_pass(
+          c_x=c_x, c_u=c_u, c_xx=c_xx, c_uu=c_uu, c_ux=c_ux, fx=fx, fu=fu,
+          reg=reg
       )
       updated = False
       for alpha in self.alphas:
@@ -98,12 +100,15 @@ class iLQRSpline(iLQR):
           slope = slope_new
           theta = theta_new
           updated = True
+          reg = max(self.reg_min, reg / self.reg_scale_down)
           break
 
-      # Terminates early if there is no update within alphas.
+      # Terminates early if the line search fails and reg >= reg_max.
       if not updated:
-        status = 2
-        break
+        reg = reg * self.reg_scale_up
+        if reg > self.reg_max:
+          status = 2
+          break
 
       # Terminates early if the objective improvement is negligible.
       if converged:
