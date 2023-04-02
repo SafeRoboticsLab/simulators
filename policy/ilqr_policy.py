@@ -30,9 +30,9 @@ class iLQR(BasePolicy):
     # iLQR parameters
     self.dim_x = dyn.dim_x
     self.dim_u = dyn.dim_u
-    self.plan_horizon = cfg.plan_horizon
-    self.max_iter = cfg.max_iter
-    self.tol = 1e-3  # ILQR update tolerance.
+    self.plan_horizon = int(cfg.plan_horizon)
+    self.max_iter = int(cfg.max_iter)
+    self.tol = float(cfg.tol)  # ILQR update tolerance.
 
     # regularization parameters
     self.reg_min = float(cfg.reg_min)
@@ -40,6 +40,7 @@ class iLQR(BasePolicy):
     self.reg_init = float(cfg.reg_init)
     self.reg_scale_up = float(cfg.reg_scale_up)
     self.reg_scale_down = float(cfg.reg_scale_down)
+    self.max_attempt = int(cfg.max_attempt)
 
     # TODO: Other line search methods
     self.alphas = 0.5**(np.arange(25))
@@ -67,6 +68,7 @@ class iLQR(BasePolicy):
         states, controls, time_indices=self.horizon_indices
     )
     reg = self.reg_init
+    fail_attempts = 0
 
     converged = False
     time0 = time.time()
@@ -102,7 +104,8 @@ class iLQR(BasePolicy):
       # Terminates early if the line search fails and reg >= reg_max.
       if not updated:
         reg = reg * self.reg_scale_up
-        if reg > self.reg_max:
+        fail_attempts += 1
+        if fail_attempts > self.max_attempt or reg > self.reg_max:
           status = 2
           break
 

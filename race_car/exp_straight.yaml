@@ -80,6 +80,7 @@ agent:
 solver:
   init_state: [0., 0., 0.8, 0.0, 0.0]
   plan_horizon: 20
+  tol: 0.01
   max_iter: 50
   max_iter_receding: 150
   out_folder: experiments/ilqr/bic5D/straight/
@@ -97,3 +98,4 @@ solver:
   reg_scale_down: 5  # scale down factor for regularization
   reg_scale_up: 5  # scale up factor for regularization
   reg_init: 0.00001  # initial regularization
+  max_attempt: 10

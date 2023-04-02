@@ -65,6 +65,7 @@ class iLQRSpline(iLQR):
         time_indices=self.horizon_indices
     )
     reg = self.reg_init
+    fail_attempts = 0
 
     converged = False
     time0 = time.time()
@@ -106,7 +107,8 @@ class iLQRSpline(iLQR):
       # Terminates early if the line search fails and reg >= reg_max.
       if not updated:
         reg = reg * self.reg_scale_up
-        if reg > self.reg_max:
+        fail_attempts += 1
+        if fail_attempts > self.max_attempt or reg > self.reg_max:
           status = 2
           break
 

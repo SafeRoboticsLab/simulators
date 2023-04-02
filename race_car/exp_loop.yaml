@@ -77,7 +77,8 @@ agent:
 solver:
   init_state: [3.2, 3., 0.1, 1.571, 0.]
   plan_horizon: 20
-  max_iter: 100
+  tol: 0.01
+  max_iter: 50
   max_iter_receding: 150
   out_folder: experiments/ilqr/bic5D/loop/
   device: cpu
@@ -94,3 +95,4 @@ solver:
   reg_scale_down: 5  # scale down factor for regularization
   reg_scale_up: 5  # scale up factor for regularization
   reg_init: 0.00001  # initial regularization
+  max_attempt: 10
