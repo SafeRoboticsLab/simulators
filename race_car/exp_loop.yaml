@@ -89,3 +89,8 @@ solver:
   cmap_min: 0.
   cmap_max: 20.
   use_traj_cost: false
+  reg_min: 0.0000001  # minimum regularization
+  reg_max: 1  # maximum regularization
+  reg_scale_down: 5  # scale down factor for regularization
+  reg_scale_up: 5  # scale up factor for regularization
+  reg_init: 0.00001  # initial regularization
