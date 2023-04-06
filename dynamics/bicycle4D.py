@@ -13,6 +13,8 @@ from jax import numpy as jnp
 
 from .base_dynamics import BaseDynamics
 
+# ! rewrite this class
+
 
 class Bicycle4D(BaseDynamics):
 

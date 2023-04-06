@@ -25,9 +25,9 @@ class BaseZeroSumEnv(BaseEnv):
   """
 
   def __init__(self, cfg_env: Any, cfg_agent: Any) -> None:
-    assert cfg_env.num_agents == 2, (
-        "Zero-Sum Game currently only supports two agents!"
-    )
+    # assert cfg_env.num_agents == 2, (
+    #     "Zero-Sum Game currently only supports two agents!"
+    # )
     super().__init__(cfg_env)
     self.env_type = "zero-sum"
 

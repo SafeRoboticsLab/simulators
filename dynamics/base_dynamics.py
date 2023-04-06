@@ -17,8 +17,6 @@ class BaseDynamics(ABC):
         cfg (Any): an object specifies cfguration.
     """
     self.dt: float = cfg.dt  # time step for each planning step
-    self.num_segment: int = cfg.num_segment
-    self.int_dt: float = self.dt / self.num_segment
     self.ctrl_space = action_space.copy()
     self.dim_u: int = self.ctrl_space.shape[0]
 

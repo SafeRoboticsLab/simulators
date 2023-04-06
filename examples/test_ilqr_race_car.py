@@ -41,13 +41,13 @@ def main(config_file: str):
   # region: Constructs placeholder and initializes iLQR
   max_iter_receding = cfg.solver.max_iter_receding
   ref_traj = None
-  #! hacky
+  # ! hacky
   config_ilqr_cost = copy.deepcopy(cfg.cost)
   config_ilqr_cost.buffer = getattr(cfg.solver, "buffer", 0.)
   if cfg.cost.cost_type == "Reachability":
     policy_type = "iLQRReachabilitySpline"
     cost = Bicycle5DReachabilityCost(config_ilqr_cost)
-    env.cost = cost  #! hacky
+    env.cost = cost  # ! hacky
   else:
     policy_type = "iLQRSpline"
     if cfg.solver.use_traj_cost:

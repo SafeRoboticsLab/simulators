@@ -63,7 +63,7 @@ class RaceCarSingle5DEnv(BaseSingleEnv):
       assert self.cost_type == "Reachability"
       self.cost = Bicycle5DReachabilityCost(cfg_cost)
     self.constraint = Bicycle5DConstraint(cfg_cost)
-    self.g_x_fail = cfg_env.g_x_fail
+    self.g_x_fail = float(cfg_env.g_x_fail)
 
     # Visualization.
     track_cat = np.concatenate(
@@ -213,8 +213,8 @@ class RaceCarSingle5DEnv(BaseSingleEnv):
 
     # Gets info.
     if final_only:
-      g_x = g_x_list[-1]
-      l_x = l_x_list[-1]
+      g_x = float(g_x_list[-1])
+      l_x = float(l_x_list[-1])
       binary_cost = 1. if g_x > self.failure_thr else 0.
     else:
       g_x = g_x_list
