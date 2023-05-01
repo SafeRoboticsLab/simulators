@@ -70,9 +70,9 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
             
             if height is None:
                 if self.height_reset:
-                    height = 0.4 + np.random.rand()*0.2
+                    height = 0.2 + np.random.rand()*0.2
                 else:
-                    height = 0.6
+                    height = 0.4
             self.initial_height = height
 
             if rotate is None:
@@ -106,7 +106,7 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
 
                 # set random state (linear and angular velocity) to the robot
                 random_linear_velocity = np.random.uniform(-1.0, 1.0, 3)
-                random_angular_velocity = np.random.uniform(-0.7, 0.7, 3)
+                random_angular_velocity = np.random.uniform(-np.pi*0.25, np.pi*0.25, 3)
                 p.resetBaseVelocity(self.robot.id, linearVelocity=random_linear_velocity, angularVelocity=random_angular_velocity, physicsClientId=self.client)
 
             self.state = np.array(self.robot.get_obs(), dtype = np.float32)
@@ -189,8 +189,7 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
 
         # Base information
         robot_id, client_id = self.robot.get_ids()
-        proj_matrix = p.computeProjectionMatrixFOV(fov=80, aspect=1,
-                                                   nearVal=0.01, farVal=100, physicsClientId = self.client)
+        proj_matrix = p.computeProjectionMatrixFOV(fov=80, aspect=1, nearVal=0.01, farVal=100, physicsClientId = self.client)
         pos, ori = [list(l) for l in
                     p.getBasePositionAndOrientation(robot_id, client_id)]
 

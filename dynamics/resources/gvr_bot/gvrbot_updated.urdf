@@ -67,6 +67,31 @@
       <inertia ixx="0.267" ixy="0.008646" ixz="-0.0140668" iyy="0.4712" iyz="0.00285" izz="0.668"/>
     </inertial>
   </link>
+
+  <!-- CENTER OF MASS SHIFTING BLOCK-->
+
+  <joint name="box_link" type="fixed">
+      <parent link="base_link"/>
+      <child link="box"/>
+      <origin xyz="0 0 0.3"/>
+  </joint>
+
+  <link name="box">
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <box size="0.1 0.1 0.1"/>
+      </geometry>
+      <material name="Black"/>
+    </visual>
+
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value="0"/>
+      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="00"/>
+    </inertial>
+  </link>
+
   <!-- LINKS/JOINTS -->
 
   <!-- WHEEELS-->
@@ -87,7 +112,8 @@
   <link name="L1">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -119,7 +145,8 @@
   <link name="L2">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -151,7 +178,8 @@
   <link name="L3">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -183,7 +211,8 @@
   <link name="L4">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -215,7 +244,8 @@
   <link name="L5">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -247,7 +277,8 @@
   <link name="L6">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -279,7 +310,8 @@
   <link name="L7">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -311,7 +343,8 @@
   <link name="L8">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -343,7 +376,8 @@
   <link name="L9">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -375,7 +409,8 @@
   <link name="L10">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -410,7 +445,8 @@
   <link name="L11">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -447,7 +483,8 @@
   <link name="R1">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -479,7 +516,8 @@
   <link name="R2">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
 
       <visual> 
@@ -512,7 +550,8 @@
   <link name="R3">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -544,7 +583,8 @@
   <link name="R4">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -576,7 +616,8 @@
   <link name="R5">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -608,7 +649,8 @@
   <link name="R6">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -640,7 +682,8 @@
   <link name="R7">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -672,7 +715,8 @@
   <link name="R8">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -704,7 +748,8 @@
   <link name="R9">
      <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -724,7 +769,7 @@
           <mass value="0.12455"/>
           <inertia ixx="0.0002693" ixy="0" ixz="0" iyy="0.0002693" iyz="0" izz="0.0004187"/>
       </inertial> 
-  </link> 
+  </link> 0.05
 
   <joint name="base_to_R10_wheel" type="continuous">
         <parent link="base_link"/>
@@ -736,7 +781,8 @@
   <link name="R10">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -771,7 +817,8 @@
   <link name="R11">
       <contact>
         <stiffness value="30000"/>
-        <damping value="0"/>
+        <damping value="10000"/>        
+        <lateral_friction value="0.1"/>
       </contact>
       <visual> 
           <geometry> 
@@ -809,9 +856,9 @@
 
   <link name="LF_flipper_main">
     <contact>
-      <lateral_friction value="0.1"/>
-      <stiffness value="30000"/>
-      <damping value="0"/>
+      <damping value="11000"/>
+      <stiffness value="32000"/>
+      <lateral_friction value="0.8"/>
     </contact>
     <visual>
       <geometry>
@@ -846,9 +893,9 @@
 
   <link name="RF_flipper_main">
     <contact>
-      <lateral_friction value="0.1"/>
-      <stiffness value="30000"/>
-      <damping value="0"/>
+      <damping value="11000"/>
+      <stiffness value="32000"/>
+      <lateral_friction value="0.8"/>
     </contact>
     <visual>
       <geometry>

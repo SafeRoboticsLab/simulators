@@ -9,46 +9,151 @@ class GVR:
     def __init__(self, client, height, orientation, envtype="normal", **kwargs):
         self.client = client
         self.height = height
+        self.orientation = orientation
 
-        ox = 0
-        oy = 0
+        self.lateral_friction = 0.8
+        self.anisotropic_friction = [1, 1, 1]
+        self.rolling_friction = 0
+        self.spinning_friction = 0
+        self.restitution = 0.98
 
-        self.urdf = "gvr_bot/gvrbot_updated.urdf"
-        self.urdf_path = os.path.join(os.path.dirname(__file__), self.urdf)
+        self.payload = "none" # sail, sloshy
+        self.payload_mass = 10
+        self.payload_blocks = 5
+        self.theta = 20
+        self.terrain = "plane"
+        self.terrain_coeff = 1.0
+        self.terrain_height = 0.2
+
+        self.car_lat_friction = 0.4597457696689967
+        self.car_ani_friction = [16.034153317830327, 38.63070609519674, 2.7524624880209765]
+        self.car_roll_friction = 0
+        self.car_spin_friction = 0
+        self.car_mass = 16.4
+        self.car_inertia = 0.668
+        self.wheel_mass = 0.12455
+        self.wheel_inertia = 0.0002693
+        self.damping = 15853.49778551601
+        self.stiffness = 51886.04540801367
 
         self.envtype = envtype
 
         if envtype != "normal":
             raise NotImplementedError
 
-        self.id = p.loadURDF(fileName = self.urdf_path, basePosition=[ox, oy, self.height], baseOrientation = orientation, physicsClientId = client)
-
-        # self.left_wheel_index = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        # self.right_wheel_index = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
-        # self.flipper_joint_index = [22, 23]
+        self.load_robot()
+        p.enableJointForceTorqueSensor(self.id, 0)
+    
+    def load_robot(self):
+        self.urdf = "gvr_bot/gvrbot_updated.urdf"
+        self.urdf_path = os.path.join(os.path.dirname(__file__), self.urdf)
+        self.id = p.loadURDF(fileName=self.urdf_path, basePosition=np.array([0, 0, self.height]), baseOrientation=self.orientation, physicsClientId=self.client)
 
         self.left_wheel_index = []
         self.right_wheel_index = []
-        self.flipper_joint_index = []  
+        self.flipper_joint_index = []
         num_joints = p.getNumJoints(self.id)
+        # change base mass and inertia values
+        current_inertia = np.array(p.getDynamicsInfo(self.id, -1)[2])
+        current_inertia[2] = self.car_inertia
+        self.change_dynamics(self.id, link_id=-1, mass=self.car_mass, local_inertia_diagonal=current_inertia)
+        current_inertia = np.array(p.getDynamicsInfo(self.id, -1)[2])
+
         for joint in range(num_joints):
             info = p.getJointInfo(self.id, joint)
+            change = 0
             if 'L' in str(info[1]) and 'wheel' in str(info[1]):
                 self.left_wheel_index.append(info[0])
+                p.enableJointForceTorqueSensor(self.id, info[0], 1)
+                change = 1
             elif 'R' in str(info[1]) and 'wheel' in str(info[1]):
                 self.right_wheel_index.append(info[0])
-            elif 'flipper' in str(info[1]):
+                p.enableJointForceTorqueSensor(self.id, info[0], 1)
+                change = 1
+            elif 'base_to_flippers' in str(info[1]):
                 self.flipper_joint_index.append(info[0])
-        
+                p.enableJointForceTorqueSensor(self.id, info[0], 1)
+                change = 2
+
+            if change == 1:
+                wheel_current_inertia = np.array(p.getDynamicsInfo(self.id, joint)[2])
+                wheel_current_inertia[:2] = self.wheel_inertia
+                self.change_dynamics(self.id, link_id=joint, mass=self.wheel_mass, local_inertia_diagonal=wheel_current_inertia, contact_damping=self.damping, contact_stiffness=self.stiffness,
+                                    lateral_friction=self.car_lat_friction, anisotropic_friction=self.car_ani_friction, rolling_friction=self.car_roll_friction, spinning_friction=self.car_spin_friction)
+            else:
+                self.change_dynamics(self.id, link_id=joint, lateral_friction=0.42, anisotropic_friction=[4, 4, 4], rolling_friction=0, spinning_friction=0)
+
         num_valid_indices = len(self.left_wheel_index) + len(self.right_wheel_index) + len(self.flipper_joint_index)
         self.body_indices = list(np.arange(num_valid_indices))
 
-        self.max_linear_vel = 2 #from AndrosBot Guide
-        self.max_angular_vel = 3 # approximation so far, need to refine
-        self.max_wheel_vel = 25 #rad/s from max linear velocity
-        self.max_flipper_vel = 0.5 # rad/s slow deployment approximate
-        self.Rw = 0.0862 #m wheel radius
-        self.W = 0.35 #m wheelbase
+        self.max_linear_vel = 2  # from AndrosBot Guide
+        self.max_angular_vel = 3  # approximation so far, need to refine
+        self.max_wheel_vel = 25  # rad/s from max linear velocity
+        self.max_flipper_vel = 0.5  # rad/s slow deployment approximate
+        self.Rw = 0.0862  # m wheel radius
+        self.W = 0.35  # m wheelbase
+    
+    def change_dynamics(self, body_id, link_id=-1, mass=None, lateral_friction=None, spinning_friction=None,
+                        rolling_friction=None, anisotropic_friction=None, restitution=None, linear_damping=None, angular_damping=None,
+                        contact_stiffness=None, contact_damping=None, friction_anchor=None,
+                        local_inertia_diagonal=None, inertia_position=None, inertia_orientation=None,
+                        joint_damping=None, joint_friction=None, joint_force=None):
+
+        kwargs = {}
+        if mass is not None:
+            kwargs['mass'] = mass
+        if lateral_friction is not None:
+            kwargs['lateralFriction'] = lateral_friction
+        if spinning_friction is not None:
+            kwargs['spinningFriction'] = spinning_friction
+        if rolling_friction is not None:
+            kwargs['rollingFriction'] = rolling_friction
+        if anisotropic_friction is not None:
+            kwargs['anisotropicFriction'] = anisotropic_friction
+        if restitution is not None:
+            kwargs['restitution'] = restitution
+        if linear_damping is not None:
+            kwargs['linearDamping'] = linear_damping
+        if angular_damping is not None:
+            kwargs['angularDamping'] = angular_damping
+        if contact_stiffness is not None:
+            kwargs['contactStiffness'] = contact_stiffness
+        if contact_damping is not None:
+            kwargs['contactDamping'] = contact_damping
+        if friction_anchor is not None:
+            kwargs['frictionAnchor'] = friction_anchor
+        if local_inertia_diagonal is not None:
+            kwargs['localInertiaDiagonal'] = local_inertia_diagonal
+        if joint_damping is not None:
+            kwargs['jointDamping'] = joint_damping
+        if joint_force is not None:
+            kwargs['jointLimitForce'] = joint_force
+
+        p.changeDynamics(body_id, link_id, **kwargs)
+
+    def change_COM(self, mass, world_location, body_location):
+        if self.box is not None:
+            p.removeBody(self.box)
+        cuid = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.01, 0.01, 0.01])
+        # i.e. this should be started close to the robot
+        self.box = p.createMultiBody(baseMass=mass, baseCollisionShapeIndex=cuid, basePosition=world_location)
+        self.box_location = np.array(body_location)
+        self.box_mass = mass
+        inertia = mass * 0.2 ** 2 / 6
+        p.changeDynamics(self.box, -1, localInertiaDiagonal=[inertia, inertia, inertia])
+        p.createConstraint(self.box, -1, self.id, 0, jointType=p.JOINT_FIXED, jointAxis=[0, 0, 0], parentFramePosition=[0, 0, 0], childFramePosition=body_location)
+
+    def get_COM(self):
+        masses = [p.getDynamicsInfo(self.id, k)[0] for k in range(-1, p.getNumJoints(self.id))]
+        total_mass = sum(masses)
+        pos, _ = p.getBasePositionAndOrientation(self.id, self.client)
+        link_states = p.getLinkStates(self.id, range(p.getNumJoints(self.id)))
+        link_positions = [pos] + [state[0] for state in link_states]
+        center_of_mass = np.sum(np.array(masses)[:, np.newaxis] * (np.array(link_positions) - np.array(pos)), axis=0)
+        center_of_mass += self.box_location * self.box_mass  # add to the sum in the body frame
+        total_mass += self.box_mass  # total mass of the system (including the box)
+        center_of_mass /= total_mass
+        return center_of_mass
 
     def get_ids(self):
         return self.id, self.client
@@ -69,8 +174,6 @@ class GVR:
         Args:
             action (np.ndarray): 3-D action [linear_x, angular_z, flip_pos]
         """
-        # scale the user's input with the actual real-life reaction
-        user_action[1] = user_action[1] * 5.5
         action = np.zeros(len(self.body_indices))
         left_vel = (user_action[0] - user_action[1]*self.W/2)/self.Rw
         right_vel = (user_action[0] + user_action[1]*self.W/2)/self.Rw
@@ -145,16 +248,18 @@ class GVR:
         return {
             "roll": abs(state[3]) - math.pi * 1./9.,
             "pitch": abs(state[4]) - math.pi * 1./6.,
-            "body_ang_x": abs(state[6]) - math.pi * 0.5,
-            "body_ang_y": abs(state[7]) - math.pi * 0.5,
-            "linear_x": abs(state[0]) - 0.7
+            "body_ang_x": abs(state[6]) - math.pi * 0.25,
+            "body_ang_y": abs(state[7]) - math.pi * 0.25,
+            "linear_x": abs(state[0]) - 1.0
         }
     
     def target_margin(self, state):
         # for now, let's just use target_margin smaller than safety_margin, as we are running avoidonly anyway (not using target margin)
         return {
             "roll": abs(state[3]) - math.pi * 0.1,
-            "pitch": abs(state[4]) - math.pi * 0.1
+            "pitch": abs(state[4]) - math.pi * 0.1,
+            "body_ang_x": abs(state[6]) - math.pi * 0.02,
+            "body_ang_y": abs(state[7]) - math.pi * 0.02,
         }
     
     def get_flipper_state(self):
