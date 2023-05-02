@@ -1,10 +1,10 @@
 <?xml version="1.0" ?>
-<robot name="chicane_robot">
+<robot name="potholes_robot">
   
   <link name="world">
   </link>
   
-  <link name="chicane">
+  <link concave="yes" name="potholes">
 		<contact>
 			<lateral_friction value="1.0"/>
 			<rolling_friction value="0.0"/>
@@ -12,22 +12,20 @@
 			<contact_erp value="1.0"/>
 		</contact>
 		<visual>
-			<origin xyz="0 0 0" rpy="1.57079 0 0" />
+			<origin xyz="12 0 0" rpy="1.57079 0 0" />
 			<geometry>
-				<mesh filename="Chicane_meters.obj" scale="1 1 1" />
+				<mesh filename="terrain_potholes.stl" scale="1 1 1" />
 			</geometry>
 			<material name="texture">
 				<color rgba="1 0 0 1" />
 			</material>
 		</visual>
-		<!--
-		<collision>
-			<origin xyz="0 0 0" rpy="1.57059 0 0" />
+		<collision concave="yes">
+			<origin xyz="12 0 0" rpy="1.57079 0 0" />
 			<geometry>
-				<mesh filename="Chicane_meters.obj" scale="1.0 1.0 1.0" />
+				<mesh filename="terrain_potholes.stl" scale="1 1 1" />
 			</geometry>
 		</collision>
-		-->
 		<inertial>
 			<mass value="10.0" />
 			<inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0" />
@@ -36,7 +34,7 @@
   
   <joint name="ramp_to_plane" type="fixed">
     <parent link="world"/>
-    <child link="chicane"/>
+    <child link="potholes"/>
     <origin xyz="0 0 0.01" rpy="0 0 0"/>
   </joint>
 

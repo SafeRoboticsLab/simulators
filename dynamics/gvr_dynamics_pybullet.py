@@ -24,7 +24,7 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
         self.flipper_min = ctrl_action_space[2, 0]
         self.flipper_max = ctrl_action_space[2, 1]
 
-        self.flipper_increment_min = self.dt/10*2.6
+        self.flipper_increment_min = -self.dt/10*2.6
         self.flipper_increment_max = self.dt/10*2.6
 
         self.dim_u = 3 # user's input linear_x, angular_z, flip_pos
@@ -70,15 +70,15 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
             
             if height is None:
                 if self.height_reset:
-                    height = 0.2 + np.random.rand()*0.2
+                    height = 0.4 + np.random.rand()*0.2
                 else:
-                    height = 0.4
+                    height = 0.6
             self.initial_height = height
 
             if rotate is None:
                 if self.rotate_reset:  # Resets the x, y, z.
                     rotate = p.getQuaternionFromEuler(np.concatenate((
-                            (np.random.rand(2)-0.5) * np.pi * 0.125,
+                            (np.random.rand(2)-0.5) * np.pi * 0.25,
                             np.array([np.random.uniform(0.0, 2*np.pi)])
                         ), axis=0))
                 else:
@@ -100,14 +100,24 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
                 self.robot.apply_position(random_joint_value)
 
                 p.setGravity(0, 0, self.gravity*0.1, physicsClientId = self.client)
-                for t in range(0, 100):
+                while True:
                     p.stepSimulation(physicsClientId = self.client)
+                    if np.count_nonzero(self.get_contact_points()) > 0:
+                        break
                 p.setGravity(0, 0, self.gravity, physicsClientId = self.client)
 
                 # set random state (linear and angular velocity) to the robot
                 random_linear_velocity = np.random.uniform(-1.0, 1.0, 3)
                 random_angular_velocity = np.random.uniform(-np.pi*0.25, np.pi*0.25, 3)
+                
                 p.resetBaseVelocity(self.robot.id, linearVelocity=random_linear_velocity, angularVelocity=random_angular_velocity, physicsClientId=self.client)
+
+                # set random initial action
+                self.robot.apply_action([
+                    np.random.uniform(-self.robot.max_linear_vel, self.robot.max_linear_vel),
+                    np.random.uniform(-self.robot.max_angular_vel, self.robot.max_angular_vel),
+                    0.0
+                ])
 
             self.state = np.array(self.robot.get_obs(), dtype = np.float32)
 
@@ -218,3 +228,39 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
     
     def _integrate_forward(self, state: DeviceArray, control: DeviceArray) -> DeviceArray:
         return super()._integrate_forward(state, control)
+    
+    def get_contact_points(self):
+        # Find track ground contacts
+        """
+        [0] contact flag
+        [1] bodyID A - robot (1)
+        [2] bodyID B - plane (0)
+        [3] link index A - robot base is parent and others are numbered
+        [4] link index B - plane is base link (-1)
+        [5] (vec3) position on A
+        [6] (vec3) position on B
+        [7] (vec3) contact normal on B
+        [8] contact distance
+        [9] normal force
+        [10] friction force1
+        [11] friction force1 direction
+        [12] friction force2
+        [13] friction force2 direction
+        """
+        contact_points = p.getContactPoints(self.robot.id, self.base_plane)
+        for obj in self.world_objects:  # contains the various terrain files
+            contact_points = contact_points + p.getContactPoints(self.robot.id, obj)
+
+        left_track_cp = 0
+        right_track_cp = 0
+        main_base_cp = 0
+
+        for cp in contact_points:
+            if cp[3] in self.robot.left_wheel_index:
+                left_track_cp += 1
+            elif cp[3] in self.robot.right_wheel_index:
+                right_track_cp += 1
+            elif cp[3] in [-1]:
+                main_base_cp += 1
+
+        return left_track_cp, right_track_cp, main_base_cp
