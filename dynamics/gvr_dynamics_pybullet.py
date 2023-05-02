@@ -70,9 +70,9 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
             
             if height is None:
                 if self.height_reset:
-                    height = 0.4 + np.random.rand()*0.2
+                    height = 0.2 + np.random.rand()*0.2
                 else:
-                    height = 0.6
+                    height = 0.4
             self.initial_height = height
 
             if rotate is None:
@@ -100,7 +100,7 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
                 self.robot.apply_position(random_joint_value)
 
                 p.setGravity(0, 0, self.gravity*0.1, physicsClientId = self.client)
-                while True:
+                for i in range(200):
                     p.stepSimulation(physicsClientId = self.client)
                     if np.count_nonzero(self.get_contact_points()) > 0:
                         break
