@@ -239,8 +239,19 @@ class BasePybulletDynamics(BaseDynamics):
             self.force_applied_position_vector = np.array([np.random.uniform(-0.1, 0.1), np.random.uniform(-0.1, 0.1), np.random.uniform(0, 0.5)])
     
     def _apply_adversarial_force(self, force_vector, position_vector):
-        self.force_applied_force_vector = force_vector * self.force
-        self.force_applied_position_vector = position_vector 
+        # clip adversarial force
+        self.force_applied_force_vector = np.clip(
+            force_vector * self.force,
+            self.force_applied_force_vector - np.ones(3)*self.force*0.1,
+            self.force_applied_force_vector + np.ones(3)*self.force*0.1
+        )
+
+        self.force_applied_position_vector = np.clip(
+            position_vector,
+            self.force_applied_position_vector - np.array([0.4, 0.01, 0.01])*0.1,
+            self.force_applied_position_vector + np.array([0.4, 0.01, 0.01])*0.1
+        )
+
         if self.link_name is not None:
             p.applyExternalForce(self.robot.id, self.robot.get_link_id(self.link_name), self.force_applied_force_vector, self.force_applied_position_vector, p.LINK_FRAME, physicsClientId = self.client)
         else:

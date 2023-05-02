@@ -172,9 +172,11 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
                 if self.adv_debug_line_id is not None:
                     p.removeUserDebugItem(self.adv_debug_line_id)
                 if self.link_name is not None:
-                    self.adv_debug_line_id = p.addUserDebugLine(position_vector, position_vector + force_vector * self.force, lineColorRGB=[0, 0, 1], lineWidth=2.0, physicsClientId=self.client, parentObjectUniqueId=self.robot.id, parentLinkIndex=self.robot.get_link_id(self.link_name))
+                    # self.adv_debug_line_id = p.addUserDebugLine(position_vector, position_vector + force_vector * self.force, lineColorRGB=[0, 0, 1], lineWidth=2.0, physicsClientId=self.client, parentObjectUniqueId=self.robot.id, parentLinkIndex=self.robot.get_link_id(self.link_name))
+                    self.adv_debug_line_id = p.addUserDebugLine(self.force_applied_position_vector, self.force_applied_position_vector + self.force_applied_force_vector, lineColorRGB=[0, 0, 1], lineWidth=2.0, physicsClientId=self.client, parentObjectUniqueId=self.robot.id, parentLinkIndex=self.robot.get_link_id(self.link_name))
                 else:
-                    self.adv_debug_line_id = p.addUserDebugLine(position_vector, position_vector + force_vector * self.force, lineColorRGB=[0, 0, 1], lineWidth=2.0, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
+                    # self.adv_debug_line_id = p.addUserDebugLine(position_vector, position_vector + force_vector * self.force, lineColorRGB=[0, 0, 1], lineWidth=2.0, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
+                    self.adv_debug_line_id = p.addUserDebugLine(self.force_applied_position_vector, self.force_applied_position_vector + self.force_applied_force_vector, lineColorRGB=[0, 0, 1], lineWidth=2.0, physicsClientId=self.client, parentObjectUniqueId=self.robot.id)
             time.sleep(self.dt)
             
             if self.video_output_file is not None:
