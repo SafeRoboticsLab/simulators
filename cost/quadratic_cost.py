@@ -1,3 +1,11 @@
+# --------------------------------------------------------
+# Copyright (c) 2023 Princeton University
+# Email: kaichieh@princeton.edu
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
+
+"""Classes for quadratic cost.
+"""
 import numpy as np
 import jax
 import jax.numpy as jnp

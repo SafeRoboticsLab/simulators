@@ -1,3 +1,15 @@
+# --------------------------------------------------------
+# Copyright (c) 2023 Princeton University
+# Email: kaichieh@princeton.edu
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
+
+"""Classes for cost with respect to box obstacles.
+
+This file implements costs with repspect to box obstacles. We consider the
+point and box footprint.
+"""
+
 import numpy as np
 import jax
 import jax.numpy as jnp
@@ -9,7 +21,7 @@ from .base_cost import BaseCost
 
 class BoxObsCost(BaseCost):
   """
-  We want s[i] < lb[i] or s[i] > ub[i].
+  We want `state`[i] in [`lower_bound`[i], `upper_bound`[i].
   """
 
   def __init__(
@@ -42,6 +54,21 @@ class BoxObsBoxFootprintCost(BaseCost):
       precision: np.ndarray, x_dim: int = 0, y_dim: int = 1, yaw_dim: int = 3,
       buffer: float = 0.
   ):
+    """
+    Args:
+        state_box_limit (np.ndarray): [`x_min`, `x_max`, `y_min`, `y_max`],
+          vertices of the box footprint.
+        box_spec (np.ndarray): [x, y, heading, half_length, half_width], spec
+          of the box obstacles.
+        precision (np.ndarray): the number of points along the edges of the
+          box footprint. [0]: length, [1]: width.
+        x_dim (int): the index of x dimension. Defaults to 0.
+        y_dim (int): the index of y dimension. Defaults to 1.
+        yaw_dim (int): the index of yaw (heading) dimension. Defaults to 3.
+        buffer (float): the minimum required distance to the obstacle, i.e., if
+          the distance is smaller than `buffer`, the cost will be positive as
+          well. Defaults to 0.
+    """
     super().__init__()
     offset_xs = np.linspace(
         state_box_limit[0], state_box_limit[1], precision[0]

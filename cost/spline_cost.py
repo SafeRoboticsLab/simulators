@@ -1,3 +1,16 @@
+# --------------------------------------------------------
+# Copyright (c) 2023 Princeton University
+# Email: kaichieh@princeton.edu
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
+
+"""A parent class for Cost based on a spline.
+
+This file implements a parent class for all costs and a barrier wrapper for
+cost. A child class should implement `get_stage_cost()` and the parent class
+takes care of the vectorizing map and derivatives functions.
+"""
+
 from abc import ABC, abstractmethod
 from typing import Optional
 import copy
@@ -6,9 +19,6 @@ import jax
 import jax.numpy as jnp
 from jaxlib.xla_extension import DeviceArray
 from functools import partial
-
-from .base_cost import BaseCost
-from ..race_car.track import Track
 
 
 class BaseSplineCost(ABC):

@@ -1,5 +1,18 @@
+# --------------------------------------------------------
+# Copyright (c) 2023 Princeton University
+# Email: kaichieh@princeton.edu
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
+
+"""A parent class for Cost.
+
+This file implements a parent class for all costs and a barrier wrapper for
+cost. A child class should implement `get_stage_cost()` and the parent class
+takes care of the vectorizing map and derivatives functions.
+"""
+
 from abc import ABC, abstractmethod
-from typing import Tuple, Optional
+from typing import Optional
 from functools import partial
 from jaxlib.xla_extension import DeviceArray
 import jax

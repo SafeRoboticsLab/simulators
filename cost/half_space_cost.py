@@ -1,3 +1,15 @@
+# --------------------------------------------------------
+# Copyright (c) 2023 Princeton University
+# Email: kaichieh@princeton.edu
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
+
+"""Classes for cost with respect to half spaces.
+
+This file implements costs with repspect to half spaces. We consider the point
+and box footprint.
+"""
+
 import numpy as np
 import jax
 import jax.numpy as jnp
@@ -9,7 +21,7 @@ from .base_cost import BaseCost
 
 class UpperHalfCost(BaseCost):
   """
-  c = x[dim] - val
+  c = `state`[dim] - `value`
   """
 
   def __init__(self, value: float, dim: int):
@@ -27,7 +39,7 @@ class UpperHalfCost(BaseCost):
 
 class LowerHalfCost(BaseCost):
   """
-  c = val - x[dim]
+  c = `value` - `state`[dim]
   """
 
   def __init__(self, value: float, dim: int):
@@ -49,6 +61,18 @@ class UpperHalfBoxFootprintCost(BaseCost):
       self, dim: str, value: float, state_box_limit: np.ndarray,
       x_dim: int = 0, y_dim: int = 1, yaw_dim: int = 3
   ):
+    """
+    Args:
+        dim (str): 'x' ('y') for half space constraint on x (y) axis.
+        value (float): the threshold.
+        state_box_limit (np.ndarray): [`x_min`, `x_max`, `y_min`, `y_max`],
+          vertices of the box footprint.
+        box_spec (np.ndarray): [x, y, heading, half_length, half_width], spec
+          of the box obstacles.
+        x_dim (int): the index of x dimension. Defaults to 0.
+        y_dim (int): the index of y dimension. Defaults to 1.
+        yaw_dim (int): the index of yaw (heading) dimension. Defaults to 3.
+    """
     super().__init__()
     if dim == 'x':
       self.dim = 0
@@ -83,6 +107,18 @@ class LowerHalfBoxFootprintCost(BaseCost):
       self, dim: str, value: float, state_box_limit: np.ndarray,
       x_dim: int = 0, y_dim: int = 1, yaw_dim: int = 3
   ):
+    """
+    Args:
+        dim (str): 'x' ('y') for half space constraint on x (y) axis.
+        value (float): the threshold.
+        state_box_limit (np.ndarray): [`x_min`, `x_max`, `y_min`, `y_max`],
+          vertices of the box footprint.
+        box_spec (np.ndarray): [x, y, heading, half_length, half_width], spec
+          of the box obstacles.
+        x_dim (int): the index of x dimension. Defaults to 0.
+        y_dim (int): the index of y dimension. Defaults to 1.
+        yaw_dim (int): the index of yaw (heading) dimension. Defaults to 3.
+    """
     super().__init__()
     if dim == 'x':
       self.dim = 0
