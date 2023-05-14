@@ -60,6 +60,3 @@ class BasePolicy(ABC):
 
   def to(self, device):
     self.device = device
-    if self._critic is not None:
-      if isinstance(self._critic, torch.nn.Module):
-        self._critic.to(self.device)
