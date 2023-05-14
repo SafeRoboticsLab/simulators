@@ -1,3 +1,17 @@
+# --------------------------------------------------------
+# Copyright (c) 2023 Princeton University
+# Email: kaichieh@princeton.edu
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
+
+"""A parent class for dynamics with both control and disturbance.
+
+This file implements a parent class for dynamics with both control and
+disturbance. A child class should implement `integrate_forward_jax()` and
+`_integrate_forward()` the parent class takes care of the numpy version and
+derivatives functions.
+"""
+
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple, Any, Dict
 import numpy as np
@@ -15,6 +29,9 @@ class BaseDstbDynamics(ABC):
     """
     Args:
         cfg (Any): an object specifies configuration.
+        action_space (dict): the action space of the dynamics with 'ctrl' for
+        control space and 'dstb' for disturbance space The first column is the
+        loweer bound and the second column is the upper bound.
     """
     self.dt: float = cfg.dt  # time step for each planning step
     self.ctrl_space = action_space['ctrl'].copy()
@@ -72,13 +89,24 @@ class BaseDstbDynamics(ABC):
   def integrate_forward_jax(
       self, state: DeviceArray, control: DeviceArray, disturbance: DeviceArray
   ) -> Tuple[DeviceArray, DeviceArray, DeviceArray]:
+    """
+    Computes one-step time evolution of the system: x+ = f(x, u, d) with
+    additional treatment on state and/or control constraints.
+
+    Args:
+        state (DeviceArray)
+        control (DeviceArray)
+
+    Returns:
+        DeviceArray: next state.
+    """
     raise NotImplementedError
 
   @abstractmethod
   def _integrate_forward(
       self, state: DeviceArray, control: DeviceArray, disturbance: DeviceArray
   ) -> DeviceArray:
-    """Computes one-step time evolution of the system: x_{k+1} = f(x, u, d).
+    """Computes one-step time evolution of the system: x+ = f(x, u, d).
 
     Args:
         state (DeviceArray)

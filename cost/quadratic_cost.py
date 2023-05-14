@@ -4,7 +4,7 @@
 # Licensed under The MIT License [see LICENSE for details]
 # --------------------------------------------------------
 
-"""Classes for quadratic cost.
+"""Classes for quadratic costs.
 """
 import numpy as np
 import jax

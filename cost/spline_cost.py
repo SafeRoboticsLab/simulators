@@ -4,7 +4,7 @@
 # Licensed under The MIT License [see LICENSE for details]
 # --------------------------------------------------------
 
-"""A parent class for Cost based on a spline.
+"""A parent class for costs based on a spline.
 
 This file implements a parent class for all costs and a barrier wrapper for
 cost. A child class should implement `get_stage_cost()` and the parent class

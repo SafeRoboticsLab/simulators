@@ -4,7 +4,7 @@
 # Licensed under The MIT License [see LICENSE for details]
 # --------------------------------------------------------
 
-"""Classes for cost with respect to box obstacles.
+"""Classes for costs with respect to box obstacles.
 
 This file implements costs with repspect to box obstacles. We consider the
 point and box footprint.

@@ -1,6 +1,16 @@
-"""
-Please contact the author(s) of this library if you have any questions.
-Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
+# --------------------------------------------------------
+# Copyright (c) 2023 Princeton University
+# Email: kaichieh@princeton.edu
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
+
+"""A class for kinematic bicycle with additive disturbance.
+
+This file implements a class for kinematic bicycle with additive disturbance.
+The state is represented by [`x`, `y`, `v`, `psi`, `delta`], where (`x`, `y`)
+is the position, `v` is the forward speed, `psi` is the heading angle, and
+`delta` is the steering angle. The control is [`accel`, `omega`], where `accel`
+is the linear acceleration, `omega` is the steering angular velocity.
 """
 
 from typing import Tuple, Any, Dict
@@ -135,7 +145,7 @@ class BicycleDstb5D(BaseDstbDynamics):
     state_nxt = state_nxt.at[3].set(
         jnp.mod(state_nxt[3] + jnp.pi, 2 * jnp.pi) - jnp.pi
     )
-    #! hacky
+    # ! hacky
     state_nxt = state_nxt.at[2].set(
         jnp.clip(state_nxt[2], self.v_min, self.v_max)
     )

@@ -1,3 +1,17 @@
+# --------------------------------------------------------
+# Copyright (c) 2023 Princeton University
+# Email: kaichieh@princeton.edu
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
+
+"""A parent class for dynamics with control as the only input.
+
+This file implements a parent class for dynamics with control as the only
+input. A child class should implement `integrate_forward_jax()` and
+`_integrate_forward()` the parent class takes care of the numpy version and
+derivatives functions.
+"""
+
 from abc import ABC, abstractmethod
 from typing import Tuple, Any
 import numpy as np
@@ -15,6 +29,8 @@ class BaseDynamics(ABC):
     """
     Args:
         cfg (Any): an object specifies cfguration.
+        action_space (np.ndarray): the action space of the dynamics. The first
+          column is the loweer bound and the second column is the upper bound.
     """
     self.dt: float = cfg.dt  # time step for each planning step
     self.ctrl_space = action_space.copy()
@@ -44,13 +60,24 @@ class BaseDynamics(ABC):
   def integrate_forward_jax(
       self, state: DeviceArray, control: DeviceArray
   ) -> Tuple[DeviceArray, DeviceArray]:
+    """
+    Computes one-step time evolution of the system: x+ = f(x, u) with
+    additional treatment on state and/or control constraints.
+
+    Args:
+        state (DeviceArray)
+        control (DeviceArray)
+
+    Returns:
+        DeviceArray: next state.
+    """
     raise NotImplementedError
 
   @abstractmethod
   def _integrate_forward(
       self, state: DeviceArray, control: DeviceArray
   ) -> DeviceArray:
-    """Computes one-step time evolution of the system: x_{k+1} = f(x, u).
+    """Computes one-step time evolution of the system: x+ = f(x, u).
 
     Args:
         state (DeviceArray)

@@ -4,7 +4,7 @@
 # Licensed under The MIT License [see LICENSE for details]
 # --------------------------------------------------------
 
-"""Classes for cost with respect to half spaces.
+"""Classes for costs with respect to half spaces.
 
 This file implements costs with repspect to half spaces. We consider the point
 and box footprint.
