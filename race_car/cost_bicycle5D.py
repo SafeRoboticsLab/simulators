@@ -1,3 +1,12 @@
+# --------------------------------------------------------
+# Copyright (c) 2023 Princeton University
+# Email: kaichieh@princeton.edu
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
+
+"""Classes for costs and constraints used in the race car simulator.
+"""
+
 from typing import Dict, List, Optional
 from functools import partial
 from jaxlib.xla_extension import DeviceArray

@@ -10,7 +10,7 @@ This file implements a class for kinematic bicycle with additive disturbance.
 The state is represented by [`x`, `y`, `v`, `psi`, `delta`], where (`x`, `y`)
 is the position, `v` is the forward speed, `psi` is the heading angle, and
 `delta` is the steering angle. The control is [`accel`, `omega`], where `accel`
-is the linear acceleration, `omega` is the steering angular velocity.
+is the linear acceleration and `omega` is the steering angular velocity.
 """
 
 from typing import Tuple, Any, Dict

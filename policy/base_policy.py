@@ -1,7 +1,15 @@
+# --------------------------------------------------------
+# Copyright (c) 2023 Princeton University
+# Email: kaichieh@princeton.edu
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
+
+"""A parent class for (control) policy.
+
+This file implements a parent class for (control) policy. A child class should
+implement `get_action()`.
 """
-Please contact the author(s) of this library if you have any questions.
-Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
-"""
+
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Tuple, Dict, List, Optional

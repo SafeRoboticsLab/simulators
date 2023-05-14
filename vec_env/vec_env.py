@@ -1,4 +1,11 @@
-"""
+# --------------------------------------------------------
+# Copyright (c) 2023 Princeton University
+# Email: kaichieh@princeton.edu
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
+
+"""A class for vectorized environments especially for RL training.
+
 Modified from stable-baseline3 and https://github.com/allenzren/alano.
 """
 

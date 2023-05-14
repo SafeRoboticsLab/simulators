@@ -1,13 +1,12 @@
-"""
-Please contact the author(s) of this library if you have any questions.
-Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
-"""
-
+# --------------------------------------------------------
+# Copyright (c) 2023 Princeton University
+# Email: kaichieh@princeton.edu
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
 from __future__ import annotations
 import sys
 from typing import (
-    TypeVar, TypedDict, List, Any, Optional, Union, Tuple, Dict, Iterable,
-    Callable
+    TypeVar, TypedDict, List, Optional, Union, Tuple, Dict, Iterable, Callable
 )
 import numpy as np
 from gym import spaces

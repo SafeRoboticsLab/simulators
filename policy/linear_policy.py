@@ -1,3 +1,9 @@
+# --------------------------------------------------------
+# Copyright (c) 2023 Princeton University
+# Email: kaichieh@princeton.edu
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
+
 from typing import Tuple, Optional, Any, Dict
 import time
 import numpy as np

@@ -1,17 +1,14 @@
-"""
-Please contact the author(s) of this library if you have any questions.
-Authors:  Zixu Zhang ( zixuz@princeton.edu )
-          Kai-Chieh Hsu ( kaichieh@princeton.edu )
-"""
+# --------------------------------------------------------
+# Copyright (c) 2023 Princeton University
+# Email: kaichieh@princeton.edu
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
 
 from typing import Optional, Tuple
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib
 from pyspline.pyCurve import Curve
-
-# TODO: Use packages to load real-world road, such as
-# https://www.mathworks.com/products/roadrunner.html
 
 
 class Track:
@@ -20,8 +17,7 @@ class Track:
       self, center_line: np.ndarray, width_left: float, width_right: float,
       loop: Optional[bool] = True
   ) -> None:
-    '''
-    Considers a track with fixed width.
+    '''Considers a track with fixed width.
 
     Args:
         center_line: 2D numpy array containing samples of track center line

@@ -1,7 +1,8 @@
-"""
-Please contact the author(s) of this library if you have any questions.
-Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
-"""
+# --------------------------------------------------------
+# Copyright (c) 2023 Princeton University
+# Email: kaichieh@princeton.edu
+# Licensed under The MIT License [see LICENSE for details]
+# --------------------------------------------------------
 
 from typing import Optional, Tuple, Union, Dict, List
 import copy
@@ -9,14 +10,12 @@ import numpy as np
 import torch
 
 # Dynamics.
-from .dynamics.bicycle4D import Bicycle4D
 from .dynamics.bicycle5D import Bicycle5D
 from .dynamics.bicycle5D_dstb import BicycleDstb5D
 
 from .cost.base_cost import BaseCost
 
 # Footprint.
-from .ell_reach.ellipse import Ellipse
 from .footprint.box import BoxFootprint
 
 # Policy.
@@ -41,16 +40,10 @@ class Agent:
   agents_order: Optional[List]
 
   def __init__(self, cfg, action_space: np.ndarray, env=None) -> None:
-    if cfg.dyn == "Bicycle4D":
-      self.dyn = Bicycle4D(cfg, action_space)
-    elif cfg.dyn == "Bicycle5D":
+    if cfg.dyn == "Bicycle5D":
       self.dyn = Bicycle5D(cfg, action_space)
     elif cfg.dyn == "BicycleDstb5D":
       self.dyn = BicycleDstb5D(cfg, action_space)
-    elif cfg.dyn == "SpiritPybullet":
-      # Prevents from opening a pybullet simulator when we don't need to.
-      from .dynamics.spirit_dynamics_pybullet import SpiritDynamicsPybullet
-      self.dyn = SpiritDynamicsPybullet(cfg, action_space)
     else:
       raise ValueError("Dynamics type not supported!")
 
@@ -59,13 +52,7 @@ class Agent:
     except Exception as e:
       print("WARNING: Cannot copy env - {}".format(e))
 
-    if cfg.footprint == "Ellipse":
-      ego_a = cfg.LENGTH / 2.0
-      ego_b = cfg.WIDTH / 2.0
-      ego_q = np.array([cfg.CENTER, 0])[:, np.newaxis]
-      ego_Q = np.diag([ego_a**2, ego_b**2])
-      self.footprint = Ellipse(q=ego_q, Q=ego_Q)
-    elif cfg.footprint == "Box":
+    if cfg.footprint == "Box":
       self.footprint = BoxFootprint(box_limit=cfg.state_box_limit)
 
     # Policy should be initialized by `init_policy()`.
