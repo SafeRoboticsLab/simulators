@@ -1,8 +1,6 @@
 from simulators.agent import Agent
 
-from simulators.spirit_rl.spirit_pybullet_env import SpiritPybulletEnv
-from simulators.spirit_rl.spirit_pybullet_single import SpiritPybulletSingleEnv
-from simulators.spirit_rl.spirit_pybullet_zs import SpiritPybulletZeroSumEnv
+from simulators.base_env import BaseEnv
 from simulators.base_single_env import BaseSingleEnv
 from simulators.base_zs_env import BaseZeroSumEnv
 
@@ -30,8 +28,8 @@ from simulators.dynamics.bicycle5D import Bicycle5D
 
 from simulators.policy.base_policy import BasePolicy
 from simulators.policy.nn_policy import NeuralNetworkControlSystem
-from simulators.policy.ilqr_policy import iLQR
-from simulators.policy.ilqr_spline_policy import iLQRSpline
+from simulators.policy.ilqr_policy import ILQR
+from simulators.policy.ilqr_spline_policy import ILQRSpline
 from simulators.policy.linear_policy import LinearPolicy
 
 from simulators.vec_env.subproc_vec_env import SubprocVecEnv
@@ -52,3 +50,8 @@ gym.envs.register(  # no time limit imposed
     id='RaceCarDstb5DEnv-v1',
     entry_point=RaceCarDstb5DEnv,
 )
+
+# Prevents from opening a pybullet simulator when we don't need to.
+# from simulators.spirit_rl.spirit_pybullet_env import SpiritPybulletEnv
+# from simulators.spirit_rl.spirit_pybullet_single import SpiritPybulletSingleEnv
+# from simulators.spirit_rl.spirit_pybullet_zs import SpiritPybulletZeroSumEnv

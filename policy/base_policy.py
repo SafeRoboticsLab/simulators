@@ -4,26 +4,20 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 from __future__ import annotations
 from abc import ABC, abstractmethod
-import copy
-from typing import Callable, Tuple, Union, Dict, List, Optional
+from typing import Tuple, Dict, List, Optional
 import numpy as np
 import torch
 
 
 class BasePolicy(ABC):
-  _critic: Optional[Union[torch.nn.Module, Callable[
-      [np.ndarray, np.ndarray, Optional[np.ndarray]], float]]]
-  critic_agents_order: Optional[List]
-  policy_observable: Optional[List]
+  obs_other_list: Optional[List]
 
   def __init__(self, id: str, cfg) -> None:
     super().__init__()
     self.id = id
     self.cfg = cfg
     self.device = torch.device(cfg.device)
-    self.policy_observable = None
-    self._critic = None
-    self.critic_agents_order = None
+    self.obs_other_list = None
 
   @abstractmethod
   def get_action(
@@ -43,33 +37,13 @@ class BasePolicy(ABC):
     """
     raise NotImplementedError
 
-  def critic(
-      self, obs: np.ndarray, action: Union[np.ndarray, Dict[str, np.ndarray]],
-      append: Optional[np.ndarray] = None
-  ) -> float:
-    assert self._critic is not None
-    assert self.critic_agents_order is not None
-
-    if isinstance(action, dict):
-      flat_action = np.concatenate([
-          action[k].copy() for k in self.critic_agents_order
-      ], axis=0)
-    else:
-      flat_action = action.copy()
-
-    if isinstance(self._critic, torch.nn.Module):
-      q_pi_1, q_pi_2 = self._critic(obs, flat_action, append=append)
-      return (q_pi_1+q_pi_2) / 2
-    else:
-      return self._critic(obs, flat_action, append)
-
   def report(self):
     print(self.id)
-    if self.policy_observable is not None:
+    if self.obs_other_list is not None:
       print("  - The policy can observe:", end=' ')
-      for i, k in enumerate(self.policy_observable):
+      for i, k in enumerate(self.obs_other_list):
         print(k, end='')
-        if i == len(self.policy_observable) - 1:
+        if i == len(self.obs_other_list) - 1:
           print('.')
         else:
           print(', ', end='')

@@ -17,17 +17,17 @@ from ..dynamics.base_dynamics import BaseDynamics
 from ..cost.base_cost import BaseCost
 
 
-class iLQR(BasePolicy):
+class ILQR(BasePolicy):
 
   def __init__(
       self, id: str, cfg, dyn: BaseDynamics, cost: BaseCost, **kwargs
   ) -> None:
     super().__init__(id, cfg)
-    self.policy_type = "iLQR"
+    self.policy_type = "ILQR"
     self.dyn = copy.deepcopy(dyn)
     self.cost = copy.deepcopy(cost)
 
-    # iLQR parameters
+    # ILQR parameters
     self.dim_x = dyn.dim_x
     self.dim_u = dyn.dim_u
     self.plan_horizon = int(cfg.plan_horizon)
@@ -159,7 +159,7 @@ class iLQR(BasePolicy):
 
     X = jnp.zeros((self.dim_x, self.plan_horizon))
     U = jnp.zeros((self.dim_u, self.plan_horizon)
-                 )  #  Assumes the last ctrl are zeros.
+                 )  # Assumes the last ctrl are zeros.
     X = X.at[:, 0].set(nominal_states[:, 0])
 
     X, U = jax.lax.fori_loop(0, self.plan_horizon - 1, _rollout_step, (X, U))
@@ -225,7 +225,7 @@ class iLQR(BasePolicy):
       Q_uu = c_uu[:, :, t] + fu[:, :, t].T @ V_xx @ fu[:, :, t]
 
       # The regularization is added to Vxx for robustness.
-      # Ref: http://roboticexplorationlab.org/papers/iLQR_Tutorial.pdf
+      # Ref: http://roboticexplorationlab.org/papers/ILQR_Tutorial.pdf
       reg_mat = reg * jnp.eye(self.dim_x)
       V_xx_reg = V_xx + reg_mat
       Q_ux_reg = c_ux[:, :, t] + fu[:, :, t].T @ V_xx_reg @ fx[:, :, t]

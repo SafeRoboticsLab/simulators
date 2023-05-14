@@ -368,7 +368,6 @@ class Bicycle5DRefTrajCost(BaseSplineCost):
     if isinstance(cfg.w_ref, float):
       self.w_ref: DeviceArray = jnp.eye(5) * cfg.w_ref
     else:
-      assert isinstance(cfg.w_ref, list)
       assert len(cfg.w_ref) == 5
       self.w_ref: DeviceArray = jnp.diag(jnp.asarray(cfg.w_ref)).copy()
     self.w_accel: float = cfg.w_accel

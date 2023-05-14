@@ -44,11 +44,11 @@ class NeuralNetworkControlSystem(BasePolicy):
         np.ndarray: the action to be executed.
         dict: info for the solver, e.g., processing time, status, etc.
     """
-    if self.policy_observable is not None:
-      flat_action = np.concatenate([
-          agents_action[k].copy() for k in self.policy_observable
+    if self.obs_other_list is not None:
+      other_actions = np.concatenate([
+          agents_action[k].copy() for k in self.obs_other_list
       ], axis=0)
-      obs = np.concatenate((obs, flat_action), axis=0)
+      obs = np.concatenate((obs, other_actions), axis=0)
     append = kwargs.get("append", None)
     latent = kwargs.get("latent", None)
 

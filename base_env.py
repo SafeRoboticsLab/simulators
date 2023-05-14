@@ -4,16 +4,18 @@ Authors:  Kai-Chieh Hsu ( kaichieh@princeton.edu )
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, Union
 import random
 import numpy as np
 import gym
 import torch
 
 from .utils import GenericAction, GenericState
+from .agent import Agent
 
 
 class BaseEnv(gym.Env, ABC):
+  agent: Agent
 
   def __init__(self, cfg_env) -> None:
     gym.Env.__init__(self)
@@ -66,4 +68,22 @@ class BaseEnv(gym.Env, ABC):
 
   @abstractmethod
   def report(self):
+    raise NotImplementedError
+
+  @abstractmethod
+  def get_constraints_all(
+      self, states: np.ndarray, actions: Union[np.ndarray, dict]
+  ) -> Dict[str, np.ndarray]:
+    """
+    Gets the values of all constaint functions given current state, current
+    action, and next state.
+
+    Args:
+        state (np.ndarray)
+        controls (np.ndarray)
+
+    Returns:
+        Dict: each (key, value) pair is the name and values of a constraint
+            evaluated at the states and controls input.
+    """
     raise NotImplementedError

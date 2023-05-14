@@ -613,4 +613,21 @@ class RaceCarSingle5DEnv(BaseSingleEnv):
     else:
       print("road from file, box footprint, box obstacles!")
 
+  def get_constraints_all(
+      self, states: np.ndarray, controls: np.ndarray, time_indices: np.ndarray
+  ) -> Dict:
+    closest_pt, slope, theta = self.track.get_closest_pts(states[:2, :])
+    states = jnp.array(states)
+    controls = jnp.array(controls)
+    closest_pt = jnp.array(closest_pt)
+    slope = jnp.array(slope)
+    theta = jnp.array(theta)
+    time_indices = jnp.array(time_indices)
+    cons_dict: Dict = self.constraint.get_cost_dict(
+        states, controls, closest_pt, slope, theta, time_indices=time_indices
+    )
+    for k, v in cons_dict.items():
+      cons_dict[k] = np.asarray(v).reshape(-1, states.shape[1])
+    return cons_dict
+
   # endregion

@@ -197,14 +197,6 @@ class BaseSingleEnv(BaseEnv):
       reset_kwargs = {}
     if action_kwargs is None:
       action_kwargs = {}
-    policy_type = action_kwargs.get('policy_type', 'task')
-    warmup = policy_type == 'task' and self.agent.policy.policy_type == "iLQR"
-    if policy_type == 'safety':
-      assert self.agent.safety_policy is not None
-      warmup = self.agent.safety_policy.policy_type == "iLQR"
-    else:
-      warmup = self.agent.policy.policy_type == "iLQR"
-
     controller = None
     if "controller" in kwargs.keys():
       controller = copy.deepcopy(kwargs["controller"])
@@ -215,14 +207,10 @@ class BaseSingleEnv(BaseEnv):
     reward_hist = []
     plan_hist = []
     step_hist = []
+    shield_ind = []
 
     # Initializes robot.
-    if warmup:
-      init_control = np.zeros(
-          (self.action_dim, self.agent.policy.plan_horizon)
-      )
-    if policy_type == 'shield':
-      shield_ind = []
+    init_control = None
     result = 0
     obs = self.reset(**reset_kwargs)
     state_hist.append(self.state)
@@ -232,16 +220,10 @@ class BaseSingleEnv(BaseEnv):
         # Gets action.
         action_kwargs['state'] = self.state.copy()
         action_kwargs['time_idx'] = t
-        if warmup:
+        with torch.no_grad():
           action, solver_info = self.agent.get_action(
               obs=obs, controls=init_control, **action_kwargs
           )
-        else:
-          with torch.no_grad():
-            # obs_tensor = torch.FloatTensor(obs).to(self.agent.policy.device)
-            action, solver_info = self.agent.get_action(
-                obs=obs, **action_kwargs
-            )
       else:
         new_joint_pos = controller.get_action()
         action = new_joint_pos - np.array(
@@ -264,7 +246,7 @@ class BaseSingleEnv(BaseEnv):
             self, state_hist, action_hist, plan_hist, step_hist, time_idx=t
         )
       if solver_info is not None:
-        if policy_type == 'shield':
+        if 'shield' in solver_info:
           shield_ind.append(solver_info['shield'])
 
       # Checks termination criterion.
@@ -275,9 +257,10 @@ class BaseSingleEnv(BaseEnv):
           result = -1
         break
 
-      if warmup:
+      # Warms up initial controls with the computation from the previous cycle.
+      if 'controls' in solver_info:
+        init_control = np.zeros_like(solver_info['controls'], dtype=float)
         init_control[:, :-1] = solver_info['controls'][:, 1:]
-        init_control[:, -1] = 0.
 
     if rollout_episode_callback is not None:
       rollout_episode_callback(
@@ -289,10 +272,8 @@ class BaseSingleEnv(BaseEnv):
     info = dict(
         obs_hist=np.array(obs_hist), action_hist=np.array(action_hist),
         plan_hist=plan_hist, reward_hist=np.array(reward_hist),
-        step_hist=step_hist
+        step_hist=step_hist, shield_ind=shield_ind
     )
-    if policy_type == 'shield':
-      info['shield_ind'] = shield_ind
     return np.array(state_hist), result, info
 
   def simulate_trajectories(

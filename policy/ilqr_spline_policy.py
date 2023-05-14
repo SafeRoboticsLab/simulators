@@ -9,13 +9,13 @@ import numpy as np
 from jax import numpy as jnp
 from jaxlib.xla_extension import DeviceArray
 
-from .ilqr_policy import iLQR
+from .ilqr_policy import ILQR
 from ..dynamics.base_dynamics import BaseDynamics
 from ..cost.base_cost import BaseCost
 from ..race_car.track import Track
 
 
-class iLQRSpline(iLQR):
+class ILQRSpline(ILQR):
 
   def __init__(
       self, id: str, cfg, dyn: BaseDynamics, cost: BaseCost, track: Track,
@@ -49,8 +49,8 @@ class iLQRSpline(iLQR):
       controls = jnp.array(controls)
 
     # Rolls out the nominal trajectory and gets the initial cost.
-    #* This is differnet from the naive iLQR as it relies on the information
-    #* from the pyspline.
+    # * This is differnet from the naive ILQR as it relies on the information
+    # * from the pyspline.
     states, controls = self.rollout_nominal(
         jnp.array(kwargs.get('state')), controls
     )
@@ -136,8 +136,8 @@ class iLQRSpline(iLQR):
     X, U = self.rollout(
         nominal_states, nominal_controls, K_closed_loop, k_open_loop, alpha
     )
-    #* This is differnet from the naive iLQR as it relies on the information
-    #* from the pyspline.
+    # * This is differnet from the naive ILQR as it relies on the information
+    # * from the pyspline.
     closest_pt, slope, theta = self.track.get_closest_pts(np.asarray(X[:2, :]))
     closest_pt = jnp.array(closest_pt)
     slope = jnp.array(slope)

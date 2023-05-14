@@ -44,10 +44,10 @@ class BoxFootprint:
       if i == 3:
         ax.plot(
             vertices[[3, 0], 0], vertices[[3, 0], 1], c=color, lw=lw,
-            alpha=alpha
+            alpha=alpha, zorder=0
         )
       else:
         ax.plot(
             vertices[i:i + 2, 0], vertices[i:i + 2, 1], c=color, lw=lw,
-            alpha=alpha
+            alpha=alpha, zorder=0
         )

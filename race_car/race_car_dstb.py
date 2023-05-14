@@ -69,7 +69,7 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
       assert self.cost_type == "Reachability"
       self.cost = Bicycle5DReachabilityCost(cfg_cost)
     self.constraint = Bicycle5DConstraint(cfg_cost)
-    self.g_x_fail = cfg_env.g_x_fail
+    self.g_x_fail = float(cfg_env.g_x_fail)
 
     # Visualization.
     track_cat = np.concatenate(
@@ -219,8 +219,8 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
 
     # Gets info.
     if final_only:
-      g_x = g_x_list[-1]
-      l_x = l_x_list[-1]
+      g_x = float(g_x_list[-1])
+      l_x = float(l_x_list[-1])
       binary_cost = 1. if g_x > self.failure_thr else 0.
     else:
       g_x = g_x_list
@@ -506,9 +506,9 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
     for vertices in self.obs_vertices_list:
       for i in range(4):
         if i == 3:
-          ax.plot(vertices[[3, 0], 0], vertices[[3, 0], 1], c=c)
+          ax.plot(vertices[[3, 0], 0], vertices[[3, 0], 1], c=c, zorder=0)
         else:
-          ax.plot(vertices[i:i + 2, 0], vertices[i:i + 2, 1], c=c)
+          ax.plot(vertices[i:i + 2, 0], vertices[i:i + 2, 1], c=c, zorder=0)
 
   def get_state_cost_map(
       self, nx: int, ny: int, vel: float, yaw: float, delta: float,
@@ -624,5 +624,22 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
       print("Straight road, box footprint, box obstacles!")
     else:
       print("road from file, box footprint, box obstacles!")
+
+  def get_constraints_all(
+      self, states: np.ndarray, controls: np.ndarray, time_indices: np.ndarray
+  ) -> Dict:
+    closest_pt, slope, theta = self.track.get_closest_pts(states[:2, :])
+    states = jnp.array(states)
+    controls = jnp.array(controls)
+    closest_pt = jnp.array(closest_pt)
+    slope = jnp.array(slope)
+    theta = jnp.array(theta)
+    time_indices = jnp.array(time_indices)
+    cons_dict: Dict = self.constraint.get_cost_dict(
+        states, controls, closest_pt, slope, theta, time_indices=time_indices
+    )
+    for k, v in cons_dict.items():
+      cons_dict[k] = np.asarray(v).reshape(-1, states.shape[1])
+    return cons_dict
 
   # endregion

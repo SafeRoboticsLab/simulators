@@ -10,10 +10,10 @@ from jax import numpy as jnp
 from jaxlib.xla_extension import DeviceArray
 from functools import partial
 
-from .ilqr_spline_policy import iLQRSpline
+from .ilqr_spline_policy import ILQRSpline
 
 
-class iLQRReachabilitySpline(iLQRSpline):
+class ILQRReachabilitySpline(ILQRSpline):
 
   def get_action(
       self, obs: np.ndarray, controls: Optional[np.ndarray] = None,
@@ -30,8 +30,8 @@ class iLQRReachabilitySpline(iLQRSpline):
       controls = jnp.array(controls)
 
     # Rolls out the nominal trajectory and gets the initial cost.
-    #* This is differnet from the naive iLQR as it relies on the information
-    #* from the pyspline.
+    # * This is differnet from the naive ILQR as it relies on the information
+    # * from the pyspline.
     states, controls = self.rollout_nominal(
         jnp.array(kwargs.get('state')), controls
     )
@@ -158,15 +158,15 @@ class iLQRReachabilitySpline(iLQRSpline):
     X, U = self.rollout(
         nominal_states, nominal_controls, K_closed_loop, k_open_loop, alpha
     )
-    #* This is differnet from the naive iLQR as it relies on the information
-    #* from the pyspline.
+    # * This is differnet from the naive ILQR as it relies on the information
+    # * from the pyspline.
     closest_pt, slope, theta = self.track.get_closest_pts(np.asarray(X[:2, :]))
     closest_pt = jnp.array(closest_pt)
     slope = jnp.array(slope)
     theta = jnp.array(theta)
 
     # J = self.cost.get_traj_cost(X, U, closest_pt, slope, theta)
-    #! hacky
+    # ! hacky
     state_costs = self.cost.constraint.get_cost(X, U, closest_pt, slope, theta)
     ctrl_costs = self.cost.ctrl_cost.get_cost(X, U)
 
@@ -201,7 +201,7 @@ class iLQRReachabilitySpline(iLQRSpline):
     def true_func(args):
       idx, V_x, V_xx, ks, Ks = args
 
-      #! Q_x, Q_xx are not used if this time step is critical.
+      # ! Q_x, Q_xx are not used if this time step is critical.
       # Q_x = c_x[:, idx] + fx[:, :, idx].T @ V_x
       # Q_xx = c_xx[:, :, idx] + fx[:, :, idx].T @ V_xx @ fx[:, :, idx]
       Q_ux = c_ux[:, :, idx] + fu[:, :, idx].T @ V_xx @ fx[:, :, idx]
