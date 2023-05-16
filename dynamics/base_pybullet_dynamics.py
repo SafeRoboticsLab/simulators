@@ -48,6 +48,8 @@ class BasePybulletDynamics(BaseDynamics):
 
         # configure terrain in the dynamics (legacy)
         self.terrain_type = config.TERRAIN
+        self.random_terrain = self.terrain_type == "random"
+        self.terrain_list = config.TERRAIN_LIST
         self.terrain_height = config.TERRAIN_HEIGHT
         self.terrain_gridsize = config.TERRAIN_GRIDSIZE
         self.terrain_friction = config.TERRAIN_FRICTION
@@ -388,6 +390,8 @@ class BasePybulletDynamics(BaseDynamics):
         self.terrain_data = heightfieldData
     
     def load_terrain(self):
+        if self.random_terrain:
+            self.terrain_type = np.random.choice(self.terrain_list)
         full_file = os.path.join(os.path.dirname(__file__), 'resources/gvr_bot/simple_plane.urdf')
         self.base_plane = p.loadURDF(fileName=full_file, basePosition=[0, 0, 0], physicsClientId=self.client)
         self.change_dynamics(
@@ -426,7 +430,7 @@ class BasePybulletDynamics(BaseDynamics):
             length = 0.6105
             n = 4
             # base_pos = np.array([n / 2, 0, 0])
-            base_pos = np.array([-0.5, 0, 0])
+            base_pos = np.array([-0.2, 0.1, 0])
             for col in range(n):
                 for row in range(n):
                     pos = np.array([-(length * n / 2) + col * (length), -(width * n / 2) + row * (width), 0.0])
@@ -444,7 +448,7 @@ class BasePybulletDynamics(BaseDynamics):
             length = 0.6105
             n = 4
             # base_pos = np.array([n / 2, 0, 0])
-            base_pos = np.array([-0.5, 0, 0])
+            base_pos = np.array([-0.2, 0.1, 0])
             for col in range(n):
                 for row in range(n):
                     pos = np.array([-(length * n / 2) + col * (length), -(width * n / 2) + row * (width), 0.0])
@@ -461,7 +465,8 @@ class BasePybulletDynamics(BaseDynamics):
             width = 0.6105
             length = 0.6105
             n = 4
-            base_pos = np.array([n / 2, 0, 0])
+            # base_pos = np.array([n / 2, 0, 0])
+            base_pos = np.array([-0.2, 0.1, 0])
             for col in range(n):
                 for row in range(n):
                     pos = np.array([-(length * n / 2) + col * (length), -(width * n / 2) + row * (width), 0.0])
