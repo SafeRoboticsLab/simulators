@@ -194,7 +194,7 @@ class GVR:
             "roll": abs(state[3]) - math.pi * 0.1,
             "pitch": abs(state[4]) - math.pi * 0.1,
             "body_ang_x": abs(state[6]) - math.pi * 0.02,
-            "body_ang_y": abs(state[7]) - math.pi * 0.02,
+            "body_ang_y": abs(state[7]) - math.pi * 0.02
         }
 
         # return {
