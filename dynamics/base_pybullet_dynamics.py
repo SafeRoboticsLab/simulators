@@ -26,6 +26,7 @@ class BasePybulletDynamics(BaseDynamics):
         self.gui = config.GUI
         self.gui_imaginary = config.GUI_IMAGINARY
         self.dt = config.DT
+        self.ctrl_dt = config.CTRL_DT
         self.gravity = -9.81
 
         # configure force in the dynamics
@@ -103,6 +104,10 @@ class BasePybulletDynamics(BaseDynamics):
         self.video_output_file = None
         self.ffmpeg_pipe = None
         self.cnt = None
+
+        # self.cur_action to be used with self.ctrl_dt. 
+        # If self.cnt % self.ctrl_dt != 0, apply self.cur_action, else, self.cur_action = new_action
+        self.cur_action = None
 
     def _init_frames(self):
         """

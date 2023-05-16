@@ -107,17 +107,17 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
                 p.setGravity(0, 0, self.gravity, physicsClientId = self.client)
 
                 # set random state (linear and angular velocity) to the robot
-                random_linear_velocity = np.random.uniform(-1.0, 1.0, 3)
+                random_linear_velocity = np.random.uniform(-0.7, 0.7, 3)
                 random_angular_velocity = np.random.uniform(-np.pi*0.25, np.pi*0.25, 3)
                 
                 p.resetBaseVelocity(self.robot.id, linearVelocity=random_linear_velocity, angularVelocity=random_angular_velocity, physicsClientId=self.client)
 
-                # set random initial action
-                self.robot.apply_action([
-                    np.random.uniform(-self.robot.max_linear_vel, self.robot.max_linear_vel),
-                    np.random.uniform(-self.robot.max_angular_vel, self.robot.max_angular_vel),
-                    0.0
-                ])
+                # # set random initial action
+                # self.robot.apply_action([
+                #     np.random.uniform(-self.robot.max_linear_vel, self.robot.max_linear_vel),
+                #     np.random.uniform(-self.robot.max_angular_vel, self.robot.max_angular_vel),
+                #     0.0
+                # ])
 
             self.state = np.array(self.robot.get_obs(), dtype = np.float32)
 
@@ -151,11 +151,13 @@ class GVRDynamicsPybullet(BasePybulletDynamics):
         else:
             has_adversarial = False
         
-        # clip the increment of flippers
-        flipper_cur_pos, _ = self.robot.get_flipper_state()
-        control[2] = flipper_cur_pos + np.clip(control[2], self.flipper_increment_min, self.flipper_increment_max)
+        if self.cnt % self.ctrl_dt == 0 or self.cur_action is None:
+            # clip the increment of flippers
+            flipper_cur_pos, _ = self.robot.get_flipper_state()
+            control[2] = flipper_cur_pos + np.clip(control[2], self.flipper_increment_min, self.flipper_increment_max)
+            self.cur_action = control
         
-        self.robot.apply_action(control)
+        self.robot.apply_action(self.cur_action)
         
         if not self._apply_dstb_from_adversarial_sequence():
             if has_adversarial:
