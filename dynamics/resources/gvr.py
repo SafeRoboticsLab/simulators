@@ -179,14 +179,10 @@ class GVR:
             "pitch": abs(state[4]) - math.pi * 1./6.,
             "body_ang_x": abs(state[6]) - math.pi * 0.5,
             "body_ang_y": abs(state[7]) - math.pi * 0.5,
-            "linear_x": abs(state[0]) - 0.7
+            "body_ang_z": abs(state[8]) - math.pi * 0.5,
+            "vel_left": abs(state[11]) - 0.7,
+            "vel_right": abs(state[12]) - 0.7
         }
-        
-        # rewrite this to specifically describe "toppling over"
-        # return {
-        #     "roll": abs(state[3]) - math.pi * 0.25,
-        #     "pitch": abs(state[4]) - math.pi * 0.25
-        # }
     
     def target_margin(self, state):
         # for now, let's just use target_margin smaller than safety_margin, as we are running avoidonly anyway (not using target margin)
@@ -194,7 +190,10 @@ class GVR:
             "roll": abs(state[3]) - math.pi * 0.1,
             "pitch": abs(state[4]) - math.pi * 0.1,
             "body_ang_x": abs(state[6]) - math.pi * 0.02,
-            "body_ang_y": abs(state[7]) - math.pi * 0.02
+            "body_ang_y": abs(state[7]) - math.pi * 0.02,
+            "body_ang_z": abs(state[8]) - math.pi * 0.02,
+            "vel_left": abs(state[11]) - 0.2,
+            "vel_right": abs(state[12]) - 0.2
         }
 
         # return {

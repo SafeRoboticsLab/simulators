@@ -58,26 +58,28 @@ class GVRPybulletZeroSumEnv(BaseZeroSumEnv, GVRPybulletEnv):
         l_x = max(list(targets.values()))
         binary_cost = 1. if g_x > 0. else 0.
 
-        # Gets done flag
-        if end_criterion == 'failure':
-            failure = g_x > 0
-            if failure:
-                done = True
-                done_type = "failure"
-        elif end_criterion == 'reach-avoid':
-            failure = g_x > 0.
-            success = not failure and l_x <= 0.
-            
-            if success:
-                done = True
-                done_type = "success"
-            elif failure:
-                done = True
-                done_type = "failure"
-        elif end_criterion == 'timeout':
-            pass
-        else:
-            raise ValueError("End criterion not supported!")
+        #! FORCE EXPLORING FOR n STEPS BEFORE TERMINATING
+        if self.cnt >= 300:
+            # Gets done flag
+            if end_criterion == 'failure':
+                failure = g_x > 0
+                if failure:
+                    done = True
+                    done_type = "failure"
+            elif end_criterion == 'reach-avoid':
+                failure = g_x > 0.
+                success = not failure and l_x <= 0.
+                
+                if success:
+                    done = True
+                    done_type = "success"
+                elif failure:
+                    done = True
+                    done_type = "failure"
+            elif end_criterion == 'timeout':
+                pass
+            else:
+                raise ValueError("End criterion not supported!")
 
         # Gets info
         info = {
