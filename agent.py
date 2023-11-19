@@ -91,9 +91,9 @@ class Agent:
         "You need to either pass in a control or construct a policy!"
     )
     if control is None:
-      obs: np.ndarray = kwargs.get('obs')
+      obsrv: np.ndarray = kwargs.get('obsrv')
       kwargs['state'] = state.copy()
-      control = self.get_action(obs=obs.copy(), **kwargs)[0]
+      control = self.get_action(obsrv=obsrv.copy(), **kwargs)[0]
     elif not isinstance(control, np.ndarray):
       control = control.cpu().numpy()
     if noise is not None:
@@ -125,13 +125,13 @@ class Agent:
     return np.asarray(A), np.asarray(B)
 
   def get_action(
-      self, obs: np.ndarray,
+      self, obsrv: np.ndarray,
       agents_action: Optional[Dict[str, np.ndarray]] = None, **kwargs
   ) -> Tuple[np.ndarray, dict]:
     """Gets the action to execute.
 
     Args:
-        obs (np.ndarray): current observation.
+        obsrv (np.ndarray): current observation.
         agents_action (Optional[Dict]): other agents' actions that are
             observable to the ego agent.
 
@@ -144,7 +144,7 @@ class Agent:
         assert agent_id in agents_action
 
     action, solver_info = self.policy.get_action(  # Proposed action.
-        obs=obs, agents_action=agents_action, **kwargs
+        obsrv=obsrv, agents_action=agents_action, **kwargs
     )
 
     return action, solver_info

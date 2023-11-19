@@ -29,7 +29,7 @@ class LinearPolicy(BasePolicy):
     self.k_open_loop = k_open_loop.copy()
 
   def get_action(
-      self, obs: np.ndarray,
+      self, obsrv: np.ndarray,
       agents_action: Optional[Dict[str, np.ndarray]] = None, **kwargs
   ) -> Tuple[np.ndarray, dict]:
     """Gets the action to execute.

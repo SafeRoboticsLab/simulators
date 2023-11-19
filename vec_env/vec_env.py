@@ -51,12 +51,12 @@ class VecEnvBase(SubprocVecEnv):
     self.device = device
 
   def reset(self, **kwargs):
-    obs = super().reset(**kwargs)
-    return th.FloatTensor(obs).to(self.device)
+    obsrv = super().reset(**kwargs)
+    return th.FloatTensor(obsrv).to(self.device)
 
   def reset_one(self, index, **kwargs):
-    obs = self.env_method('reset', indices=[index], **kwargs)[0]
-    return th.FloatTensor(obs).to(self.device)
+    obsrv = self.env_method('reset', indices=[index], **kwargs)[0]
+    return th.FloatTensor(obsrv).to(self.device)
 
   # Overrides
   def step_async(self, actions):
@@ -66,17 +66,17 @@ class VecEnvBase(SubprocVecEnv):
 
   # Overrides
   def step_wait(self):
-    obs, reward, done, info = super().step_wait()
-    obs = th.FloatTensor(obs).to(self.device)
+    obsrv, reward, done, info = super().step_wait()
+    obsrv = th.FloatTensor(obsrv).to(self.device)
     reward = th.FloatTensor(reward).unsqueeze(dim=1).float()
-    return obs, reward, done, info
+    return obsrv, reward, done, info
 
   def get_obs(self, states):
     method_args_list = [(state,) for state in states]
-    obs = th.FloatTensor(
+    obsrv = th.FloatTensor(
         self.env_method_arg(
             '_get_obs', method_args_list=method_args_list,
             indices=range(self.n_envs)
         )
     )
-    return obs.to(self.device)
+    return obsrv.to(self.device)

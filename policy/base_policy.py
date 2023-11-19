@@ -12,30 +12,29 @@ implement `get_action()`.
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Tuple, Dict, List, Optional
+from typing import Tuple, Dict, Optional
 import numpy as np
-import torch
 
 
 class BasePolicy(ABC):
-  obs_other_list: Optional[List]
+  obsrv_dict: Optional[Dict]
 
-  def __init__(self, id: str, cfg) -> None:
+  def __init__(
+      self, id: str, obsrv_dict: Optional[Dict] = None, **kwargs
+  ) -> None:
     super().__init__()
     self.id = id
-    self.cfg = cfg
-    self.device = torch.device(cfg.device)
-    self.obs_other_list = None
+    self.obsrv_dict = obsrv_dict
 
   @abstractmethod
   def get_action(
-      self, obs: np.ndarray,
+      self, obsrv: np.ndarray,
       agents_action: Optional[Dict[str, np.ndarray]] = None, **kwargs
   ) -> Tuple[np.ndarray, dict]:
     """Gets the action to execute.
 
     Args:
-        obs (np.ndarray): current observation.
+        obsrv (np.ndarray): current observation.
         agents_action (Optional[Dict]): other agents' actions that are
             observable to the ego agent.
 
@@ -47,19 +46,13 @@ class BasePolicy(ABC):
 
   def report(self):
     print(self.id)
-    if self.obs_other_list is not None:
+    if self.obsrv_dict is not None:
       print("  - The policy can observe:", end=' ')
-      for i, k in enumerate(self.obs_other_list):
+      for i, k in enumerate(self.obsrv_dict.keys()):
         print(k, end='')
-        if i == len(self.obs_other_list) - 1:
+        if i == len(self.obsrv_dict) - 1:
           print('.')
         else:
           print(', ', end='')
     else:
       print("  - The policy can only access observation.")
-
-  def to(self, device):
-    self.device = device
-    if self._critic is not None:
-      if isinstance(self._critic, torch.nn.Module):
-        self._critic.to(self.device)

@@ -158,7 +158,7 @@ class Bicycle5D(BaseDynamics):
     return crit_time, crit_flag
 
   @partial(jax.jit, static_argnames='self')
-  def disc_deriv(
+  def cont_deriv(
       self, state: DeviceArray, control: DeviceArray
   ) -> DeviceArray:
     deriv = jnp.zeros((self.dim_x,))
@@ -203,8 +203,8 @@ class Bicycle5D(BaseDynamics):
   def _integrate_forward_dt(
       self, state: DeviceArray, control: DeviceArray, dt: float
   ) -> DeviceArray:
-    k1 = self.disc_deriv(state, control)
-    k2 = self.disc_deriv(state + k1*dt/2, control)
-    k3 = self.disc_deriv(state + k2*dt/2, control)
-    k4 = self.disc_deriv(state + k3*dt, control)
+    k1 = self.cont_deriv(state, control)
+    k2 = self.cont_deriv(state + k1*dt/2, control)
+    k3 = self.cont_deriv(state + k2*dt/2, control)
+    k4 = self.cont_deriv(state + k3*dt, control)
     return state + (k1 + 2*k2 + 2*k3 + k4) * dt / 6

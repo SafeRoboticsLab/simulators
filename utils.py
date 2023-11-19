@@ -122,7 +122,7 @@ def concatenate_obs(observations: List[np.ndarray]) -> np.ndarray:
   base_shape = observations[0].shape[1:]
   flags = np.array([x.shape[1:] == base_shape for x in observations])
   assert np.all(flags), (
-      "The obs. of each agent should be the same except the first dim!"
+      "The observation of each agent should be the same except the first dim!"
   )
   return np.concatenate(observations)
 

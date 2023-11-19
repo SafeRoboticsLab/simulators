@@ -71,11 +71,11 @@ class BaseSingleEnv(BaseEnv):
     targets = self.get_target_margin(state_cur, action, state_nxt)
     done, info = self.get_done_and_info(state_nxt, constraints, targets)
 
-    obs = self.get_obs(state_nxt)
+    obsrv = self.get_obs(state_nxt)
     if cast_torch:
-      obs = torch.FloatTensor(obs)
+      obsrv = torch.FloatTensor(obsrv)
 
-    return obs, -cost, done, info
+    return obsrv, -cost, done, info
 
   @abstractmethod
   def get_cost(
@@ -213,7 +213,7 @@ class BaseSingleEnv(BaseEnv):
     # Initializes robot.
     init_control = None
     result = 0
-    obs = self.reset(**reset_kwargs)
+    obsrv = self.reset(**reset_kwargs)
     state_hist.append(self.state)
 
     for t in range(T_rollout):
@@ -223,7 +223,7 @@ class BaseSingleEnv(BaseEnv):
         action_kwargs['time_idx'] = t
         with torch.no_grad():
           action, solver_info = self.agent.get_action(
-              obs=obs, controls=init_control, **action_kwargs
+              obsrv=obsrv, controls=init_control, **action_kwargs
           )
       else:
         new_joint_pos = controller.get_action()
@@ -233,11 +233,11 @@ class BaseSingleEnv(BaseEnv):
         solver_info = None
 
       # Applies action: `done` and `info` are evaluated at the next state.
-      obs, reward, done, step_info = self.step(action)
+      obsrv, reward, done, step_info = self.step(action)
 
       # Executes step callback and stores history.
       state_hist.append(self.state)
-      obs_hist.append(obs)
+      obs_hist.append(obsrv)
       action_hist.append(action)
       plan_hist.append(solver_info)
       reward_hist.append(reward)

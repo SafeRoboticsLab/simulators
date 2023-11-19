@@ -176,7 +176,7 @@ class BicycleDstb5D(BaseDstbDynamics):
     return crit_time, crit_flag
 
   @partial(jax.jit, static_argnames='self')
-  def disc_deriv(
+  def cont_deriv(
       self, state: DeviceArray, control: DeviceArray, disturbance: DeviceArray
   ) -> DeviceArray:
     deriv = jnp.zeros((self.dim_x,))
@@ -217,8 +217,8 @@ class BicycleDstb5D(BaseDstbDynamics):
       self, state: DeviceArray, control: DeviceArray, disturbance: DeviceArray,
       dt: float
   ) -> DeviceArray:
-    k1 = self.disc_deriv(state, control, disturbance)
-    k2 = self.disc_deriv(state + k1*dt/2, control, disturbance)
-    k3 = self.disc_deriv(state + k2*dt/2, control, disturbance)
-    k4 = self.disc_deriv(state + k3*dt, control, disturbance)
+    k1 = self.cont_deriv(state, control, disturbance)
+    k2 = self.cont_deriv(state + k1*dt/2, control, disturbance)
+    k3 = self.cont_deriv(state + k2*dt/2, control, disturbance)
+    k4 = self.cont_deriv(state + k3*dt, control, disturbance)
     return state + (k1 + 2*k2 + 2*k3 + k4) * dt / 6

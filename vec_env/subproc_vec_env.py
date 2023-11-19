@@ -139,8 +139,8 @@ class SubprocVecEnv():
   def step_wait(self):
     results = [remote.recv() for remote in self.remotes]
     self.waiting = False
-    obs, rews, dones, infos = zip(*results)
-    return np.stack(obs), np.stack(rews), np.stack(dones), infos
+    obsrv, rews, dones, infos = zip(*results)
+    return np.stack(obsrv), np.stack(rews), np.stack(dones), infos
 
   # endregion
 
@@ -149,12 +149,12 @@ class SubprocVecEnv():
   def reset(self, **kwargs):
     for remote in self.remotes:
       remote.send(("reset", kwargs))
-    obs = [remote.recv() for remote in self.remotes]
-    return np.stack(obs)
+    obsrv = [remote.recv() for remote in self.remotes]
+    return np.stack(obsrv)
 
   def reset_arg(self, args_list, **kwargs):
-    obs = self.env_method_arg("reset", args_list, **kwargs)
-    return np.stack(obs)
+    obsrv = self.env_method_arg("reset", args_list, **kwargs)
+    return np.stack(obsrv)
 
   # endregion
 

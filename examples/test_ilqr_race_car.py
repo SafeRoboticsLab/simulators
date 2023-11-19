@@ -90,7 +90,7 @@ def main(config_file: str):
 
   # region: Runs iLQR
   # Warms up jit
-  env.agent.policy.get_action(obs=x_cur, state=x_cur, time_idx=0)
+  env.agent.policy.get_action(obsrv=x_cur, state=x_cur, time_idx=0)
 
   print("\n== iLQR starts ==")
   env.report()

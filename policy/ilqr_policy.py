@@ -48,7 +48,7 @@ class ILQR(BasePolicy):
     self.horizon_indices = jnp.arange(self.plan_horizon).reshape(1, -1)
 
   def get_action(
-      self, obs: np.ndarray, controls: Optional[np.ndarray] = None,
+      self, obsrv: np.ndarray, controls: Optional[np.ndarray] = None,
       agents_action: Optional[Dict] = None, **kwargs
   ) -> np.ndarray:
     status = 0

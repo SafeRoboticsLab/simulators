@@ -18,7 +18,7 @@ from .ilqr_spline_policy import ILQRSpline
 class ILQRReachabilitySpline(ILQRSpline):
 
   def get_action(
-      self, obs: np.ndarray, controls: Optional[np.ndarray] = None,
+      self, obsrv: np.ndarray, controls: Optional[np.ndarray] = None,
       agents_action: Optional[Dict] = None, **kwargs
   ) -> np.ndarray:
     status = 0

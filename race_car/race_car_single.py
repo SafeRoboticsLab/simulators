@@ -14,9 +14,7 @@ from jax import numpy as jnp
 
 from .track import Track
 from .utils import get_centerline_from_traj
-from .cost_bicycle5D import (
-    Bicycle5DCost, Bicycle5DConstraint, Bicycle5DReachabilityCost
-)
+from .cost_bicycle5D import Bicycle5DCost, Bicycle5DConstraint, Bicycle5DReachabilityCost
 from ..base_single_env import BaseSingleEnv
 
 
@@ -147,7 +145,8 @@ class RaceCarSingle5DEnv(BaseSingleEnv):
         time_indices=dummy_time_indices
     )
     for k, v in cons_dict.items():
-      cons_dict[k] = np.asarray(v).reshape(-1, 2)
+      # * We add negative sign here as we want to use the convention that the controller maximizes the margin.
+      cons_dict[k] = -np.asarray(v).reshape(-1, 2)
     return cons_dict
 
   def get_target_margin(
@@ -190,9 +189,8 @@ class RaceCarSingle5DEnv(BaseSingleEnv):
         done_type = "leave_track"
 
     # Retrieves constraints / traget values.
-    constraint_values = None
-    for key, value in constraints.items():
-      if constraint_values is None:
+    for i, (key, value) in enumerate(constraints.items()):
+      if i == 0:
         num_pts = value.shape[1]
         constraint_values = value
       else:
@@ -200,7 +198,7 @@ class RaceCarSingle5DEnv(BaseSingleEnv):
             "The length of constraint ({}) do not match".format(key)
         )
         constraint_values = np.concatenate((constraint_values, value), axis=0)
-    g_x_list = np.max(constraint_values, axis=0)
+    g_x_list = np.min(constraint_values, axis=0)
 
     if targets is not None:
       target_values = np.empty((0, constraint_values.shape[1]))
@@ -209,43 +207,43 @@ class RaceCarSingle5DEnv(BaseSingleEnv):
             "The length of target ({}) do not match".format(key)
         )
         target_values = np.concatenate((target_values, value), axis=0)
-      l_x_list = np.max(target_values, axis=0)
+      l_x_list = np.min(target_values, axis=0)
     else:
-      l_x_list = np.full((num_pts,), fill_value=np.inf)
+      l_x_list = np.full((num_pts,), fill_value=-np.inf)
 
     # Gets info.
     if final_only:
       g_x = float(g_x_list[-1])
       l_x = float(l_x_list[-1])
-      binary_cost = 1. if g_x > self.failure_thr else 0.
+      binary_cost = 1. if g_x < self.failure_thr else 0.
     else:
       g_x = g_x_list
       l_x = l_x_list
-      binary_cost = 1. if np.any(g_x > self.failure_thr) else 0.
+      binary_cost = 1. if np.any(g_x < self.failure_thr) else 0.
 
     # Gets done flag
     if end_criterion == 'failure':
       if final_only:
-        failure = np.any(constraint_values[:, -1] > self.failure_thr)
+        failure = g_x < self.failure_thr
       else:
-        failure = np.any(constraint_values > self.failure_thr)
+        failure = np.any(constraint_values < self.failure_thr)
       if failure:
         done = True
         done_type = "failure"
         g_x = self.g_x_fail
     elif end_criterion == 'reach-avoid':
       if final_only:
-        failure = g_x > self.failure_thr
-        success = not failure and l_x <= 0.
+        failure = g_x < self.failure_thr
+        success = not failure and l_x >= 0.
       else:
         v_x_list = np.empty(shape=(num_pts,))
         v_x_list[num_pts
-                 - 1] = max(l_x_list[num_pts - 1], g_x_list[num_pts - 1])
+                 - 1] = min(l_x_list[num_pts - 1], g_x_list[num_pts - 1])
         for i in range(num_pts - 2, -1, -1):
-          v_x_list[i] = max(g_x_list[i], min(l_x_list[i], v_x_list[i + 1]))
-        inst = np.argmin(v_x_list)
-        failure = np.any(constraint_values[:, :inst + 1] > self.failure_thr)
-        success = not failure and (v_x_list[inst] <= 0)
+          v_x_list[i] = min(g_x_list[i], max(l_x_list[i], v_x_list[i + 1]))
+        inst = np.argmax(v_x_list)
+        failure = np.any(constraint_values[:, :inst + 1] < self.failure_thr)
+        success = v_x_list[0] >= 0
       if success:
         done = True
         done_type = "success"
@@ -372,10 +370,10 @@ class RaceCarSingle5DEnv(BaseSingleEnv):
       state[3] = np.mod(slope + state[3] + np.pi, 2 * np.pi) - np.pi
     self.state = state.copy()
 
-    obs = self.get_obs(state)
+    obsrv = self.get_obs(state)
     if cast_torch:
-      obs = torch.FloatTensor(obs)
-    return obs
+      obsrv = torch.FloatTensor(obsrv)
+    return obsrv
 
   def get_obs(self, state: np.ndarray) -> np.ndarray:
     """Gets the observation given the state.
@@ -389,28 +387,28 @@ class RaceCarSingle5DEnv(BaseSingleEnv):
     """
     assert state.shape[0] == self.state_dim, ("State shape is incorrect!")
     if self.obs_type == 'perfect':
-      obs = state.copy()
-      obs = ((obs - self.observation_space.low) /
-             (self.observation_space.high - self.observation_space.low) * 2
-             - 1)
+      obsrv = state.copy()
+      obsrv = ((obsrv - self.observation_space.low) /
+               (self.observation_space.high - self.observation_space.low) * 2
+               - 1)
     else:
       low = self.observation_space.low[[0, 1, 2, 5]]
       high = self.observation_space.high[[0, 1, 2, 5]]
       if state.ndim == 1:
         _state = ((state[[0, 1, 2, 4]].copy() - low) / (high-low) * 2 - 1)
-        obs = np.zeros(self.state_dim + 1)
-        obs[3] = np.cos(state[3].copy())
-        obs[4] = np.sin(state[3].copy())
-        obs[:3] = _state[:3]
-        obs[5] = _state[3]
+        obsrv = np.zeros(self.state_dim + 1)
+        obsrv[3] = np.cos(state[3].copy())
+        obsrv[4] = np.sin(state[3].copy())
+        obsrv[:3] = _state[:3]
+        obsrv[5] = _state[3]
       else:
         _state = ((state[[0, 1, 2, 4], :].copy() - low) / (high-low) * 2 - 1)
-        obs = np.zeros((self.state_dim + 1, state.shape[1]))
-        obs[3, :] = np.cos(state[3, :].copy())
-        obs[4, :] = np.sin(state[3, :].copy())
-        obs[:3, :] = _state[:3, :]
-        obs[5, :] = _state[3, :]
-    return obs
+        obsrv = np.zeros((self.state_dim + 1, state.shape[1]))
+        obsrv[3, :] = np.cos(state[3, :].copy())
+        obsrv[4, :] = np.sin(state[3, :].copy())
+        obsrv[:3, :] = _state[:3, :]
+        obsrv[5, :] = _state[3, :]
+    return obsrv
 
   def get_samples(self, nx: int, ny: int) -> Tuple[np.ndarray, np.ndarray]:
     """Gets state samples for value function plotting.
