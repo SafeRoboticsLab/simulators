@@ -23,7 +23,6 @@ from .policy.base_policy import BasePolicy
 from .policy.ilqr_policy import ILQR
 from .policy.ilqr_spline_policy import ILQRSpline
 from .policy.ilqr_reachability_spline_policy import ILQRReachabilitySpline
-from .policy.nn_policy import NeuralNetworkControlSystem
 
 
 class Agent:
@@ -61,10 +60,8 @@ class Agent:
     self.ego_observable = None
 
   def integrate_forward(
-      self, state: np.ndarray, control: Optional[Union[np.ndarray,
-                                                       torch.Tensor]] = None,
-      num_segment: Optional[int] = 1, noise: Optional[np.ndarray] = None,
-      noise_type: Optional[str] = 'unif',
+      self, state: np.ndarray, control: Optional[Union[np.ndarray, torch.Tensor]] = None,
+      num_segment: Optional[int] = 1, noise: Optional[np.ndarray] = None, noise_type: Optional[str] = 'unif',
       adversary: Optional[Union[np.ndarray, torch.Tensor]] = None, **kwargs
   ) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -102,13 +99,12 @@ class Agent:
       adversary = adversary.cpu().numpy()
 
     return self.dyn.integrate_forward(
-        state=state, control=control, num_segment=num_segment, noise=noise,
-        noise_type=noise_type, adversary=adversary, **kwargs
+        state=state, control=control, num_segment=num_segment, noise=noise, noise_type=noise_type, adversary=adversary,
+        **kwargs
     )
 
-  def get_dyn_jacobian(
-      self, nominal_states: np.ndarray, nominal_controls: np.ndarray
-  ) -> Tuple[np.ndarray, np.ndarray]:
+  def get_dyn_jacobian(self, nominal_states: np.ndarray,
+                       nominal_controls: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """
     Returns the linearized 'A' and 'B' matrix of the ego vehicle around
     nominal states and controls.
@@ -124,10 +120,8 @@ class Agent:
     A, B = self.dyn.get_jacobian(nominal_states, nominal_controls)
     return np.asarray(A), np.asarray(B)
 
-  def get_action(
-      self, obsrv: np.ndarray,
-      agents_action: Optional[Dict[str, np.ndarray]] = None, **kwargs
-  ) -> Tuple[np.ndarray, dict]:
+  def get_action(self, obsrv: np.ndarray, agents_action: Optional[Dict[str, np.ndarray]] = None,
+                 **kwargs) -> Tuple[np.ndarray, dict]:
     """Gets the action to execute.
 
     Args:
@@ -149,24 +143,17 @@ class Agent:
 
     return action, solver_info
 
-  def init_policy(
-      self, policy_type: str, cfg, cost: Optional[BaseCost] = None, **kwargs
-  ):
+  def init_policy(self, policy_type: str, cfg, cost: Optional[BaseCost] = None, **kwargs):
     if policy_type == "ILQR":
       self.policy = ILQR(self.id, cfg, self.dyn, cost, **kwargs)
     elif policy_type == "ILQRSpline":
       self.policy = ILQRSpline(self.id, cfg, self.dyn, cost, **kwargs)
     elif policy_type == "ILQRReachabilitySpline":
-      self.policy = ILQRReachabilitySpline(
-          self.id, cfg, self.dyn, cost, **kwargs
-      )
+      self.policy = ILQRReachabilitySpline(self.id, cfg, self.dyn, cost, **kwargs)
     # elif policy_type == "MPC":
-    elif policy_type == "NNCS":
-      self.policy = NeuralNetworkControlSystem(id=self.id, cfg=cfg, **kwargs)
+    # elif policy_type == "NNCS":
     else:
-      raise ValueError(
-          "The policy type ({}) is not supported!".format(policy_type)
-      )
+      raise ValueError("The policy type ({}) is not supported!".format(policy_type))
 
   def report(self):
     print(self.id)

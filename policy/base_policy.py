@@ -19,8 +19,8 @@ import numpy as np
 class BasePolicy(ABC):
   obsrv_dict: Optional[Dict]
 
-  @abstractmethod
   @property
+  @abstractmethod
   def is_stochastic(self) -> bool:
     raise NotImplementedError
 
