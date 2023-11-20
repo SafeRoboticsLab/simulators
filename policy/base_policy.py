@@ -19,18 +19,19 @@ import numpy as np
 class BasePolicy(ABC):
   obsrv_dict: Optional[Dict]
 
-  def __init__(
-      self, id: str, obsrv_dict: Optional[Dict] = None, **kwargs
-  ) -> None:
+  @abstractmethod
+  @property
+  def is_stochastic(self) -> bool:
+    raise NotImplementedError
+
+  def __init__(self, id: str, obsrv_dict: Optional[Dict] = None, **kwargs) -> None:
     super().__init__()
     self.id = id
     self.obsrv_dict = obsrv_dict
 
   @abstractmethod
-  def get_action(
-      self, obsrv: np.ndarray,
-      agents_action: Optional[Dict[str, np.ndarray]] = None, **kwargs
-  ) -> Tuple[np.ndarray, dict]:
+  def get_action(self, obsrv: np.ndarray, agents_action: Optional[Dict[str, np.ndarray]] = None,
+                 **kwargs) -> Tuple[np.ndarray, dict]:
     """Gets the action to execute.
 
     Args:

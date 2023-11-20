@@ -19,12 +19,10 @@ from ..cost.base_cost import BaseCost
 
 
 class ILQR(BasePolicy):
+  policy_type = "ILQR"
 
-  def __init__(
-      self, id: str, cfg, dyn: BaseDynamics, cost: BaseCost, **kwargs
-  ) -> None:
+  def __init__(self, id: str, cfg, dyn: BaseDynamics, cost: BaseCost, **kwargs) -> None:
     super().__init__(id, cfg)
-    self.policy_type = "ILQR"
     self.dyn = copy.deepcopy(dyn)
     self.cost = copy.deepcopy(cost)
 
@@ -47,9 +45,12 @@ class ILQR(BasePolicy):
     self.alphas = 0.5**(np.arange(25))
     self.horizon_indices = jnp.arange(self.plan_horizon).reshape(1, -1)
 
+  @property
+  def is_stochastic(self) -> bool:
+    return False
+
   def get_action(
-      self, obsrv: np.ndarray, controls: Optional[np.ndarray] = None,
-      agents_action: Optional[Dict] = None, **kwargs
+      self, obsrv: np.ndarray, controls: Optional[np.ndarray] = None, agents_action: Optional[Dict] = None, **kwargs
   ) -> np.ndarray:
     status = 0
 
@@ -62,12 +63,8 @@ class ILQR(BasePolicy):
       controls = jnp.array(controls)
 
     # Rolls out the nominal trajectory and gets the initial cost.
-    states, controls = self.rollout_nominal(
-        jnp.array(kwargs.get('state')), controls
-    )
-    J = self.cost.get_traj_cost(
-        states, controls, time_indices=self.horizon_indices
-    )
+    states, controls = self.rollout_nominal(jnp.array(kwargs.get('state')), controls)
+    J = self.cost.get_traj_cost(states, controls, time_indices=self.horizon_indices)
     reg = self.reg_init
     fail_attempts = 0
 
@@ -76,19 +73,14 @@ class ILQR(BasePolicy):
     for i in range(self.max_iter):
       # We need cost derivatives from 0 to N-1, but we only need dynamics
       # jacobian from 0 to N-2.
-      c_x, c_u, c_xx, c_uu, c_ux = self.cost.get_derivatives(
-          states, controls, time_indices=self.horizon_indices
-      )
+      c_x, c_u, c_xx, c_uu, c_ux = self.cost.get_derivatives(states, controls, time_indices=self.horizon_indices)
       fx, fu = self.dyn.get_jacobian(states[:, :-1], controls[:, :-1])
       K_closed_loop, k_open_loop, reg = self.backward_pass(
-          c_x=c_x, c_u=c_u, c_xx=c_xx, c_uu=c_uu, c_ux=c_ux, fx=fx, fu=fu,
-          reg=reg
+          c_x=c_x, c_u=c_u, c_xx=c_xx, c_uu=c_uu, c_ux=c_ux, fx=fx, fu=fu, reg=reg
       )
       updated = False
       for alpha in self.alphas:
-        X_new, U_new, J_new = self.forward_pass(
-            states, controls, K_closed_loop, k_open_loop, alpha
-        )
+        X_new, U_new, J_new = self.forward_pass(states, controls, K_closed_loop, k_open_loop, alpha)
 
         if J_new <= J:  # Improved!
           if np.abs((J-J_new) / J) < self.tol:  # Small improvement.
@@ -121,37 +113,33 @@ class ILQR(BasePolicy):
     K_closed_loop = np.asarray(K_closed_loop)
     k_open_loop = np.asarray(k_open_loop)
     solver_info = dict(
-        states=states, controls=controls, K_closed_loop=K_closed_loop,
-        k_open_loop=k_open_loop, t_process=t_process, status=status, J=J
+        states=states, controls=controls, K_closed_loop=K_closed_loop, k_open_loop=k_open_loop, t_process=t_process,
+        status=status, J=J
     )
     return controls[:, 0], solver_info
 
   @partial(jax.jit, static_argnames='self')
   def forward_pass(
-      self, nominal_states: DeviceArray, nominal_controls: DeviceArray,
-      K_closed_loop: DeviceArray, k_open_loop: DeviceArray, alpha: float
+      self, nominal_states: DeviceArray, nominal_controls: DeviceArray, K_closed_loop: DeviceArray,
+      k_open_loop: DeviceArray, alpha: float
   ) -> Tuple[DeviceArray, DeviceArray, float]:
     # We seperate the rollout and cost explicitly since get_cost might rely on
     # other information, such as env parameters (track), and is difficult for
     # jax to differentiate.
-    X, U = self.rollout(
-        nominal_states, nominal_controls, K_closed_loop, k_open_loop, alpha
-    )
+    X, U = self.rollout(nominal_states, nominal_controls, K_closed_loop, k_open_loop, alpha)
     J = self.cost.get_traj_cost(X, U, time_indices=self.horizon_indices)
     return X, U, J
 
   @partial(jax.jit, static_argnames='self')
   def rollout(
-      self, nominal_states: DeviceArray, nominal_controls: DeviceArray,
-      K_closed_loop: DeviceArray, k_open_loop: DeviceArray, alpha: float
+      self, nominal_states: DeviceArray, nominal_controls: DeviceArray, K_closed_loop: DeviceArray,
+      k_open_loop: DeviceArray, alpha: float
   ) -> Tuple[DeviceArray, DeviceArray]:
 
     @jax.jit
     def _rollout_step(i, args):
       X, U = args
-      u_fb = jnp.einsum(
-          "ik,k->i", K_closed_loop[:, :, i], (X[:, i] - nominal_states[:, i])
-      )
+      u_fb = jnp.einsum("ik,k->i", K_closed_loop[:, :, i], (X[:, i] - nominal_states[:, i]))
       u = nominal_controls[:, i] + alpha * k_open_loop[:, i] + u_fb
       x_nxt, u_clip = self.dyn.integrate_forward_jax(X[:, i], u)
       X = X.at[:, i + 1].set(x_nxt)
@@ -159,17 +147,14 @@ class ILQR(BasePolicy):
       return X, U
 
     X = jnp.zeros((self.dim_x, self.plan_horizon))
-    U = jnp.zeros((self.dim_u, self.plan_horizon)
-                 )  # Assumes the last ctrl are zeros.
+    U = jnp.zeros((self.dim_u, self.plan_horizon))  # Assumes the last ctrl are zeros.
     X = X.at[:, 0].set(nominal_states[:, 0])
 
     X, U = jax.lax.fori_loop(0, self.plan_horizon - 1, _rollout_step, (X, U))
     return X, U
 
   @partial(jax.jit, static_argnames='self')
-  def rollout_nominal(
-      self, initial_state: DeviceArray, controls: DeviceArray
-  ) -> Tuple[DeviceArray, DeviceArray]:
+  def rollout_nominal(self, initial_state: DeviceArray, controls: DeviceArray) -> Tuple[DeviceArray, DeviceArray]:
 
     @jax.jit
     def _rollout_nominal_step(i, args):
@@ -181,16 +166,13 @@ class ILQR(BasePolicy):
 
     X = jnp.zeros((self.dim_x, self.plan_horizon))
     X = X.at[:, 0].set(initial_state)
-    X, U = jax.lax.fori_loop(
-        0, self.plan_horizon - 1, _rollout_nominal_step, (X, controls)
-    )
+    X, U = jax.lax.fori_loop(0, self.plan_horizon - 1, _rollout_nominal_step, (X, controls))
     return X, U
 
   @partial(jax.jit, static_argnames='self')
   def backward_pass(
-      self, c_x: DeviceArray, c_u: DeviceArray, c_xx: DeviceArray,
-      c_uu: DeviceArray, c_ux: DeviceArray, fx: DeviceArray, fu: DeviceArray,
-      reg: float
+      self, c_x: DeviceArray, c_u: DeviceArray, c_xx: DeviceArray, c_uu: DeviceArray, c_ux: DeviceArray,
+      fx: DeviceArray, fu: DeviceArray, reg: float
   ) -> Tuple[DeviceArray, DeviceArray, float]:
     """
     Jitted backward pass looped computation.
@@ -243,10 +225,7 @@ class ILQR(BasePolicy):
       def false_func(val):
         V_x, V_xx, ks, Ks = init()
         updated_reg = self.reg_scale_up * reg
-        updated_reg = jax.lax.cond(
-            updated_reg <= self.reg_max, lambda x: x, lambda x: self.reg_max,
-            updated_reg
-        )
+        updated_reg = jax.lax.cond(updated_reg <= self.reg_max, lambda x: x, lambda x: self.reg_max, updated_reg)
         return V_x, V_xx, ks, Ks, self.plan_horizon - 2, updated_reg
 
       @jax.jit
@@ -257,19 +236,11 @@ class ILQR(BasePolicy):
         Ks = Ks.at[:, :, t].set(-Q_uu_reg_inv @ Q_ux_reg)
         ks = ks.at[:, t].set(-Q_uu_reg_inv @ Q_u)
 
-        V_x = (
-            Q_x + Ks[:, :, t].T @ Q_u + Q_ux.T @ ks[:, t]
-            + Ks[:, :, t].T @ Q_uu @ ks[:, t]
-        )
-        V_xx = (
-            Q_xx + Ks[:, :, t].T @ Q_ux + Q_ux.T @ Ks[:, :, t]
-            + Ks[:, :, t].T @ Q_uu @ Ks[:, :, t]
-        )
+        V_x = (Q_x + Ks[:, :, t].T @ Q_u + Q_ux.T @ ks[:, t] + Ks[:, :, t].T @ Q_uu @ ks[:, t])
+        V_xx = (Q_xx + Ks[:, :, t].T @ Q_ux + Q_ux.T @ Ks[:, :, t] + Ks[:, :, t].T @ Q_uu @ Ks[:, :, t])
         return V_x, V_xx, ks, Ks, t - 1, reg
 
-      return jax.lax.cond(
-          isposdef(Q_uu_reg, reg), true_func, false_func, (Ks, ks)
-      )
+      return jax.lax.cond(isposdef(Q_uu_reg, reg), true_func, false_func, (Ks, ks))
 
     @jax.jit
     def cond_fun(val):
@@ -278,7 +249,6 @@ class ILQR(BasePolicy):
 
     V_x, V_xx, ks, Ks = init()  # Initializes.
     V_x, V_xx, ks, Ks, t, reg = jax.lax.while_loop(
-        cond_fun, backward_pass_looper,
-        (V_x, V_xx, ks, Ks, self.plan_horizon - 2, reg)
+        cond_fun, backward_pass_looper, (V_x, V_xx, ks, Ks, self.plan_horizon - 2, reg)
     )
     return Ks, ks, reg
