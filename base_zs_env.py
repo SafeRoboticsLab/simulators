@@ -79,14 +79,14 @@ class BaseZeroSumEnv(BaseEnv):
     targets = self.get_target_margin(state_cur, action, state_nxt)
     done, info = self.get_done_and_info(state_nxt, constraints, targets)
 
-    obs = self.get_obsrv(state_nxt)
+    obsrv = self.get_obsrv(state_nxt)
     if cast_torch:
-      obs = torch.FloatTensor(obs)
+      obsrv = torch.FloatTensor(obsrv)
 
     info['ctrl_clip'] = ctrl_clip
     info['dstb_clip'] = dstb_clip
 
-    return obs, -cost, done, info
+    return obsrv, -cost, done, info
 
   @abstractmethod
   def get_cost(
@@ -222,7 +222,7 @@ class BaseZeroSumEnv(BaseEnv):
     # Initializes robot.
     init_control = None
     result = 0
-    obs = self.reset(**reset_kwargs)
+    obsrv = self.reset(**reset_kwargs)
     state_hist.append(self.state)
 
     for t in range(T_rollout):
@@ -231,20 +231,20 @@ class BaseZeroSumEnv(BaseEnv):
         action_kwargs['state'] = self.state.copy()
         action_kwargs['time_idx'] = t
         with torch.no_grad():
-          ctrl, solver_info = self.agent.get_action(obs=obs, controls=init_control, **action_kwargs)
+          ctrl, solver_info = self.agent.get_action(obsrv=obsrv, controls=init_control, **action_kwargs)
       else:
         new_joint_pos = controller.get_action()
         ctrl = new_joint_pos - np.array(self.agent.dyn.robot.get_joint_position())
         solver_info = None
 
       # Applies action: `done` and `info` are evaluated at the next state.
-      dstb = adversary(obs, ctrl, **action_kwargs)
+      dstb = adversary(obsrv, ctrl, **action_kwargs)
       action = {'ctrl': ctrl, 'dstb': dstb}
-      obs, reward, done, step_info = self.step(action)
+      obsrv, reward, done, step_info = self.step(action)
 
       # Executes step callback and stores history.
       state_hist.append(self.state)
-      obs_hist.append(obs)
+      obs_hist.append(obsrv)
       action_hist['ctrl'].append(step_info['ctrl_clip'])
       action_hist['dstb'].append(step_info['dstb_clip'])
       plan_hist.append(solver_info)
