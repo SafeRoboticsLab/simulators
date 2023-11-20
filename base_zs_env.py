@@ -34,16 +34,10 @@ class BaseZeroSumEnv(BaseEnv):
 
     # Action Space.
     ctrl_space = np.array(cfg_agent.action_range.ctrl, dtype=np.float32)
-    self.action_space_ctrl = spaces.Box(
-        low=ctrl_space[:, 0], high=ctrl_space[:, 1]
-    )
+    self.action_space_ctrl = spaces.Box(low=ctrl_space[:, 0], high=ctrl_space[:, 1])
     dstb_space = np.array(cfg_agent.action_range.dstb, dtype=np.float32)
-    self.action_space_dstb = spaces.Box(
-        low=dstb_space[:, 0], high=dstb_space[:, 1]
-    )
-    self.action_space = spaces.Dict(
-        dict(ctrl=self.action_space_ctrl, dstb=self.action_space_dstb)
-    )
+    self.action_space_dstb = spaces.Box(low=dstb_space[:, 0], high=dstb_space[:, 1])
+    self.action_space = spaces.Dict(dict(ctrl=self.action_space_ctrl, dstb=self.action_space_dstb))
     self.action_dim_ctrl = ctrl_space.shape[0]
     self.action_dim_dstb = dstb_space.shape[0]
     tmp_action_space = {'ctrl': ctrl_space, 'dstb': dstb_space}
@@ -53,13 +47,10 @@ class BaseZeroSumEnv(BaseEnv):
     self.integrate_kwargs = getattr(cfg_env, "integrate_kwargs", {})
     if "noise" in self.integrate_kwargs:
       if self.integrate_kwargs['noise'] is not None:
-        self.integrate_kwargs['noise'] = np.array(
-            self.integrate_kwargs['noise']
-        )
+        self.integrate_kwargs['noise'] = np.array(self.integrate_kwargs['noise'])
 
-  def step(
-      self, action: ActionZS, cast_torch: bool = False
-  ) -> Tuple[Union[np.ndarray, torch.Tensor], float, bool, Dict]:
+  def step(self, action: ActionZS,
+           cast_torch: bool = False) -> Tuple[Union[np.ndarray, torch.Tensor], float, bool, Dict]:
     """Implements the step function in the environment.
 
     Args:
@@ -78,8 +69,7 @@ class BaseZeroSumEnv(BaseEnv):
 
     self.cnt += 1
     state_nxt, ctrl_clip, dstb_clip = self.agent.integrate_forward(
-        state=self.state, control=action['ctrl'], adversary=action['dstb'],
-        **self.integrate_kwargs
+        state=self.state, control=action['ctrl'], adversary=action['dstb'], **self.integrate_kwargs
     )
     state_cur = self.state.copy()
     self.state = state_nxt.copy()
@@ -89,7 +79,7 @@ class BaseZeroSumEnv(BaseEnv):
     targets = self.get_target_margin(state_cur, action, state_nxt)
     done, info = self.get_done_and_info(state_nxt, constraints, targets)
 
-    obs = self.get_obs(state_nxt)
+    obs = self.get_obsrv(state_nxt)
     if cast_torch:
       obs = torch.FloatTensor(obs)
 
@@ -100,8 +90,7 @@ class BaseZeroSumEnv(BaseEnv):
 
   @abstractmethod
   def get_cost(
-      self, state: np.ndarray, action: ActionZS, state_nxt: np.ndarray,
-      constraints: Optional[Dict] = None
+      self, state: np.ndarray, action: ActionZS, state_nxt: np.ndarray, constraints: Optional[Dict] = None
   ) -> float:
     """
     Gets the cost given current state, current action, and next state.
@@ -120,9 +109,7 @@ class BaseZeroSumEnv(BaseEnv):
     raise NotImplementedError
 
   @abstractmethod
-  def get_constraints(
-      self, state: np.ndarray, action: ActionZS, state_nxt: np.ndarray
-  ) -> Dict:
+  def get_constraints(self, state: np.ndarray, action: ActionZS, state_nxt: np.ndarray) -> Dict:
     """
     Gets the values of all constaint functions given current state, current
     action, and next state.
@@ -140,9 +127,7 @@ class BaseZeroSumEnv(BaseEnv):
     raise NotImplementedError
 
   @abstractmethod
-  def get_target_margin(
-      self, state: np.ndarray, action: ActionZS, state_nxt: np.ndarray
-  ) -> Dict:
+  def get_target_margin(self, state: np.ndarray, action: ActionZS, state_nxt: np.ndarray) -> Dict:
     """
     Gets the values of all target margin functions given current state, current
     action, and next state.
@@ -161,8 +146,8 @@ class BaseZeroSumEnv(BaseEnv):
 
   @abstractmethod
   def get_done_and_info(
-      self, state: np.ndarray, constraints: Dict, targets: Dict,
-      final_only: bool = True, end_criterion: Optional[str] = None
+      self, state: np.ndarray, constraints: Dict, targets: Dict, final_only: bool = True,
+      end_criterion: Optional[str] = None
   ) -> Tuple[bool, Dict]:
     """
     Gets the done flag and a dictionary to provide additional information of
@@ -184,12 +169,9 @@ class BaseZeroSumEnv(BaseEnv):
     raise NotImplementedError
 
   def simulate_one_trajectory(
-      self, T_rollout: int, end_criterion: str,
-      adversary: Callable[[np.ndarray, np.ndarray],
-                          np.ndarray], reset_kwargs: Optional[Dict] = None,
-      action_kwargs: Optional[Dict] = None,
-      rollout_step_callback: Optional[Callable] = None,
-      rollout_episode_callback: Optional[Callable] = None, **kwargs
+      self, T_rollout: int, end_criterion: str, adversary: Callable[[np.ndarray, np.ndarray], np.ndarray],
+      reset_kwargs: Optional[Dict] = None, action_kwargs: Optional[Dict] = None,
+      rollout_step_callback: Optional[Callable] = None, rollout_episode_callback: Optional[Callable] = None, **kwargs
   ) -> Tuple[np.ndarray, int, Dict]:
     """
     Rolls out the trajectory given the horizon, termination criterion, reset
@@ -249,14 +231,10 @@ class BaseZeroSumEnv(BaseEnv):
         action_kwargs['state'] = self.state.copy()
         action_kwargs['time_idx'] = t
         with torch.no_grad():
-          ctrl, solver_info = self.agent.get_action(
-              obs=obs, controls=init_control, **action_kwargs
-          )
+          ctrl, solver_info = self.agent.get_action(obs=obs, controls=init_control, **action_kwargs)
       else:
         new_joint_pos = controller.get_action()
-        ctrl = new_joint_pos - np.array(
-            self.agent.dyn.robot.get_joint_position()
-        )
+        ctrl = new_joint_pos - np.array(self.agent.dyn.robot.get_joint_position())
         solver_info = None
 
       # Applies action: `done` and `info` are evaluated at the next state.
@@ -273,9 +251,7 @@ class BaseZeroSumEnv(BaseEnv):
       reward_hist.append(reward)
       step_hist.append(step_info)
       if rollout_step_callback is not None:
-        rollout_step_callback(
-            self, state_hist, action_hist, plan_hist, step_hist, time_idx=t
-        )
+        rollout_step_callback(self, state_hist, action_hist, plan_hist, step_hist, time_idx=t)
       if solver_info is not None:
         if 'shield' in solver_info:
           shield_ind.append(solver_info['shield'])
@@ -294,29 +270,24 @@ class BaseZeroSumEnv(BaseEnv):
         init_control[:, :-1] = solver_info['controls'][:, 1:]
 
     if rollout_episode_callback is not None:
-      rollout_episode_callback(
-          self, state_hist, action_hist, plan_hist, step_hist
-      )
+      rollout_episode_callback(self, state_hist, action_hist, plan_hist, step_hist)
     # Reverts to training setting.
     self.timeout = timeout_backup
     self.end_criterion = end_criterion_backup
     for k, v in action_hist.items():
       action_hist[k] = np.array(v)
     info = dict(
-        obs_hist=np.array(obs_hist), action_hist=action_hist,
-        plan_hist=plan_hist, reward_hist=np.array(reward_hist),
+        obs_hist=np.array(obs_hist), action_hist=action_hist, plan_hist=plan_hist, reward_hist=np.array(reward_hist),
         step_hist=step_hist, shield_ind=shield_ind
     )
     return np.array(state_hist), result, info
 
   def simulate_trajectories(
       self, num_trajectories: int, T_rollout: int, end_criterion: str,
-      adversary: Callable[[np.ndarray, np.ndarray, Any], np.ndarray],
-      reset_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
-      action_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
-      rollout_step_callback: Optional[Callable] = None,
-      rollout_episode_callback: Optional[Callable] = None, return_info=False,
-      **kwargs
+      adversary: Callable[[np.ndarray, np.ndarray, Any], np.ndarray], reset_kwargs_list: Optional[Union[List[Dict],
+                                                                                                        Dict]] = None,
+      action_kwargs_list: Optional[Union[List[Dict], Dict]] = None, rollout_step_callback: Optional[Callable] = None,
+      rollout_episode_callback: Optional[Callable] = None, return_info=False, **kwargs
   ):
     """
     Rolls out multiple trajectories given the horizon, termination criterion,
@@ -327,13 +298,11 @@ class BaseZeroSumEnv(BaseEnv):
 
     if isinstance(reset_kwargs_list, list):
       assert num_trajectories == len(reset_kwargs_list), (
-          "The length of reset_kwargs_list does not match with",
-          "the number of rollout trajectories"
+          "The length of reset_kwargs_list does not match with", "the number of rollout trajectories"
       )
     if isinstance(action_kwargs_list, list):
       assert num_trajectories == len(action_kwargs_list), (
-          "The length of action_kwargs_list does not match with",
-          "the number of rollout trajectories"
+          "The length of action_kwargs_list does not match with", "the number of rollout trajectories"
       )
 
     results = np.empty(shape=(num_trajectories,), dtype=int)
@@ -358,10 +327,8 @@ class BaseZeroSumEnv(BaseEnv):
         action_kwargs = action_kwargs_list
 
       state_hist, result, info = self.simulate_one_trajectory(
-          T_rollout=T_rollout, end_criterion=end_criterion,
-          adversary=adversary, reset_kwargs=reset_kwargs,
-          action_kwargs=action_kwargs,
-          rollout_step_callback=rollout_step_callback,
+          T_rollout=T_rollout, end_criterion=end_criterion, adversary=adversary, reset_kwargs=reset_kwargs,
+          action_kwargs=action_kwargs, rollout_step_callback=rollout_step_callback,
           rollout_episode_callback=rollout_episode_callback, **kwargs
       )
       trajectories.append(state_hist)

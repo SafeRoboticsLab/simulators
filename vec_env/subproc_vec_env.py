@@ -82,10 +82,7 @@ class SubprocVecEnv():
           to 'forkserver' on available platforms, and 'spawn' otherwise.
   """
 
-  def __init__(
-      self, env_fns, cpu_offset=0, start_method=None,
-      pickle_option='cloudpickle'
-  ):
+  def __init__(self, env_fns, cpu_offset=0, start_method=None, pickle_option='cloudpickle'):
     self.waiting = False
     self.closed = False
     self.n_envs = len(env_fns)
@@ -98,9 +95,7 @@ class SubprocVecEnv():
       start_method = "forkserver" if forkserver_available else "spawn"
     ctx = mp.get_context(start_method)
 
-    self.remotes, self.work_remotes = zip(
-        *[ctx.Pipe() for _ in range(self.n_envs)]
-    )
+    self.remotes, self.work_remotes = zip(*[ctx.Pipe() for _ in range(self.n_envs)])
     self.processes = []
     if pickle_option == 'cloudpickle':
       pickle_wrapper = CloudpickleWrapper
@@ -108,9 +103,7 @@ class SubprocVecEnv():
       pickle_wrapper = DillWrapper
     else:
       raise 'Unknown pickle options!'
-    for ind, (work_remote, remote, env_fn) in enumerate(
-        zip(self.work_remotes, self.remotes, env_fns)
-    ):
+    for ind, (work_remote, remote, env_fn) in enumerate(zip(self.work_remotes, self.remotes, env_fns)):
       args = (work_remote, remote, pickle_wrapper(env_fn), ind + cpu_offset)
       # daemon=True: if the main process crashes, we should not cause things to
       # hang. pytype:disable=attribute-error
@@ -192,9 +185,7 @@ class SubprocVecEnv():
       remote.send(("get_attr", attr_name))
     return [remote.recv() for remote in target_remotes]
 
-  def set_attr(
-      self, attr_name, value, indices=None, value_batch: bool = False
-  ):
+  def set_attr(self, attr_name, value, indices=None, value_batch: bool = False):
     """Sets attribute inside vectorized environments (see base class)."""
     target_remotes = self._get_target_remotes(indices)
     if value_batch:
@@ -206,18 +197,14 @@ class SubprocVecEnv():
     for remote in target_remotes:
       remote.recv()
 
-  def env_method(
-      self, method_name: str, *method_args, indices=None, **method_kwargs
-  ):
+  def env_method(self, method_name: str, *method_args, indices=None, **method_kwargs):
     """Calls instance methods of vectorized environments."""
     target_remotes = self._get_target_remotes(indices)
     for remote in target_remotes:
       remote.send(("env_method", (method_name, method_args, method_kwargs)))
     return [remote.recv() for remote in target_remotes]
 
-  def env_method_arg(
-      self, method_name, method_args_list, indices=None, **method_kwargs
-  ):
+  def env_method_arg(self, method_name, method_args_list, indices=None, **method_kwargs):
     """Calls instance methods of vectorized environments with args."""
     target_remotes = self._get_target_remotes(indices)
     for method_args, remote in zip(method_args_list, target_remotes):
@@ -233,18 +220,20 @@ class SubprocVecEnv():
       indices = range(self.n_envs)
     return [self.remotes[i] for i in indices]
 
+  def get_obsrv(self, states):
+    method_args_list = [(state,) for state in states]
+    obsrv = self.env_method_arg('_get_obsrv', method_args_list=method_args_list, indices=range(self.n_envs))
+    return obsrv
+
   def simulate_trajectories(
-      self, num_trajectories: int, T_rollout: int, end_criterion: str,
-      reset_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
-      action_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
-      return_info=False, use_tqdm=False, **kwargs
+      self, num_trajectories: int, T_rollout: int, end_criterion: str, reset_kwargs_list: Optional[Union[List[Dict],
+                                                                                                         Dict]] = None,
+      action_kwargs_list: Optional[Union[List[Dict], Dict]] = None, return_info=False, use_tqdm=False, **kwargs
   ):
     if not isinstance(reset_kwargs_list, list):
       reset_kwargs_list = [reset_kwargs_list for _ in range(num_trajectories)]
     if not isinstance(action_kwargs_list, list):
-      action_kwargs_list = [
-          action_kwargs_list for _ in range(num_trajectories)
-      ]
+      action_kwargs_list = [action_kwargs_list for _ in range(num_trajectories)]
 
     results = np.empty(shape=(num_trajectories,), dtype=int)
     length = np.empty(shape=(num_trajectories,), dtype=int)
@@ -254,22 +243,16 @@ class SubprocVecEnv():
     n_parallel_runs = max(int(np.ceil(num_trajectories / self.n_envs)), 1)
 
     if use_tqdm:
-      iterable = tqdm(
-          range(n_parallel_runs), desc=f'sim trajs with {self.n_envs} envs',
-          leave=False
-      )
+      iterable = tqdm(range(n_parallel_runs), desc=f'sim trajs with {self.n_envs} envs', leave=False)
     else:
       iterable = range(n_parallel_runs)
     for i in iterable:
       tmp = i * self.n_envs
       n_envs_need = min(num_trajectories - tmp, self.n_envs)
-      method_args_list = [(
-          T_rollout, end_criterion, reset_kwargs_list[tmp + j],
-          action_kwargs_list[tmp + j]
-      ) for j in range(n_envs_need)]
+      method_args_list = [(T_rollout, end_criterion, reset_kwargs_list[tmp + j], action_kwargs_list[tmp + j])
+                          for j in range(n_envs_need)]
       res_all = self.env_method_arg(
-          method_name="simulate_one_trajectory",
-          method_args_list=method_args_list, indices=np.arange(n_envs_need),
+          method_name="simulate_one_trajectory", method_args_list=method_args_list, indices=np.arange(n_envs_need),
           **kwargs
       )
       for j, res in enumerate(res_all):
@@ -288,8 +271,7 @@ class SubprocVecEnv():
       num_trajectories: int,
       T_rollout: int,
       end_criterion: str,
-      adversary: Union[Callable[[np.ndarray, np.ndarray, Any], np.ndarray],
-                       List],
+      adversary: Union[Callable[[np.ndarray, np.ndarray, Any], np.ndarray], List],
       reset_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
       action_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
       return_info=False,
@@ -299,9 +281,7 @@ class SubprocVecEnv():
     if not isinstance(reset_kwargs_list, list):
       reset_kwargs_list = [reset_kwargs_list for _ in range(num_trajectories)]
     if not isinstance(action_kwargs_list, list):
-      action_kwargs_list = [
-          action_kwargs_list for _ in range(num_trajectories)
-      ]
+      action_kwargs_list = [action_kwargs_list for _ in range(num_trajectories)]
     if not isinstance(adversary, list):
       adversary_list = [adversary for _ in range(self.n_envs)]
     else:
@@ -316,22 +296,18 @@ class SubprocVecEnv():
     n_parallel_runs = max(int(np.ceil(num_trajectories / self.n_envs)), 1)
 
     if use_tqdm:
-      iterable = tqdm(
-          range(n_parallel_runs), desc=f'sim trajs with {self.n_envs} envs',
-          leave=False
-      )
+      iterable = tqdm(range(n_parallel_runs), desc=f'sim trajs with {self.n_envs} envs', leave=False)
     else:
       iterable = range(n_parallel_runs)
     for i in iterable:
       tmp = i * self.n_envs
       n_envs_need = min(num_trajectories - tmp, self.n_envs)
-      method_args_list = [(
-          T_rollout, end_criterion, adversary_list[j],
-          reset_kwargs_list[tmp + j], action_kwargs_list[tmp + j]
-      ) for j in range(n_envs_need)]
+      method_args_list = [
+          (T_rollout, end_criterion, adversary_list[j], reset_kwargs_list[tmp + j], action_kwargs_list[tmp + j])
+          for j in range(n_envs_need)
+      ]
       res_all = self.env_method_arg(
-          method_name="simulate_one_trajectory",
-          method_args_list=method_args_list, indices=np.arange(n_envs_need),
+          method_name="simulate_one_trajectory", method_args_list=method_args_list, indices=np.arange(n_envs_need),
           **kwargs
       )
       for j, res in enumerate(res_all):

@@ -330,12 +330,12 @@ class RaceCarSingle5DEnv(BaseSingleEnv):
       state[3] = np.mod(slope + state[3] + np.pi, 2 * np.pi) - np.pi
     self.state = state.copy()
 
-    obsrv = self.get_obs(state)
+    obsrv = self.get_obsrv(state)
     if cast_torch:
       obsrv = torch.FloatTensor(obsrv)
     return obsrv
 
-  def get_obs(self, state: np.ndarray) -> np.ndarray:
+  def get_obsrv(self, state: np.ndarray) -> np.ndarray:
     """Gets the observation given the state.
 
     Args:

@@ -30,21 +30,16 @@ class BaseSingleEnv(BaseEnv):
     self.action_dim = action_space.shape[0]
     self.action_dim_ctrl = action_space.shape[0]
     self.agent = Agent(cfg_agent, action_space)
-    self.action_space = spaces.Box(
-        low=action_space[:, 0], high=action_space[:, 1]
-    )
+    self.action_space = spaces.Box(low=action_space[:, 0], high=action_space[:, 1])
     self.state_dim = self.agent.dyn.dim_x
 
     self.integrate_kwargs = getattr(cfg_env, "integrate_kwargs", {})
     if "noise" in self.integrate_kwargs:
       if self.integrate_kwargs['noise'] is not None:
-        self.integrate_kwargs['noise'] = np.array(
-            self.integrate_kwargs['noise']
-        )
+        self.integrate_kwargs['noise'] = np.array(self.integrate_kwargs['noise'])
 
-  def step(
-      self, action: np.ndarray, cast_torch: bool = False
-  ) -> Tuple[Union[np.ndarray, torch.FloatTensor], float, bool, Dict]:
+  def step(self, action: np.ndarray,
+           cast_torch: bool = False) -> Tuple[Union[np.ndarray, torch.FloatTensor], float, bool, Dict]:
     """Implements the step function in the environment.
 
     Args:
@@ -61,9 +56,7 @@ class BaseSingleEnv(BaseEnv):
     """
 
     self.cnt += 1
-    state_nxt = self.agent.integrate_forward(
-        state=self.state, control=action, **self.integrate_kwargs
-    )[0]
+    state_nxt = self.agent.integrate_forward(state=self.state, control=action, **self.integrate_kwargs)[0]
     state_cur = self.state.copy()
     self.state = state_nxt.copy()
     constraints = self.get_constraints(state_cur, action, state_nxt)
@@ -71,7 +64,7 @@ class BaseSingleEnv(BaseEnv):
     targets = self.get_target_margin(state_cur, action, state_nxt)
     done, info = self.get_done_and_info(state_nxt, constraints, targets)
 
-    obsrv = self.get_obs(state_nxt)
+    obsrv = self.get_obsrv(state_nxt)
     if cast_torch:
       obsrv = torch.FloatTensor(obsrv)
 
@@ -79,8 +72,7 @@ class BaseSingleEnv(BaseEnv):
 
   @abstractmethod
   def get_cost(
-      self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray,
-      constraints: Optional[Dict] = None
+      self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray, constraints: Optional[Dict] = None
   ) -> float:
     """
     Gets the cost given current state, current action, and next state.
@@ -98,9 +90,7 @@ class BaseSingleEnv(BaseEnv):
     raise NotImplementedError
 
   @abstractmethod
-  def get_constraints(
-      self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray
-  ) -> Dict:
+  def get_constraints(self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray) -> Dict:
     """
     Gets the values of all constaint functions given current state, current
     action, and next state.
@@ -117,9 +107,7 @@ class BaseSingleEnv(BaseEnv):
     raise NotImplementedError
 
   @abstractmethod
-  def get_target_margin(
-      self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray
-  ) -> Dict:
+  def get_target_margin(self, state: np.ndarray, action: np.ndarray, state_nxt: np.ndarray) -> Dict:
     """
     Gets the values of all target margin functions given current state, current
     action, and next state.
@@ -137,8 +125,8 @@ class BaseSingleEnv(BaseEnv):
 
   @abstractmethod
   def get_done_and_info(
-      self, state: np.ndarray, constraints: Dict, targets: Dict,
-      final_only: bool = True, end_criterion: Optional[str] = None
+      self, state: np.ndarray, constraints: Dict, targets: Dict, final_only: bool = True,
+      end_criterion: Optional[str] = None
   ) -> Tuple[bool, Dict]:
     """
     Gets the done flag and a dictionary to provide additional information of
@@ -160,10 +148,8 @@ class BaseSingleEnv(BaseEnv):
     raise NotImplementedError
 
   def simulate_one_trajectory(
-      self, T_rollout: int, end_criterion: str,
-      reset_kwargs: Optional[Dict] = None,
-      action_kwargs: Optional[Dict] = None,
-      rollout_step_callback: Optional[Callable] = None,
+      self, T_rollout: int, end_criterion: str, reset_kwargs: Optional[Dict] = None,
+      action_kwargs: Optional[Dict] = None, rollout_step_callback: Optional[Callable] = None,
       rollout_episode_callback: Optional[Callable] = None, **kwargs
   ) -> Tuple[np.ndarray, int, Dict]:
     """
@@ -222,14 +208,10 @@ class BaseSingleEnv(BaseEnv):
         action_kwargs['state'] = self.state.copy()
         action_kwargs['time_idx'] = t
         with torch.no_grad():
-          action, solver_info = self.agent.get_action(
-              obsrv=obsrv, controls=init_control, **action_kwargs
-          )
+          action, solver_info = self.agent.get_action(obsrv=obsrv, controls=init_control, **action_kwargs)
       else:
         new_joint_pos = controller.get_action()
-        action = new_joint_pos - np.array(
-            self.agent.dyn.robot.get_joint_position()
-        )
+        action = new_joint_pos - np.array(self.agent.dyn.robot.get_joint_position())
         solver_info = None
 
       # Applies action: `done` and `info` are evaluated at the next state.
@@ -243,9 +225,7 @@ class BaseSingleEnv(BaseEnv):
       reward_hist.append(reward)
       step_hist.append(step_info)
       if rollout_step_callback is not None:
-        rollout_step_callback(
-            self, state_hist, action_hist, plan_hist, step_hist, time_idx=t
-        )
+        rollout_step_callback(self, state_hist, action_hist, plan_hist, step_hist, time_idx=t)
       if solver_info is not None:
         if 'shield' in solver_info:
           shield_ind.append(solver_info['shield'])
@@ -264,26 +244,21 @@ class BaseSingleEnv(BaseEnv):
         init_control[:, :-1] = solver_info['controls'][:, 1:]
 
     if rollout_episode_callback is not None:
-      rollout_episode_callback(
-          self, state_hist, action_hist, plan_hist, step_hist
-      )
+      rollout_episode_callback(self, state_hist, action_hist, plan_hist, step_hist)
     # Reverts to training setting.
     self.timeout = timeout_backup
     self.end_criterion = end_criterion_backup
     info = dict(
-        obs_hist=np.array(obs_hist), action_hist=np.array(action_hist),
-        plan_hist=plan_hist, reward_hist=np.array(reward_hist),
-        step_hist=step_hist, shield_ind=shield_ind
+        obs_hist=np.array(obs_hist), action_hist=np.array(action_hist), plan_hist=plan_hist,
+        reward_hist=np.array(reward_hist), step_hist=step_hist, shield_ind=shield_ind
     )
     return np.array(state_hist), result, info
 
   def simulate_trajectories(
-      self, num_trajectories: int, T_rollout: int, end_criterion: str,
-      reset_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
-      action_kwargs_list: Optional[Union[List[Dict], Dict]] = None,
-      rollout_step_callback: Optional[Callable] = None,
-      rollout_episode_callback: Optional[Callable] = None, return_info=False,
-      **kwargs
+      self, num_trajectories: int, T_rollout: int, end_criterion: str, reset_kwargs_list: Optional[Union[List[Dict],
+                                                                                                         Dict]] = None,
+      action_kwargs_list: Optional[Union[List[Dict], Dict]] = None, rollout_step_callback: Optional[Callable] = None,
+      rollout_episode_callback: Optional[Callable] = None, return_info=False, **kwargs
   ):
     """
     Rolls out multiple trajectories given the horizon, termination criterion,
@@ -294,13 +269,11 @@ class BaseSingleEnv(BaseEnv):
 
     if isinstance(reset_kwargs_list, list):
       assert num_trajectories == len(reset_kwargs_list), (
-          "The length of reset_kwargs_list does not match with",
-          "the number of rollout trajectories"
+          "The length of reset_kwargs_list does not match with", "the number of rollout trajectories"
       )
     if isinstance(action_kwargs_list, list):
       assert num_trajectories == len(action_kwargs_list), (
-          "The length of action_kwargs_list does not match with",
-          "the number of rollout trajectories"
+          "The length of action_kwargs_list does not match with", "the number of rollout trajectories"
       )
 
     results = np.empty(shape=(num_trajectories,), dtype=int)
@@ -324,10 +297,8 @@ class BaseSingleEnv(BaseEnv):
         action_kwargs = action_kwargs_list
 
       state_hist, result, info = self.simulate_one_trajectory(
-          T_rollout=T_rollout, end_criterion=end_criterion,
-          reset_kwargs=reset_kwargs, action_kwargs=action_kwargs,
-          rollout_step_callback=rollout_step_callback,
-          rollout_episode_callback=rollout_episode_callback, **kwargs
+          T_rollout=T_rollout, end_criterion=end_criterion, reset_kwargs=reset_kwargs, action_kwargs=action_kwargs,
+          rollout_step_callback=rollout_step_callback, rollout_episode_callback=rollout_episode_callback, **kwargs
       )
       trajectories.append(state_hist)
       results[trial] = result

@@ -17,8 +17,8 @@ from .subproc_vec_env import SubprocVecEnv
 
 def make_vec_envs(
     env_type: Any, num_processes: int, seed: int = 0, cpu_offset: int = 0,
-    vec_env_type: Type[SubprocVecEnv] = SubprocVecEnv,
-    venv_kwargs: Optional[Dict] = None, env_kwargs: Optional[Dict] = None
+    vec_env_type: Type[SubprocVecEnv] = SubprocVecEnv, venv_kwargs: Optional[Dict] = None,
+    env_kwargs: Optional[Dict] = None
 ) -> SubprocVecEnv:
 
   if env_kwargs is None:
@@ -41,13 +41,9 @@ class VecEnvBase(SubprocVecEnv):
   """
 
   def __init__(
-      self, venv, cpu_offset=0, device: str = th.device("cpu"),
-      pickle_option='cloudpickle', start_method=None
+      self, venv, cpu_offset=0, device: str = th.device("cpu"), pickle_option='cloudpickle', start_method=None
   ):
-    super(VecEnvBase, self).__init__(
-        venv, cpu_offset, pickle_option=pickle_option,
-        start_method=start_method
-    )
+    super(VecEnvBase, self).__init__(venv, cpu_offset, pickle_option=pickle_option, start_method=start_method)
     self.device = device
 
   def reset(self, **kwargs):
@@ -71,12 +67,6 @@ class VecEnvBase(SubprocVecEnv):
     reward = th.FloatTensor(reward).unsqueeze(dim=1).float()
     return obsrv, reward, done, info
 
-  def get_obs(self, states):
-    method_args_list = [(state,) for state in states]
-    obsrv = th.FloatTensor(
-        self.env_method_arg(
-            '_get_obs', method_args_list=method_args_list,
-            indices=range(self.n_envs)
-        )
-    )
-    return obsrv.to(self.device)
+  def get_obsrv(self, states):
+    obsrv = super().get_obsrv(states)
+    return th.FloatTensor(obsrv).to(self.device)

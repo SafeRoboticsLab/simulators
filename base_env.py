@@ -25,18 +25,14 @@ class BaseEnv(gym.Env, ABC):
     self.end_criterion = cfg_env.end_criterion
 
   @abstractmethod
-  def step(self,
-           action: GenericAction) -> Tuple[GenericState, float, bool, Dict]:
+  def step(self, action: GenericAction) -> Tuple[GenericState, float, bool, Dict]:
     raise NotImplementedError
 
   @abstractmethod
-  def get_obs(self, state: np.ndarray) -> np.ndarray:
+  def get_obsrv(self, state: np.ndarray) -> np.ndarray:
     raise NotImplementedError
 
-  def reset(
-      self, state: Optional[GenericState] = None, cast_torch: bool = False,
-      **kwargs
-  ) -> GenericState:
+  def reset(self, state: Optional[GenericState] = None, cast_torch: bool = False, **kwargs) -> GenericState:
     """
     Resets the environment and returns the new state.
 
@@ -72,9 +68,7 @@ class BaseEnv(gym.Env, ABC):
     raise NotImplementedError
 
   @abstractmethod
-  def get_constraints_all(
-      self, states: np.ndarray, actions: Union[np.ndarray, dict]
-  ) -> Dict[str, np.ndarray]:
+  def get_constraints_all(self, states: np.ndarray, actions: Union[np.ndarray, dict]) -> Dict[str, np.ndarray]:
     """
     Gets the values of all constaint functions given current state, current
     action, and next state.
