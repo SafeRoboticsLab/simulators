@@ -52,6 +52,7 @@ class ILQR(BasePolicy):
   def get_action(
       self, obsrv: np.ndarray, controls: Optional[np.ndarray] = None, agents_action: Optional[Dict] = None, **kwargs
   ) -> np.ndarray:
+    # TODO: Supports batch obsrv.
     status = 0
 
     # `controls` include control input at timestep N-1, which is a dummy

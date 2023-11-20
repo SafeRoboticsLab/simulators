@@ -14,9 +14,7 @@ from jax import numpy as jnp
 
 from .track import Track
 from .utils import get_centerline_from_traj
-from .cost_bicycle5D import (
-    Bicycle5DCost, Bicycle5DConstraint, Bicycle5DReachabilityCost
-)
+from .cost_bicycle5D import (Bicycle5DCost, Bicycle5DConstraint, Bicycle5DReachabilityCost)
 from ..base_zs_env import BaseZeroSumEnv
 from ..utils import ActionZS
 
@@ -39,22 +37,17 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
       center_line = get_centerline_from_traj(cfg_env.track_file)
     else:
       self.track_len = cfg_env.track_len
-      _center_line_x = np.linspace(
-          start=0., stop=self.track_len, num=1000, endpoint=True
-      ).reshape(1, -1)
-      center_line = np.concatenate(
-          (_center_line_x, np.zeros_like(_center_line_x)), axis=0
-      )
+      _center_line_x = np.linspace(start=0., stop=self.track_len, num=1000, endpoint=True).reshape(1, -1)
+      center_line = np.concatenate((_center_line_x, np.zeros_like(_center_line_x)), axis=0)
     self.track = Track(
-        center_line=center_line, width_left=self.track_width_left,
-        width_right=self.track_width_right,
+        center_line=center_line, width_left=self.track_width_left, width_right=self.track_width_right,
         loop=getattr(cfg_env, 'loop', True)
     )
 
     # Observations.
     self.failure_thr = getattr(cfg_env, "failure_thr", 0.)
     self.reset_thr = getattr(cfg_env, "reset_thr", 0.)
-    self.obs_type = getattr(cfg_env, "obs_type", "perfect")
+    self.obsrv_type = getattr(cfg_env, "obsrv_type", "perfect")
     self.step_keep_constraints = True
     self.step_keep_targets = False
 
@@ -74,17 +67,15 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
     self.g_x_fail = float(cfg_env.g_x_fail)
 
     # Visualization.
-    track_cat = np.concatenate(
-        (self.track.track_bound[:2, :], self.track.track_bound[2:, :]), axis=-1
-    )
+    track_cat = np.concatenate((self.track.track_bound[:2, :], self.track.track_bound[2:, :]), axis=-1)
     x_min, y_min = np.min(track_cat, axis=1)
     x_max, y_max = np.max(track_cat, axis=1)
     self.visual_bounds = np.array([[x_min, x_max], [y_min, y_max]])
     x_eps = (x_max-x_min) * 0.005
     y_eps = (y_max-y_min) * 0.005
     self.visual_extent = np.array([
-        self.visual_bounds[0, 0] - x_eps, self.visual_bounds[0, 1] + x_eps,
-        self.visual_bounds[1, 0] - y_eps, self.visual_bounds[1, 1] + y_eps
+        self.visual_bounds[0, 0] - x_eps, self.visual_bounds[0, 1] + x_eps, self.visual_bounds[1, 0] - y_eps,
+        self.visual_bounds[1, 1] + y_eps
     ])
     self.obs_vertices_list = []
     for box_spec in self.constraint.obs_spec:
@@ -116,8 +107,7 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
 
   # region: abstract functions in base_zero_sum_env
   def get_cost(
-      self, state: np.ndarray, action: ActionZS, state_nxt: np.ndarray,
-      constraints: Optional[dict] = None
+      self, state: np.ndarray, action: ActionZS, state_nxt: np.ndarray, constraints: Optional[dict] = None
   ) -> float:
     states_all, controls_all = self._reshape(state, action, state_nxt)
     closest_pt, slope, theta = self.track.get_closest_pts(states_all[:2, :])
@@ -129,17 +119,12 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
     dummy_time_indices = jnp.zeros((1, states_all.shape[1]), dtype=int)
     cost = float(
         jnp.sum(
-            self.cost.get_cost(
-                states_all, controls_all, closest_pt, slope, theta,
-                time_indices=dummy_time_indices
-            )
+            self.cost.get_cost(states_all, controls_all, closest_pt, slope, theta, time_indices=dummy_time_indices)
         )
     )
     return cost
 
-  def get_constraints(
-      self, state: np.ndarray, action: ActionZS, state_nxt: np.ndarray
-  ) -> Dict:
+  def get_constraints(self, state: np.ndarray, action: ActionZS, state_nxt: np.ndarray) -> Dict:
     states_all, controls_all = self._reshape(state, action, state_nxt)
     closest_pt, slope, theta = self.track.get_closest_pts(states_all[:2, :])
     states_all = jnp.array(states_all)
@@ -149,21 +134,18 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
     theta = jnp.array(theta)
     dummy_time_indices = jnp.zeros((1, states_all.shape[1]), dtype=int)
     cons_dict: Dict = self.constraint.get_cost_dict(
-        states_all, controls_all, closest_pt, slope, theta,
-        time_indices=dummy_time_indices
+        states_all, controls_all, closest_pt, slope, theta, time_indices=dummy_time_indices
     )
     for k, v in cons_dict.items():
-      cons_dict[k] = np.asarray(v).reshape(-1, 2)
+      # * We add negative sign here as we want to use the convention that the controller maximizes the margin.
+      cons_dict[k] = -np.asarray(v).reshape(-1, 2)
     return cons_dict
 
-  def get_target_margin(
-      self, state: np.ndarray, action: ActionZS, state_nxt: np.ndarray
-  ) -> Optional[Dict]:
+  def get_target_margin(self, state: np.ndarray, action: ActionZS, state_nxt: np.ndarray) -> Optional[Dict]:
     return None
 
   def get_done_and_info(
-      self, state: np.ndarray, constraints: Dict,
-      targets: Optional[Dict] = None, final_only: bool = True,
+      self, state: np.ndarray, constraints: Dict, targets: Optional[Dict] = None, final_only: bool = True,
       end_criterion: Optional[str] = None
   ) -> Tuple[bool, Dict]:
     """
@@ -196,62 +178,56 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
         done_type = "leave_track"
 
     # Retrieves constraints / traget values.
-    constraint_values = None
-    for key, value in constraints.items():
-      if constraint_values is None:
+    for i, (key, value) in enumerate(constraints.items()):
+      if i == 0:
         num_pts = value.shape[1]
         constraint_values = value
       else:
-        assert num_pts == value.shape[1], (
-            "The length of constraint ({}) do not match".format(key)
-        )
+        assert num_pts == value.shape[1], ("The length of constraint ({}) do not match".format(key))
         constraint_values = np.concatenate((constraint_values, value), axis=0)
-    g_x_list = np.max(constraint_values, axis=0)
+    g_x_list = np.min(constraint_values, axis=0)
 
     if targets is not None:
       target_values = np.empty((0, constraint_values.shape[1]))
       for key, value in targets.items():
-        assert num_pts == value.shape[1], (
-            "The length of target ({}) do not match".format(key)
-        )
+        assert num_pts == value.shape[1], ("The length of target ({}) do not match".format(key))
         target_values = np.concatenate((target_values, value), axis=0)
-      l_x_list = np.max(target_values, axis=0)
+      l_x_list = np.min(target_values, axis=0)
     else:
-      l_x_list = np.full((num_pts,), fill_value=np.inf)
+      l_x_list = np.full((num_pts,), fill_value=-np.inf)
 
     # Gets info.
     if final_only:
       g_x = float(g_x_list[-1])
       l_x = float(l_x_list[-1])
-      binary_cost = 1. if g_x > self.failure_thr else 0.
+      binary_cost = 1. if g_x < self.failure_thr else 0.
     else:
       g_x = g_x_list
       l_x = l_x_list
-      binary_cost = 1. if np.any(g_x > self.failure_thr) else 0.
+      binary_cost = 1. if np.any(g_x < self.failure_thr) else 0.
 
     # Gets done flag
     if end_criterion == 'failure':
       if final_only:
-        failure = np.any(constraint_values[:, -1] > self.failure_thr)
+        failure = g_x < self.failure_thr
       else:
-        failure = np.any(constraint_values > self.failure_thr)
+        failure = np.any(constraint_values < self.failure_thr)
       if failure:
         done = True
         done_type = "failure"
         g_x = self.g_x_fail
     elif end_criterion == 'reach-avoid':
       if final_only:
-        failure = g_x > self.failure_thr
-        success = not failure and l_x <= 0.
+        failure = g_x < self.failure_thr
+        success = not failure and l_x >= 0.
       else:
         v_x_list = np.empty(shape=(num_pts,))
-        v_x_list[num_pts
-                 - 1] = max(l_x_list[num_pts - 1], g_x_list[num_pts - 1])
+        v_x_list[num_pts - 1] = min(l_x_list[num_pts - 1], g_x_list[num_pts - 1])
         for i in range(num_pts - 2, -1, -1):
-          v_x_list[i] = max(g_x_list[i], min(l_x_list[i], v_x_list[i + 1]))
-        inst = np.argmin(v_x_list)
-        failure = np.any(constraint_values[:, :inst + 1] > self.failure_thr)
-        success = not failure and (v_x_list[inst] <= 0)
+          v_x_list[i] = min(g_x_list[i], max(l_x_list[i], v_x_list[i + 1]))
+        inst = np.argmax(v_x_list)
+        failure = np.any(constraint_values[:, :inst + 1] < self.failure_thr)
+        success = v_x_list[0] >= 0
       if success:
         done = True
         done_type = "success"
@@ -265,12 +241,7 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
       raise ValueError("End criterion not supported!")
 
     # Gets info
-    info = {
-        "done_type": done_type,
-        "g_x": g_x,
-        "l_x": l_x,
-        "binary_cost": binary_cost
-    }
+    info = {"done_type": done_type, "g_x": g_x, "l_x": l_x, "binary_cost": binary_cost}
     if self.step_keep_constraints:
       info['constraints'] = constraints
     if self.step_keep_targets:
@@ -285,17 +256,13 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
     # frame and it needs to call track.local2global() to get the (x, y)
     # position in the global frame.
     reset_space = np.array(cfg_env.reset_space, dtype=np.float32)
-    self.reset_sample_sapce = spaces.Box(
-        low=reset_space[:, 0], high=reset_space[:, 1]
-    )
+    self.reset_sample_sapce = spaces.Box(low=reset_space[:, 0], high=reset_space[:, 1])
 
     # Observation space.
-    track_cat = np.concatenate(
-        (self.track.track_bound[:2, :], self.track.track_bound[2:, :]), axis=-1
-    )
+    track_cat = np.concatenate((self.track.track_bound[:2, :], self.track.track_bound[2:, :]), axis=-1)
     x_min, y_min = np.min(track_cat, axis=1)
     x_max, y_max = np.max(track_cat, axis=1)
-    if self.obs_type == "perfect":
+    if self.obsrv_type == "perfect":
       low = np.zeros((self.state_dim,))
       low[0] = x_min
       low[1] = y_min
@@ -308,7 +275,7 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
       high[2] = cfg_agent.v_max
       high[3] = np.pi
       high[4] = cfg_agent.delta_max
-    elif self.obs_type == "cos_sin":
+    elif self.obsrv_type == "cos_sin":
       low = np.zeros((self.state_dim + 1,))
       low[0] = x_min
       low[1] = y_min
@@ -325,19 +292,16 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
       high[5] = cfg_agent.delta_max
     else:
       raise ValueError("Observation type {} is not supported!")
-    self.observation_space = spaces.Box(
-        low=np.float32(low), high=np.float32(high)
-    )
-    self.obs_dim = self.observation_space.low.shape[0]
+    self.observation_space = spaces.Box(low=np.float32(low), high=np.float32(high))
+    self.obsrv_dim = self.observation_space.low.shape[0]
+    self.obsrv_span = self.observation_space.high - self.observation_space.low
 
   def seed(self, seed: int = 0):
     super().seed(seed)
     self.reset_sample_sapce.seed(seed)
 
-  def reset(
-      self, state: Optional[np.ndarray] = None, cast_torch: bool = False,
-      **kwargs
-  ) -> Union[np.ndarray, torch.FloatTensor]:
+  def reset(self, state: Optional[np.ndarray] = None, cast_torch: bool = False,
+            **kwargs) -> Union[np.ndarray, torch.FloatTensor]:
     """
     Resets the environment and returns the new state.
 
@@ -355,33 +319,27 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
       reset_flag = True
       while reset_flag:
         state = self.reset_sample_sapce.sample()
-        state[:2], slope = self.track.local2global(
-            state[:2], return_slope=True
-        )
+        state[:2], slope = self.track.local2global(state[:2], return_slope=True)
         if self.reset_rej_sampling:
           ctrl = jnp.zeros((2, 1))
-          closest_pt, slope, theta = self.track.get_closest_pts(
-              state[:2, np.newaxis]
-          )
+          closest_pt, slope, theta = self.track.get_closest_pts(state[:2, np.newaxis])
           state_jnp = jnp.array(state[:, np.newaxis])
           closest_pt = jnp.array(closest_pt)
           slope = jnp.array(slope)
           theta = jnp.array(theta)
           dummy_time_indices = jnp.zeros((1, state_jnp.shape[1]), dtype=int)
-          cons = self.constraint.get_cost(
-              state_jnp, ctrl, closest_pt, slope, theta,
-              time_indices=dummy_time_indices
-          )[0]
+          cons = self.constraint.get_cost(state_jnp, ctrl, closest_pt, slope, theta,
+                                          time_indices=dummy_time_indices)[0]
           reset_flag = cons > self.reset_thr
         else:
           reset_flag = False
       state[3] = np.mod(slope + state[3] + np.pi, 2 * np.pi) - np.pi
     self.state = state.copy()
 
-    obs = self.get_obs(state)
+    obsrv = self.get_obs(state)
     if cast_torch:
-      obs = torch.FloatTensor(obs)
-    return obs
+      obsrv = torch.FloatTensor(obsrv)
+    return obsrv
 
   def get_obs(self, state: np.ndarray) -> np.ndarray:
     """Gets the observation given the state.
@@ -394,29 +352,27 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
             sin theta to represent yaw.
     """
     assert state.shape[0] == self.state_dim, ("State shape is incorrect!")
-    if self.obs_type == 'perfect':
-      obs = state.copy()
-      obs = ((obs - self.observation_space.low) /
-             (self.observation_space.high - self.observation_space.low) * 2
-             - 1)
+    if self.obsrv_type == 'perfect':
+      obsrv = state.copy()
+      obsrv = ((obsrv - self.observation_space.low) / self.obsrv_span * 2 - 1)
     else:
       low = self.observation_space.low[[0, 1, 2, 5]]
       high = self.observation_space.high[[0, 1, 2, 5]]
       if state.ndim == 1:
         _state = ((state[[0, 1, 2, 4]].copy() - low) / (high-low) * 2 - 1)
-        obs = np.zeros(self.state_dim + 1)
-        obs[3] = np.cos(state[3].copy())
-        obs[4] = np.sin(state[3].copy())
-        obs[:3] = _state[:3]
-        obs[5] = _state[3]
+        obsrv = np.zeros(self.state_dim + 1)
+        obsrv[3] = np.cos(state[3].copy())
+        obsrv[4] = np.sin(state[3].copy())
+        obsrv[:3] = _state[:3]
+        obsrv[5] = _state[3]
       else:
         _state = ((state[[0, 1, 2, 4], :].copy() - low) / (high-low) * 2 - 1)
-        obs = np.zeros((self.state_dim + 1, state.shape[1]))
-        obs[3, :] = np.cos(state[3, :].copy())
-        obs[4, :] = np.sin(state[3, :].copy())
-        obs[:3, :] = _state[:3, :]
-        obs[5, :] = _state[3, :]
-    return obs
+        obsrv = np.zeros((self.state_dim + 1, state.shape[1]))
+        obsrv[3, :] = np.cos(state[3, :].copy())
+        obsrv[4, :] = np.sin(state[3, :].copy())
+        obsrv[:3, :] = _state[:3, :]
+        obsrv[5, :] = _state[3, :]
+    return obsrv
 
   def get_samples(self, nx: int, ny: int) -> Tuple[np.ndarray, np.ndarray]:
     """Gets state samples for value function plotting.
@@ -436,11 +392,6 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
   # endregion
 
   # region: utils
-  def get_agent_action(self, obs, init_control, state, **kwargs):
-    return self.agent.get_action(
-        obs=obs, controls=init_control, state=state, **kwargs
-    )
-
   def update_obstacle(self, obs_spec: np.ndarray):  # TODO
     pass
 
@@ -466,15 +417,14 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
     theta = jnp.array(theta)
     dummy_time_indices = jnp.zeros((1, states.shape[1]), dtype=int)
     road_cons = self.constraint.road_constraint.get_cost(
-        states, ctrls, closest_pt, slope, theta,
-        time_indices=dummy_time_indices
+        states, ctrls, closest_pt, slope, theta, time_indices=dummy_time_indices
     )
     flags = road_cons <= thr
     return flags.reshape(-1)
 
   def render(
-      self, ax: Optional[matplotlib.axes.Axes] = None, c_track: str = 'k',
-      c_obs: str = 'r', c_ego: str = 'b', s: float = 12
+      self, ax: Optional[matplotlib.axes.Axes] = None, c_track: str = 'k', c_obs: str = 'r', c_ego: str = 'b',
+      s: float = 12
   ):
     """Visualizes the current environment.
 
@@ -496,8 +446,8 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
     ax.set_aspect('equal')
 
   def render_footprint(
-      self, ax, state: np.ndarray, c: str = 'b', s: float = 12,
-      lw: float = 1.5, alpha: float = 1., plot_center: bool = True
+      self, ax, state: np.ndarray, c: str = 'b', s: float = 12, lw: float = 1.5, alpha: float = 1.,
+      plot_center: bool = True
   ):
     if plot_center:
       ax.scatter(state[0], state[1], c=c, s=s)
@@ -513,9 +463,8 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
           ax.plot(vertices[i:i + 2, 0], vertices[i:i + 2, 1], c=c, zorder=0)
 
   def get_state_cost_map(
-      self, nx: int, ny: int, vel: float, yaw: float, delta: float,
-      cost_type: str = 'cost', xmin: Optional[float] = None,
-      xmax: Optional[float] = None, ymin: Optional[float] = None,
+      self, nx: int, ny: int, vel: float, yaw: float, delta: float, cost_type: str = 'cost',
+      xmin: Optional[float] = None, xmax: Optional[float] = None, ymin: Optional[float] = None,
       ymax: Optional[float] = None, time_idx: int = 0
   ) -> np.ndarray:
     if xmin is None:
@@ -531,16 +480,12 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
     offset_xs = np.linspace(xmin, xmax, nx)
     offset_ys = np.linspace(ymin, ymax, ny)
     offset_xv, offset_yv = np.meshgrid(offset_xs, offset_ys, indexing='ij')
-    offset = np.concatenate(
-        (offset_xv[..., np.newaxis], offset_yv[..., np.newaxis]), axis=-1
-    )
+    offset = np.concatenate((offset_xv[..., np.newaxis], offset_yv[..., np.newaxis]), axis=-1)
     state[:2, :] = np.array(offset.reshape(-1, 2)).T
     state[2, :] = vel
     state[3, :] = yaw
     state[4, :] = delta
-    closest_pt, slope, theta = self.track.get_closest_pts(
-        state[:2, :], normalize_progress=True
-    )
+    closest_pt, slope, theta = self.track.get_closest_pts(state[:2, :], normalize_progress=True)
     ctrl = np.zeros((2, nx * ny))
 
     state = jnp.array(state)
@@ -553,20 +498,14 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
     else:
       assert cost_type == "constraint"
       cost = self.constraint
-    dummy_time_indices = jnp.full((1, state.shape[1]), fill_value=time_idx,
-                                  dtype=int)
-    v = cost.get_cost(
-        state, ctrl, closest_pt, slope, theta, time_indices=dummy_time_indices
-    ).reshape(nx, ny)
+    dummy_time_indices = jnp.full((1, state.shape[1]), fill_value=time_idx, dtype=int)
+    v = cost.get_cost(state, ctrl, closest_pt, slope, theta, time_indices=dummy_time_indices).reshape(nx, ny)
     return v
 
   def render_state_cost_map(
-      self, ax, nx: int, ny: int, vel: float, yaw: float, delta: float,
-      vmin: float = 0., vmax: float = 20., cmap: str = 'seismic',
-      alpha: float = 0.5, cost_type: str = 'cost',
-      xmin: Optional[float] = None, xmax: Optional[float] = None,
-      ymin: Optional[float] = None, ymax: Optional[float] = None,
-      time_idx: int = 0
+      self, ax, nx: int, ny: int, vel: float, yaw: float, delta: float, vmin: float = 0., vmax: float = 20.,
+      cmap: str = 'seismic', alpha: float = 0.5, cost_type: str = 'cost', xmin: Optional[float] = None,
+      xmax: Optional[float] = None, ymin: Optional[float] = None, ymax: Optional[float] = None, time_idx: int = 0
   ) -> np.ndarray:
     if xmin is None:
       xmin = self.visual_bounds[0, 0]
@@ -577,18 +516,16 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
     if ymax is None:
       ymax = self.visual_bounds[1, 1]
     v = self.get_state_cost_map(
-        nx=nx, ny=ny, vel=vel, yaw=yaw, delta=delta, cost_type=cost_type,
-        xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax, time_idx=time_idx
+        nx=nx, ny=ny, vel=vel, yaw=yaw, delta=delta, cost_type=cost_type, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax,
+        time_idx=time_idx
     )
     ax.imshow(
-        v.T, interpolation='none', extent=[xmin, xmax, ymin, ymax],
-        origin="lower", cmap=cmap, vmin=vmin, vmax=vmax, zorder=-1, alpha=alpha
+        v.T, interpolation='none', extent=[xmin, xmax, ymin, ymax], origin="lower", cmap=cmap, vmin=vmin, vmax=vmax,
+        zorder=-1, alpha=alpha
     )
     return v
 
-  def _reshape(
-      self, state: np.ndarray, action: ActionZS, state_nxt: np.ndarray
-  ) -> Tuple[np.ndarray, np.ndarray]:
+  def _reshape(self, state: np.ndarray, action: ActionZS, state_nxt: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """
     Concatenates states with state_nxt and appends dummy control after action.
 
@@ -616,8 +553,7 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
     assert state_nxt.shape[1] == 1, "state_nxt should consist only 1 state!"
 
     states_with_final = np.concatenate((state, state_nxt), axis=1)
-    controls_with_final = np.concatenate((ctrl, np.zeros((ctrl.shape[0], 1))),
-                                         axis=1)
+    controls_with_final = np.concatenate((ctrl, np.zeros((ctrl.shape[0], 1))), axis=1)
     return states_with_final, controls_with_final
 
   def report(self):
@@ -627,9 +563,7 @@ class RaceCarDstb5DEnv(BaseZeroSumEnv):
     else:
       print("road from file, box footprint, box obstacles!")
 
-  def get_constraints_all(
-      self, states: np.ndarray, controls: np.ndarray, time_indices: np.ndarray
-  ) -> Dict:
+  def get_constraints_all(self, states: np.ndarray, controls: np.ndarray, time_indices: np.ndarray) -> Dict:
     closest_pt, slope, theta = self.track.get_closest_pts(states[:2, :])
     states = jnp.array(states)
     controls = jnp.array(controls)

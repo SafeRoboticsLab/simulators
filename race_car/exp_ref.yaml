@@ -10,7 +10,7 @@ environment:
   # DONE FLAG PARAM
   end_criterion: failure
   g_x_fail: 0.25
-  obs_type: perfect
+  obsrv_type: perfect
   obs_spec:
     - [2, -0.4, 0., 0.25, 0.1]
     - [5, 0.4, 0., 0.25, 0.1]

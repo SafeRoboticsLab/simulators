@@ -33,6 +33,8 @@ class LinearPolicy(BasePolicy):
 
   def get_action(self, obsrv: np.ndarray, agents_action: Optional[Dict[str, np.ndarray]] = None,
                  **kwargs) -> Tuple[np.ndarray, dict]:
+    # TODO: Supports batch obsrv.
+
     """Gets the action to execute.
 
     Args:
